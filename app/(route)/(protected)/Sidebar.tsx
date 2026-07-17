@@ -23,6 +23,7 @@ import {
   Settings,
   ShieldQuestion,
   UserCog,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -90,10 +91,27 @@ const menuItems = [
     ],
   },
   {
-    name: "Accounts",
-    href: "/accounts",
+    name: "Customer Management",
     icon: CreditCard,
-    permission: "view_customers",
+    children: [
+      {
+        name: "Customer",
+        href: "/customer-management/customer",
+        icon: UserRound,
+        permission: "view_customers",
+      },
+      {
+        name: "Account",
+        href: "/customer-management/account",
+        icon: CreditCard,
+      },
+      {
+        name: "Account Product",
+        href: "/customer-management/account-product",
+        icon: Box,
+        permission: "view_account_products",
+      },
+    ],
   },
   {
     name: "Transactions",
