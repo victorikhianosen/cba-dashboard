@@ -67,7 +67,7 @@ const menuItems = [
     permission: "view_account_officers",
   },
   {
-    name: "User Management",
+    name: "User Mgt",
     icon: Users,
     children: [
       {
@@ -91,7 +91,7 @@ const menuItems = [
     ],
   },
   {
-    name: "Customer Management",
+    name: "Customer Mgt",
     icon: CreditCard,
     children: [
       {

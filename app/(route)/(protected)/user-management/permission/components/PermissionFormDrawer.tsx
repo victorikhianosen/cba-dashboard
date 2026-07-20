@@ -18,6 +18,24 @@ const emptyPermissionForm: PermissionFormData = {
   name: "",
 };
 
+// Turns "delete_banks" into "Delete Banks" for display.
+function formatLabel(name: string) {
+  return (name ?? "")
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+// Turns "Delete Banks" back into "delete_banks" for the backend.
+function toPermissionKey(label: string) {
+  return (label ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 export default function PermissionFormDrawer({
   isOpen,
   onClose,
@@ -31,7 +49,7 @@ export default function PermissionFormDrawer({
     if (isOpen) {
       if (selectedPermission) {
         setFormData({
-          name: selectedPermission.name ?? "",
+          name: formatLabel(selectedPermission.name ?? ""),
         });
       } else {
         setFormData({ ...emptyPermissionForm });
@@ -49,7 +67,10 @@ export default function PermissionFormDrawer({
 
   function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      name: toPermissionKey(formData.name),
+    });
   }
 
   return (
@@ -98,7 +119,7 @@ export default function PermissionFormDrawer({
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                placeholder="e.g. update_user"
+                placeholder="e.g. Update User"
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
               />
             </label>

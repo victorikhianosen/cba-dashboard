@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
+  ArrowLeft,
   CheckCircle2,
-  ChevronLeft,
   ChevronRight,
   CircleOff,
   Edit3,
   KeyRound,
+  Layers,
   MoreHorizontal,
   Plus,
   Search,
@@ -16,6 +17,7 @@ import {
 import { toast } from "react-toastify";
 import {
   createPermissionAction,
+  getAllPermissionsAction,
   getPermissionsAction,
   updatePermissionAction,
 } from "@/actions/permission.action";
@@ -26,9 +28,60 @@ type Permission = Record<string, any>;
 type PermissionFormData = Record<string, any>;
 type PermissionMeta = Record<string, any> | null;
 
+interface PermissionGroup {
+  key: string;
+  label: string;
+  permissions: Permission[];
+}
+
 interface PermissionManagementProps {
   initialPermissions?: Permission[];
   initialMeta?: PermissionMeta;
+}
+
+// Leading action word is stripped off a permission name so the remainder
+// can be used as the resource it acts on, e.g. "delete_banks" -> "banks".
+const ACTION_WORDS = ["view", "create", "update", "delete", "approve", "assign", "manage"];
+
+// Turns "update_user" into "Update User" for display.
+function formatPermissionName(name: string) {
+  return (name ?? "")
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function groupPermissions(permissions: Permission[]): PermissionGroup[] {
+  const groups = new Map<string, Permission[]>();
+
+  for (const permission of permissions) {
+    const name: string = permission.name ?? "";
+    const parts = name.split("_");
+    const key =
+      ACTION_WORDS.includes(parts[0]) && parts.length > 1
+        ? parts.slice(1).join("_")
+        : "general";
+
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(permission);
+  }
+
+  return Array.from(groups.entries())
+    .map(([key, groupPermissions]) => ({
+      key,
+      label: key === "general" ? "General" : formatPermissionName(key),
+      permissions: groupPermissions.sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? "")
+      ),
+    }))
+    .sort((a, b) => {
+      if (a.key === "general") return 1;
+      if (b.key === "general") return -1;
+      return a.label.localeCompare(b.label);
+    });
 }
 
 export default function PermissionManagement({
@@ -36,16 +89,13 @@ export default function PermissionManagement({
   initialMeta = null,
 }: PermissionManagementProps) {
   const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
-  const [meta, setMeta] = useState<PermissionMeta>(initialMeta);
-  // Holds the summary from the last *unfiltered* fetch, since the backend
-  // scopes `meta.summary.total_permissions` to the current search term but
-  // the cards should always reflect the whole dataset, not the search result.
   const [globalSummary, setGlobalSummary] = useState<Record<string, any> | null>(
     initialMeta?.summary ?? null
   );
-  const [pageLoading, setPageLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [search, setSearch] = useState("");
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null);
@@ -57,60 +107,75 @@ export default function PermissionManagement({
   const assignedPermissions = globalSummary?.total_assigned ?? 0;
   const unassignedPermissions = globalSummary?.total_unassigned ?? 0;
 
-  const currentPage = meta?.current_page ?? 1;
-  const lastPage = meta?.last_page ?? 1;
+  const groups = useMemo(() => groupPermissions(permissions), [permissions]);
+  const selectedGroup = useMemo(
+    () => groups.find((group) => group.key === selectedGroupKey) ?? null,
+    [groups, selectedGroupKey]
+  );
 
-  // Skips the debounce effect on mount, since permissions are already
-  // server-fetched for page 1 before this component renders.
-  const isFirstRender = useRef(true);
+  const keyword = search.trim().toLowerCase();
 
-  async function fetchPage(page: number, searchTerm: string = search) {
-    setPageLoading(true);
+  // Overview: a group surfaces if its own label matches, or any permission
+  // inside it does, so searching "delete" can jump straight to "Banks".
+  const filteredGroups = useMemo(() => {
+    if (!keyword) return groups;
+
+    return groups.filter(
+      (group) =>
+        group.label.toLowerCase().includes(keyword) ||
+        group.permissions.some((permission) =>
+          formatPermissionName(permission.name).toLowerCase().includes(keyword)
+        )
+    );
+  }, [groups, keyword]);
+
+  // Detail: filters permissions within the currently opened group.
+  const filteredGroupPermissions = useMemo(() => {
+    if (!selectedGroup) return [];
+    if (!keyword) return selectedGroup.permissions;
+
+    return selectedGroup.permissions.filter((permission) =>
+      formatPermissionName(permission.name).toLowerCase().includes(keyword)
+    );
+  }, [selectedGroup, keyword]);
+
+  async function refreshPermissions() {
+    setLoading(true);
     try {
-      const result: any = await getPermissionsAction(page, searchTerm);
+      const [allResult, summaryResult]: any[] = await Promise.all([
+        getAllPermissionsAction(),
+        getPermissionsAction(1),
+      ]);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load permissions.");
+      if (allResult?.status !== "success") {
+        handleApiError(allResult, "Failed to load permissions.");
         return;
       }
 
-      setPermissions(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
+      setPermissions(Array.isArray(allResult.data) ? allResult.data : []);
 
-      if (!searchTerm.trim() && result.meta?.summary) {
-        setGlobalSummary(result.meta.summary);
+      if (summaryResult?.status === "success" && summaryResult.meta?.summary) {
+        setGlobalSummary(summaryResult.meta.summary);
       }
     } catch (error) {
       console.error("Failed to load permissions:", error);
       toast.error("A network error occurred. Please try again.");
     } finally {
-      setPageLoading(false);
+      setLoading(false);
     }
   }
 
-  async function goToPage(page: number) {
-    if (page < 1 || page > lastPage || page === currentPage || pageLoading) {
-      return;
-    }
-
-    await fetchPage(page);
+  function openGroup(key: string) {
+    setSelectedGroupKey(key);
+    setSearch("");
+    setActionMenuId(null);
   }
 
-  // Debounced server-side search: wait 3 seconds after the user stops
-  // typing, then re-fetch page 1 from the backend with the search term.
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      fetchPage(1, search);
-    }, 3000);
-
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  function backToGroups() {
+    setSelectedGroupKey(null);
+    setSearch("");
+    setActionMenuId(null);
+  }
 
   function openCreateDrawer() {
     setSelectedPermission(null);
@@ -143,7 +208,7 @@ export default function PermissionManagement({
           return;
         }
 
-        await fetchPage(currentPage);
+        await refreshPermissions();
 
         toast.success(result.message || "Permission updated successfully.");
       } else {
@@ -156,7 +221,7 @@ export default function PermissionManagement({
           return;
         }
 
-        await fetchPage(1);
+        await refreshPermissions();
 
         toast.success(result.message || "Permission created successfully.");
       }
@@ -231,129 +296,29 @@ export default function PermissionManagement({
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by permission name..."
+            placeholder={
+              selectedGroup
+                ? `Search within ${selectedGroup.label}...`
+                : "Search permissions or categories..."
+            }
             className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder-slate-500 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
           />
         </div>
       </section>
 
-      {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px]">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <Heading>Permission</Heading>
-                <Heading>Created</Heading>
-                <Heading>Actions</Heading>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {permissions.map((permission) => (
-                <tr
-                  key={permission.id}
-                  className="hover:bg-slate-50/80 transition-colors"
-                >
-                  <td className="px-5 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
-                        <KeyRound size={21} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm text-slate-900">{formatPermissionName(permission.name)}</p>
-                        <p className="text-xs font-semibold text-slate-500 mt-0.5">ID: {permission.id}</p>
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="px-5 text-sm font-medium text-slate-800">
-                    {permission.created_at
-                      ? new Date(permission.created_at).toLocaleDateString()
-                      : "—"}
-                  </td>
-
-                  <td className="relative px-5">
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
-                        setActionMenuId(
-                          actionMenuId === permission.id ? null : permission.id
-                        )
-                      }
-                    >
-                      <MoreHorizontal size={18} />
-                    </button>
-
-                    {actionMenuId === permission.id && (
-                      <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton onClick={() => openUpdateDrawer(permission)}>
-                          <Edit3 size={16} />
-                          Edit Permission
-                        </ActionButton>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* PAGINATION */}
-        <div className="flex flex-col gap-3 border-t border-slate-200 p-5 bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-medium text-slate-600">
-            {meta
-              ? `Showing ${meta.from ?? 0}-${meta.to ?? 0} of ${meta.total ?? totalPermissions} permissions`
-              : `Showing ${permissions.length} permissions`}
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={pageLoading || currentPage <= 1}
-              className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
-            >
-              <ChevronLeft size={17} />
-            </button>
-
-            {getPageNumbers(currentPage, lastPage).map((page, index) =>
-              page === "..." ? (
-                <span
-                  key={`ellipsis-${index}`}
-                  className="px-2 text-sm font-semibold text-slate-400 select-none"
-                >
-                  …
-                </span>
-              ) : (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => goToPage(page)}
-                  disabled={pageLoading}
-                  className={`min-w-[38px] rounded-lg px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${
-                    page === currentPage
-                      ? "bg-[#173673] text-white shadow-sm"
-                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {page}
-                </button>
-              )
-            )}
-
-            <button
-              type="button"
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={pageLoading || currentPage >= lastPage}
-              className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
-            >
-              <ChevronRight size={17} />
-            </button>
-          </div>
-        </div>
-      </section>
+      {selectedGroup ? (
+        <PermissionGroupDetail
+          group={selectedGroup}
+          permissions={filteredGroupPermissions}
+          loading={loading}
+          onBack={backToGroups}
+          onEdit={openUpdateDrawer}
+          actionMenuId={actionMenuId}
+          setActionMenuId={setActionMenuId}
+        />
+      ) : (
+        <PermissionGroupOverview groups={filteredGroups} onOpenGroup={openGroup} />
+      )}
 
       {/* SHIELDED DRAWER */}
       <PermissionFormDrawer
@@ -367,13 +332,164 @@ export default function PermissionManagement({
   );
 }
 
-// Turns "update_user" into "Update User" for display.
-function formatPermissionName(name: string) {
-  return name
-    .split("_")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+/* Overview: click a category card to drill into its permissions */
+function PermissionGroupOverview({
+  groups,
+  onOpenGroup,
+}: {
+  groups: PermissionGroup[];
+  onOpenGroup: (key: string) => void;
+}) {
+  if (groups.length === 0) {
+    return (
+      <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-sm font-medium text-slate-500">
+        No permissions match your search.
+      </div>
+    );
+  }
+
+  return (
+    <section className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {groups.map((group) => (
+        <button
+          key={group.key}
+          type="button"
+          onClick={() => onOpenGroup(group.key)}
+          className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-[#29478f] hover:shadow-md"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
+              <Layers size={20} />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-slate-900">{group.label}</p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                {group.permissions.length} permission
+                {group.permissions.length === 1 ? "" : "s"}
+              </p>
+            </div>
+          </div>
+
+          <ChevronRight
+            size={18}
+            className="shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#29478f]"
+          />
+        </button>
+      ))}
+    </section>
+  );
+}
+
+/* Detail: permissions inside the currently opened category */
+function PermissionGroupDetail({
+  group,
+  permissions,
+  loading,
+  onBack,
+  onEdit,
+  actionMenuId,
+  setActionMenuId,
+}: {
+  group: PermissionGroup;
+  permissions: Permission[];
+  loading: boolean;
+  onBack: () => void;
+  onEdit: (permission: Permission) => void;
+  actionMenuId: any;
+  setActionMenuId: (id: any) => void;
+}) {
+  return (
+    <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+        <div className="h-5 w-px bg-slate-300" />
+        <p className="font-bold text-sm text-slate-900">{group.label}</p>
+        <span className="text-xs font-semibold text-slate-500">
+          {permissions.length} of {group.permissions.length} permission
+          {group.permissions.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-125">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <Heading>Permission</Heading>
+              <Heading>Created</Heading>
+              <Heading>Actions</Heading>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-slate-100">
+            {permissions.map((permission) => (
+              <tr
+                key={permission.id}
+                className="hover:bg-slate-50/80 transition-colors"
+              >
+                <td className="px-5 py-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
+                      <KeyRound size={21} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900">
+                        {formatPermissionName(permission.name)}
+                      </p>
+                      <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                        ID: {permission.id}
+                      </p>
+                    </div>
+                  </div>
+                </td>
+
+                <td className="px-5 text-sm font-medium text-slate-800">
+                  {permission.created_at
+                    ? new Date(permission.created_at).toLocaleDateString()
+                    : "—"}
+                </td>
+
+                <td className="relative px-5">
+                  <button
+                    type="button"
+                    className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+                    onClick={() =>
+                      setActionMenuId(
+                        actionMenuId === permission.id ? null : permission.id
+                      )
+                    }
+                  >
+                    <MoreHorizontal size={18} />
+                  </button>
+
+                  {actionMenuId === permission.id && (
+                    <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                      <ActionButton onClick={() => onEdit(permission)}>
+                        <Edit3 size={16} />
+                        Edit Permission
+                      </ActionButton>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {!loading && permissions.length === 0 && (
+          <div className="py-16 text-center text-sm font-medium text-slate-500">
+            No permissions match your search.
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 /* Helper Components with Higher Text Visibility */
@@ -408,29 +524,4 @@ function ActionButton(props: Record<string, any>) {
       {props.children}
     </button>
   );
-}
-
-// Builds a compact page list: first, last, and a window around the current
-// page, e.g. 1 ... 4 5 6 ... 20. Falls back to showing every page when few.
-function getPageNumbers(current: number, last: number): (number | "...")[] {
-  if (last <= 5) {
-    return Array.from({ length: last }, (_, index) => index + 1);
-  }
-
-  const pages = new Set<number>([1, last, current]);
-
-  if (current > 1) pages.add(current - 1);
-  if (current < last) pages.add(current + 1);
-
-  const sorted = Array.from(pages).sort((a, b) => a - b);
-
-  const result: (number | "...")[] = [];
-  sorted.forEach((page, index) => {
-    if (index > 0 && page - sorted[index - 1] > 1) {
-      result.push("...");
-    }
-    result.push(page);
-  });
-
-  return result;
 }
