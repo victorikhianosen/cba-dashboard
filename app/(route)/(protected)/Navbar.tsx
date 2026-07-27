@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "react-toastify";
 
@@ -9,12 +9,13 @@ import {
   Bell,
   LogOut,
   Menu,
-  Search,
   Settings,
   UserRound,
 } from "lucide-react";
 import { logoutAction } from "@/actions/auth.action";
 import { usePermissions } from "@/lib/permissions";
+import { getPageTitle } from "@/lib/pageTitle";
+import { menuItems } from "./Sidebar";
 
 interface NavbarProps {
   onOpenSidebar: () => void;
@@ -33,9 +34,12 @@ export default function Navbar({
   onOpenSidebar,
 }: NavbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { currentUser, roles } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const pageTitle = getPageTitle(pathname, menuItems);
 
   const displayName = currentUser
     ? [currentUser.first_name, currentUser.last_name].filter(Boolean).join(" ") ||
@@ -73,19 +77,8 @@ export default function Navbar({
           <Menu size={21} />
         </button>
 
-        {/* GLOBAL SEARCH */}
-        <div className="relative hidden sm:block">
-          <Search
-            size={18}
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-
-          <input
-            type="search"
-            placeholder="Search customers, accounts..."
-            className="h-11 w-[300px] rounded-xl border border-slate-200 bg-[#f8fafc] pl-11 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#29478f] focus:ring-2 focus:ring-[#29478f]/10"
-          />
-        </div>
+        {/* CURRENT PAGE TITLE */}
+        <h1 className="truncate text-lg font-bold text-slate-900">{pageTitle}</h1>
       </div>
 
       {/* RIGHT SECTION */}

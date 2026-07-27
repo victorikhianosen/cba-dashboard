@@ -9,7 +9,6 @@ import {
   CircleOff,
   Edit3,
   Landmark,
-  MoreHorizontal,
   Plus,
   Search,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import {
   updateGeneralLedgerAction,
   updateGeneralLedgerStatusAction,
 } from "@/actions/general-ledger.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import GeneralLedgerFormDrawer from "./GeneralLedgerFormDrawer";
 
@@ -261,7 +261,7 @@ export default function GeneralLedgerManagement({
       </section>
 
       {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px]">
             <thead>
@@ -318,32 +318,26 @@ export default function GeneralLedgerManagement({
                     <StatusBadge status={ledger.status} />
                   </td>
 
-                  <td className="relative px-5">
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
+                  <td className="px-5">
+                    <ActionMenu
+                      isOpen={actionMenuId === ledger.id}
+                      onToggle={() =>
                         setActionMenuId(
                           actionMenuId === ledger.id ? null : ledger.id
                         )
                       }
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <MoreHorizontal size={18} />
-                    </button>
+                      <ActionButton onClick={() => openUpdateDrawer(ledger)}>
+                        <Edit3 size={16} />
+                        Edit Account
+                      </ActionButton>
 
-                    {actionMenuId === ledger.id && (
-                      <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton onClick={() => openUpdateDrawer(ledger)}>
-                          <Edit3 size={16} />
-                          Edit Account
-                        </ActionButton>
-
-                        <ActionButton onClick={() => handleStatusChange(ledger)}>
-                          <CircleOff size={16} />
-                          {ledger.status === "active" ? "Deactivate" : "Activate"}
-                        </ActionButton>
-                      </div>
-                    )}
+                      <ActionButton onClick={() => handleStatusChange(ledger)}>
+                        <CircleOff size={16} />
+                        {ledger.status === "active" ? "Deactivate" : "Activate"}
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}

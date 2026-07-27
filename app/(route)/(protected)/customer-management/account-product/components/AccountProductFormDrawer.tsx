@@ -60,6 +60,9 @@ const emptyAccountProductForm: AccountProductFormData = {
 
 const PERIOD_OPTIONS = ["daily", "weekly", "monthly", "quarterly", "semi_annually", "annually"];
 
+// Max day for each month (non-leap year, so Feb caps at 28).
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
 // GL select fields that must all be denominated in the product's currency.
 const GL_FIELDS: { key: string; label: string }[] = [
   { key: "savingsControlGLId", label: "Savings Control GL" },
@@ -131,8 +134,34 @@ export default function AccountProductFormDrawer({
       return;
     }
 
+    if (name === "annual_fee_on_month") {
+      const clamped = value === "" ? "" : String(Math.min(12, Math.max(1, Number(value))));
+      const maxDay = DAYS_IN_MONTH[Number(clamped) - 1];
+
+      setFormData((current) => ({
+        ...current,
+        annual_fee_on_month: clamped,
+        annual_fee_on_day:
+          maxDay && Number(current.annual_fee_on_day) > maxDay
+            ? String(maxDay)
+            : current.annual_fee_on_day,
+      }));
+      return;
+    }
+
+    if (name === "annual_fee_on_day") {
+      const maxDay = DAYS_IN_MONTH[Number(formData.annual_fee_on_month) - 1] ?? 31;
+      const clamped = value === "" ? "" : String(Math.min(maxDay, Math.max(1, Number(value))));
+
+      setFormData((current) => ({ ...current, annual_fee_on_day: clamped }));
+      return;
+    }
+
     setFormData((current) => ({ ...current, [name]: value }));
   }
+
+  const maxDayForSelectedMonth =
+    DAYS_IN_MONTH[Number(formData.annual_fee_on_month) - 1] ?? 31;
 
   const ledgersById = useMemo(
     () => new Map(generalLedgers.map((ledger) => [String(ledger.id), ledger])),
@@ -466,6 +495,8 @@ export default function AccountProductFormDrawer({
                   label="On Month"
                   name="annual_fee_on_month"
                   type="number"
+                  min={1}
+                  max={12}
                   value={formData.annual_fee_on_month}
                   onChange={handleInputChange}
                   placeholder="e.g. 12"
@@ -474,9 +505,11 @@ export default function AccountProductFormDrawer({
                   label="On Day"
                   name="annual_fee_on_day"
                   type="number"
+                  min={1}
+                  max={maxDayForSelectedMonth}
                   value={formData.annual_fee_on_day}
                   onChange={handleInputChange}
-                  placeholder="e.g. 31"
+                  placeholder={`e.g. ${maxDayForSelectedMonth}`}
                 />
               </div>
 

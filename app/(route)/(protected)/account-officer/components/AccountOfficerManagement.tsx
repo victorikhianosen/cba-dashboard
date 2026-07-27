@@ -8,7 +8,6 @@ import {
   Edit3,
   Mail,
   MapPin,
-  MoreHorizontal,
   Phone,
   Plus,
   Search,
@@ -22,6 +21,7 @@ import {
   getAccountOfficersAction,
   updateAccountOfficerAction,
 } from "@/actions/account-officer.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import AccountOfficerFormDrawer from "./AccountOfficerFormDrawer";
 
@@ -260,7 +260,7 @@ export default function AccountOfficerManagement({
       </section>
 
       {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1000px]">
             <thead>
@@ -324,41 +324,35 @@ export default function AccountOfficerManagement({
                     <StatusBadge status={officer.status} />
                   </td>
 
-                  <td className="relative px-5">
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
+                  <td className="px-5">
+                    <ActionMenu
+                      isOpen={actionMenuId === officer.id}
+                      onToggle={() =>
                         setActionMenuId(
                           actionMenuId === officer.id ? null : officer.id
                         )
                       }
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <MoreHorizontal size={18} />
-                    </button>
+                      <ActionButton onClick={() => openUpdateDrawer(officer)}>
+                        <Edit3 size={16} />
+                        Edit Officer
+                      </ActionButton>
 
-                    {actionMenuId === officer.id && (
-                      <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton onClick={() => openUpdateDrawer(officer)}>
-                          <Edit3 size={16} />
-                          Edit Officer
-                        </ActionButton>
+                      <div className="my-1 border-t border-slate-100" />
 
-                        <div className="my-1 border-t border-slate-100" />
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOfficerToDelete(officer);
-                            setActionMenuId(null);
-                          }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
-                        >
-                          <Trash2 size={16} />
-                          Delete Officer
-                        </button>
-                      </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOfficerToDelete(officer);
+                          setActionMenuId(null);
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
+                      >
+                        <Trash2 size={16} />
+                        Delete Officer
+                      </button>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}

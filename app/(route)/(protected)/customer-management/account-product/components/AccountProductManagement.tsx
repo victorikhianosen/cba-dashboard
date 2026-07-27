@@ -9,7 +9,6 @@ import {
   CircleOff,
   Clock3,
   Edit3,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
@@ -22,6 +21,7 @@ import {
   updateAccountProductAction,
   updateAccountProductStatusAction,
 } from "@/actions/account-product.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel, toSnakeCase } from "@/lib/format";
 import AccountProductFormDrawer from "./AccountProductFormDrawer";
@@ -352,7 +352,7 @@ export default function AccountProductManagement({
       </section>
 
       {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-125">
             <thead>
@@ -402,32 +402,26 @@ export default function AccountProductManagement({
                     <StatusBadge status={product.status} />
                   </td>
 
-                  <td className="relative px-5">
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
+                  <td className="px-5">
+                    <ActionMenu
+                      isOpen={actionMenuId === product.id}
+                      onToggle={() =>
                         setActionMenuId(
                           actionMenuId === product.id ? null : product.id
                         )
                       }
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <MoreHorizontal size={18} />
-                    </button>
+                      <ActionButton onClick={() => openUpdateDrawer(product)}>
+                        <Edit3 size={16} />
+                        Edit Product
+                      </ActionButton>
 
-                    {actionMenuId === product.id && (
-                      <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton onClick={() => openUpdateDrawer(product)}>
-                          <Edit3 size={16} />
-                          Edit Product
-                        </ActionButton>
-
-                        <ActionButton onClick={() => handleStatusChange(product)}>
-                          <CircleOff size={16} />
-                          {statusActionLabel(product)}
-                        </ActionButton>
-                      </div>
-                    )}
+                      <ActionButton onClick={() => handleStatusChange(product)}>
+                        <CircleOff size={16} />
+                        {statusActionLabel(product)}
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}

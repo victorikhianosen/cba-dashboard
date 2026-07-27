@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Edit3,
   Eye,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldQuestion,
@@ -21,6 +20,7 @@ import {
   getRolesAction,
   updateRoleAction,
 } from "@/actions/role.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import RoleFormDrawer from "./RoleFormDrawer";
 
@@ -263,7 +263,7 @@ export default function RoleManagement({
       </section>
 
       {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead>
@@ -309,47 +309,39 @@ export default function RoleManagement({
                       : "—"}
                   </td>
 
-                  <td
-                    className="relative px-5"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
+                  <td className="px-5" onClick={(event) => event.stopPropagation()}>
+                    <ActionMenu
+                      isOpen={actionMenuId === role.id}
+                      onToggle={() =>
                         setActionMenuId(actionMenuId === role.id ? null : role.id)
                       }
+                      onClose={() => setActionMenuId(null)}
+                      widthClassName="w-56"
                     >
-                      <MoreHorizontal size={18} />
-                    </button>
+                      <ActionButton onClick={() => viewRole(role)}>
+                        <Eye size={16} />
+                        View &amp; Assign Permissions
+                      </ActionButton>
 
-                    {actionMenuId === role.id && (
-                      <div className="absolute right-10 top-10 z-20 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton onClick={() => viewRole(role)}>
-                          <Eye size={16} />
-                          View &amp; Assign Permissions
-                        </ActionButton>
+                      <ActionButton onClick={() => openUpdateDrawer(role)}>
+                        <Edit3 size={16} />
+                        Edit Role
+                      </ActionButton>
 
-                        <ActionButton onClick={() => openUpdateDrawer(role)}>
-                          <Edit3 size={16} />
-                          Edit Role
-                        </ActionButton>
+                      <div className="my-1 border-t border-slate-100" />
 
-                        <div className="my-1 border-t border-slate-100" />
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRoleToDelete(role);
-                            setActionMenuId(null);
-                          }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
-                        >
-                          <Trash2 size={16} />
-                          Delete Role
-                        </button>
-                      </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRoleToDelete(role);
+                          setActionMenuId(null);
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
+                      >
+                        <Trash2 size={16} />
+                        Delete Role
+                      </button>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}

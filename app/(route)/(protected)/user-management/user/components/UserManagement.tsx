@@ -10,7 +10,6 @@ import {
   Clock3,
   Edit3,
   Mail,
-  MoreHorizontal,
   Phone,
   Plus,
   Search,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getUsersAction, updateUserStatusAction } from "@/actions/user.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 
 type User = Record<string, any>;
@@ -251,7 +251,7 @@ export default function UserManagement({
       </section>
 
       {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px]">
             <thead>
@@ -314,53 +314,44 @@ export default function UserManagement({
                     <StatusBadge status={user.status} />
                   </td>
 
-                  <td
-                    className="relative px-5"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
+                  <td className="px-5" onClick={(event) => event.stopPropagation()}>
+                    <ActionMenu
+                      isOpen={actionMenuId === user.id}
+                      onToggle={() =>
                         setActionMenuId(
                           actionMenuId === user.id ? null : user.id
                         )
                       }
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <MoreHorizontal size={18} />
-                    </button>
+                      <ActionButton
+                        onClick={() =>
+                          router.push(`/user-management/user/${user.id}`)
+                        }
+                      >
+                        <Edit3 size={16} />
+                        Edit User
+                      </ActionButton>
 
-                    {actionMenuId === user.id && (
-                      <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton
-                          onClick={() =>
-                            router.push(`/user-management/user/${user.id}`)
-                          }
-                        >
-                          <Edit3 size={16} />
-                          Edit User
-                        </ActionButton>
+                      <ActionButton onClick={() => handleStatusChange(user)}>
+                        <CircleOff size={16} />
+                        {user.status === "active" ? "Deactivate" : "Activate"}
+                      </ActionButton>
 
-                        <ActionButton onClick={() => handleStatusChange(user)}>
-                          <CircleOff size={16} />
-                          {user.status === "active" ? "Deactivate" : "Activate"}
-                        </ActionButton>
+                      <div className="my-1 border-t border-slate-100" />
 
-                        <div className="my-1 border-t border-slate-100" />
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUserToDelete(user);
-                            setActionMenuId(null);
-                          }}
-                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
-                        >
-                          <Trash2 size={16} />
-                          Delete User
-                        </button>
-                      </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserToDelete(user);
+                          setActionMenuId(null);
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-red-600 hover:bg-red-50 text-sm font-semibold transition"
+                      >
+                        <Trash2 size={16} />
+                        Delete User
+                      </button>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}

@@ -9,7 +9,6 @@ import {
   Edit3,
   KeyRound,
   Layers,
-  MoreHorizontal,
   Plus,
   Search,
   ShieldCheck,
@@ -21,6 +20,7 @@ import {
   getPermissionsAction,
   updatePermissionAction,
 } from "@/actions/permission.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import PermissionFormDrawer from "./PermissionFormDrawer";
 
@@ -399,7 +399,7 @@ function PermissionGroupDetail({
   setActionMenuId: (id: any) => void;
 }) {
   return (
-    <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4">
         <button
           type="button"
@@ -455,27 +455,21 @@ function PermissionGroupDetail({
                     : "—"}
                 </td>
 
-                <td className="relative px-5">
-                  <button
-                    type="button"
-                    className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                    onClick={() =>
+                <td className="px-5">
+                  <ActionMenu
+                    isOpen={actionMenuId === permission.id}
+                    onToggle={() =>
                       setActionMenuId(
                         actionMenuId === permission.id ? null : permission.id
                       )
                     }
+                    onClose={() => setActionMenuId(null)}
                   >
-                    <MoreHorizontal size={18} />
-                  </button>
-
-                  {actionMenuId === permission.id && (
-                    <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                      <ActionButton onClick={() => onEdit(permission)}>
-                        <Edit3 size={16} />
-                        Edit Permission
-                      </ActionButton>
-                    </div>
-                  )}
+                    <ActionButton onClick={() => onEdit(permission)}>
+                      <Edit3 size={16} />
+                      Edit Permission
+                    </ActionButton>
+                  </ActionMenu>
                 </td>
               </tr>
             ))}

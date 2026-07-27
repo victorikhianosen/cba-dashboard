@@ -43,7 +43,11 @@ export async function getAllBranchesAction() {
       page += 1;
     } while (page <= lastPage);
 
-    return { status: "success", data: allBranches };
+    // Pages can shift while paginating (a record created/edited between
+    // fetches), so the same id may show up on two pages — dedupe it.
+    const uniqueBranches = Array.from(new Map(allBranches.map((item) => [item.id, item])).values());
+
+    return { status: "success", data: uniqueBranches };
   } catch {
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }

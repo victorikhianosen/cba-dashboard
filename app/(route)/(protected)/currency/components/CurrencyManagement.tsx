@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Coins,
   Edit3,
-  MoreHorizontal,
   Plus,
   Search,
   Star,
@@ -19,6 +18,7 @@ import {
   getCurrenciesAction,
   updateCurrencyAction,
 } from "@/actions/currency.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import CurrencyFormDrawer from "./CurrencyFormDrawer";
 
@@ -234,7 +234,7 @@ export default function CurrencyManagement({
       </section>
 
       {/* DATATABLE */}
-      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead>
@@ -292,27 +292,21 @@ export default function CurrencyManagement({
                     <StatusBadge status={currency.status} />
                   </td>
 
-                  <td className="relative px-5">
-                    <button
-                      type="button"
-                      className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
-                      onClick={() =>
+                  <td className="px-5">
+                    <ActionMenu
+                      isOpen={actionMenuId === currency.id}
+                      onToggle={() =>
                         setActionMenuId(
                           actionMenuId === currency.id ? null : currency.id
                         )
                       }
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <MoreHorizontal size={18} />
-                    </button>
-
-                    {actionMenuId === currency.id && (
-                      <div className="absolute right-10 top-10 z-20 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
-                        <ActionButton onClick={() => openUpdateDrawer(currency)}>
-                          <Edit3 size={16} />
-                          Edit Currency
-                        </ActionButton>
-                      </div>
-                    )}
+                      <ActionButton onClick={() => openUpdateDrawer(currency)}>
+                        <Edit3 size={16} />
+                        Edit Currency
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}

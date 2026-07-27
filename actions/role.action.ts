@@ -44,7 +44,11 @@ export async function getAllRolesAction() {
       page += 1;
     } while (page <= lastPage);
 
-    return { status: "success", data: allRoles };
+    // Pages can shift while paginating (a record created/edited between
+    // fetches), so the same id may show up on two pages — dedupe it.
+    const uniqueRoles = Array.from(new Map(allRoles.map((item) => [item.id, item])).values());
+
+    return { status: "success", data: uniqueRoles };
   } catch {
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }

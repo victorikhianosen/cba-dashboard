@@ -35,9 +35,25 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+export interface NavChild {
+  name: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  permission?: string;
+}
+
+export interface MenuItem {
+  name: string;
+  href?: string;
+  icon: typeof LayoutDashboard;
+  permission?: string;
+  anyPermission?: string[];
+  children?: NavChild[];
+}
+
 // `permission` / `anyPermission` gate visibility. Items with neither are
 // always shown (no matching permission exists yet on the backend for them).
-const menuItems = [
+export const menuItems: MenuItem[] = [
   {
     name: "Dashboard",
     href: "/dashboard",
@@ -345,7 +361,7 @@ export default function Sidebar({
               );
             }
 
-            const active = isActive(item.href);
+            const active = isActive(item.href!);
 
             return (
               <Link
