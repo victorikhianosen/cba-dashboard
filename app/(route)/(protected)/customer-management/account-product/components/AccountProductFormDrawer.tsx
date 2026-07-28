@@ -223,7 +223,7 @@ export default function AccountProductFormDrawer({
       )}
 
       <aside
-        className={`fixed right-0 top-0 z-[9999] flex h-screen w-full max-w-[640px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
+        className={`fixed right-0 top-0 z-[9999] flex h-screen w-full max-w-[880px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -671,6 +671,7 @@ function GLSelect({
       <option value="">Select GL account</option>
       {generalLedgers.map((ledger) => (
         <option key={ledger.id} value={ledger.id}>
+          {ledger.gl_code ? `${ledger.gl_code} — ` : ""}
           {toDisplayLabel(ledger.name)}
           {ledger.currency_code ? ` (${ledger.currency_code})` : ""}
         </option>

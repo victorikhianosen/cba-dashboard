@@ -49,11 +49,19 @@ function postingTypeLabel(posting: Posting) {
   return `${partyKind(posting.source_type)} → ${partyKind(posting.destination_type)}`;
 }
 
-function partyLabel(party: Record<string, any> | null | undefined) {
+// Name on top, code/account number underneath — same layout as the Reference column.
+function partyNameTop(party: Record<string, any> | null | undefined) {
   if (!party) return "—";
-  if (party.type === "account") return `${party.account_number} — ${party.account_name}`;
-  if (party.type === "general_ledger") return `${party.gl_code} — ${toDisplayLabel(party.name)}`;
+  if (party.type === "account") return party.account_name || "—";
+  if (party.type === "general_ledger") return toDisplayLabel(party.name) || "—";
   return "—";
+}
+
+function partyCodeBottom(party: Record<string, any> | null | undefined) {
+  if (!party) return "";
+  if (party.type === "account") return party.account_number ?? "";
+  if (party.type === "general_ledger") return party.gl_code ?? "";
+  return "";
 }
 
 const POSTING_TYPES = [
@@ -260,14 +268,29 @@ export default function PostingManagement({
                     <p className="mt-0.5 text-xs font-semibold text-slate-500 capitalize">
                       {toDisplayLabel(posting.transaction_type) || "—"}
                     </p>
+                    {posting.transaction_reference && (
+                      <p className="mt-0.5 text-xs font-medium text-slate-400">
+                        {posting.transaction_reference}
+                      </p>
+                    )}
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {postingTypeLabel(posting)}
                   </td>
 
-                  <td className="px-5 text-sm text-slate-700">{partyLabel(posting.source)}</td>
-                  <td className="px-5 text-sm text-slate-700">{partyLabel(posting.destination)}</td>
+                  <td className="px-5 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900">{partyNameTop(posting.source)}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                      {partyCodeBottom(posting.source)}
+                    </p>
+                  </td>
+                  <td className="px-5 text-sm text-slate-700">
+                    <p className="font-semibold text-slate-900">{partyNameTop(posting.destination)}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                      {partyCodeBottom(posting.destination)}
+                    </p>
+                  </td>
 
                   <td className="px-5 text-sm font-bold text-slate-900">
                     ₦{formatCurrency(posting.amount)}

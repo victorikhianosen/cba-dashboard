@@ -21,6 +21,19 @@ export async function getGeneralLedgersAction(page: number = 1, search: string =
   }
 }
 
+export async function getGeneralLedgerStatsAction() {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/general-ledgers/stats`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 // Fetches every GL account across all pages, used to populate the parent-account dropdown.
 export async function getAllGeneralLedgersAction() {
   try {

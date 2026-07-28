@@ -147,8 +147,26 @@ export const menuItems: MenuItem[] = [
     children: [
       {
         name: "General Ledger Manager",
-        href: "/general_ledger",
+        href: "/chat-of-account/general_ledger",
         icon: BookOpen,
+        permission: "view_general_ledgers",
+      },
+      {
+        name: "Journal Entries",
+        href: "/chat-of-account/journal-entries",
+        icon: FileText,
+        permission: "view_general_ledgers",
+      },
+      {
+        name: "Transactions",
+        href: "/chat-of-account/transactions",
+        icon: ArrowLeftRight,
+        permission: "view_general_ledgers",
+      },
+      {
+        name: "Financial Transactions",
+        href: "/chat-of-account/financial-transactions",
+        icon: ArrowLeftRight,
         permission: "view_general_ledgers",
       },
     ],

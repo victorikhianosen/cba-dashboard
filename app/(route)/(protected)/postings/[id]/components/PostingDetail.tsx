@@ -12,7 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { approvePostingAction, rejectPostingAction } from "@/actions/posting.action";
+import { approvePostingAction, getPostingAction, rejectPostingAction } from "@/actions/posting.action";
 import ConfirmModal from "@/components/ConfirmModal";
 import ReasonModal from "@/components/ReasonModal";
 import { handleApiError } from "@/lib/errors";
@@ -76,6 +76,12 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
       }
 
       toast.success(result.message || successMessage);
+
+      const refreshed: any = await getPostingAction(posting.id);
+      if (refreshed?.status === "success" && refreshed.data) {
+        setPosting(refreshed.data);
+      }
+
       router.refresh();
     } catch (error) {
       console.error("Posting action failed:", error);
@@ -294,12 +300,12 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
                           <td className="px-3 py-2 text-sm">
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${
-                                entry.debit_credit === "credit"
+                                entry.entry_type === "credit"
                                   ? "bg-emerald-100 text-emerald-800"
                                   : "bg-red-100 text-red-800"
                               }`}
                             >
-                              {entry.debit_credit}
+                              {entry.entry_type}
                             </span>
                           </td>
                           <td className="px-3 py-2 text-sm font-bold text-slate-900">

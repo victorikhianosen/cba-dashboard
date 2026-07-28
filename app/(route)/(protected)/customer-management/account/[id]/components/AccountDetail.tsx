@@ -334,12 +334,12 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                         <td className="px-3 py-3 text-sm">
                           <span
                             className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${
-                              txn.debit_credit === "credit"
+                              txn.type === "credit"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {txn.debit_credit}
+                            {txn.type}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-sm font-bold text-slate-900">

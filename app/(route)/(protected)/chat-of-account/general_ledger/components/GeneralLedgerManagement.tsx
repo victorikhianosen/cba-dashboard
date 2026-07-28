@@ -15,11 +15,13 @@ import {
 import { toast } from "react-toastify";
 import {
   createGeneralLedgerAction,
+  getGeneralLedgerStatsAction,
   getGeneralLedgersAction,
   updateGeneralLedgerAction,
   updateGeneralLedgerStatusAction,
 } from "@/actions/general-ledger.action";
 import ActionMenu from "@/components/ActionMenu";
+import ExportButtons from "@/components/ExportButtons";
 import { handleApiError } from "@/lib/errors";
 import GeneralLedgerFormDrawer from "./GeneralLedgerFormDrawer";
 
@@ -53,8 +55,15 @@ export default function GeneralLedgerManagement({
 
   const [submitting, setSubmitting] = useState(false);
 
+  const [stats, setStats] = useState<Record<string, number>>({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    assigned: 0,
+    unassigned: 0,
+  });
+
   const totalLedgers = meta?.total ?? ledgers.length;
-  const activeLedgers = ledgers.filter((ledger) => ledger.status === "active").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -66,6 +75,17 @@ export default function GeneralLedgerManagement({
   // Skips the debounce effect on mount, since accounts are already
   // server-fetched for page 1 before this component renders.
   const isFirstRender = useRef(true);
+
+  async function fetchStats() {
+    const result: any = await getGeneralLedgerStatsAction();
+    if (result?.status === "success" && result.data) {
+      setStats(result.data);
+    }
+  }
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
@@ -167,6 +187,7 @@ export default function GeneralLedgerManagement({
         }
 
         await fetchPage(1);
+        await fetchStats();
 
         toast.success(result.message || "Account created successfully.");
       }
@@ -193,6 +214,7 @@ export default function GeneralLedgerManagement({
       }
 
       await fetchPage(currentPage);
+      await fetchStats();
 
       toast.success(result.message || "Account status updated successfully.");
     } catch (error) {
@@ -214,21 +236,25 @@ export default function GeneralLedgerManagement({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={openCreateDrawer}
-          className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
-        >
-          <Plus size={18} />
-          Add Account
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButtons baseEndpoint="/admin/general-ledgers" params={{ search }} />
+
+          <button
+            type="button"
+            onClick={openCreateDrawer}
+            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
+          >
+            <Plus size={18} />
+            Add Account
+          </button>
+        </div>
       </div>
 
       {/* SUMMARY */}
-      <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2">
+      <section className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-5">
         <SummaryCard
           title="Total Accounts"
-          value={totalLedgers}
+          value={stats.total}
           description="All chart of accounts entries"
           icon={<BookOpen size={22} />}
           iconStyle="bg-[#29478f] text-white"
@@ -236,10 +262,34 @@ export default function GeneralLedgerManagement({
 
         <SummaryCard
           title="Active Accounts"
-          value={activeLedgers}
-          description="Currently active on this page"
+          value={stats.active}
+          description="Currently active accounts"
           icon={<CheckCircle2 size={22} />}
           iconStyle="bg-emerald-100 text-emerald-800"
+        />
+
+        <SummaryCard
+          title="Inactive Accounts"
+          value={stats.inactive}
+          description="Currently inactive accounts"
+          icon={<CircleOff size={22} />}
+          iconStyle="bg-red-100 text-red-800"
+        />
+
+        <SummaryCard
+          title="Assigned Accounts"
+          value={stats.assigned}
+          description="Linked to a product"
+          icon={<CheckCircle2 size={22} />}
+          iconStyle="bg-blue-100 text-blue-800"
+        />
+
+        <SummaryCard
+          title="Unassigned Accounts"
+          value={stats.unassigned}
+          description="Not linked to a product"
+          icon={<CircleOff size={22} />}
+          iconStyle="bg-slate-100 text-slate-700"
         />
       </section>
 

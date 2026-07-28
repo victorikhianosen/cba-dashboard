@@ -61,6 +61,23 @@ function formatBalance(value: string | number | null | undefined) {
   return Number(value ?? 0).toLocaleString("en-NG", { minimumFractionDigits: 2 });
 }
 
+// Renders a raw "5000.5" amount as "5,000.5" for display — the underlying
+// state stays comma-free so Number(amount) and the API payload are unaffected.
+function formatAmountDisplay(raw: string) {
+  if (!raw) return "";
+  const [intPart, decimalPart] = raw.split(".");
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return decimalPart !== undefined ? `${formattedInt}.${decimalPart}` : formattedInt;
+}
+
+// Strips whatever the user typed (commas included) back down to a plain
+// numeric string with at most one decimal point.
+function parseAmountInput(value: string) {
+  const cleaned = value.replace(/,/g, "").replace(/[^0-9.]/g, "");
+  const [intPart, ...rest] = cleaned.split(".");
+  return rest.length > 0 ? `${intPart}.${rest.join("")}` : intPart;
+}
+
 export default function CreatePostingPage() {
   const router = useRouter();
 
@@ -271,11 +288,10 @@ export default function CreatePostingPage() {
         <Section title="Amount">
           <Input
             label="Amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            type="text"
+            inputMode="decimal"
+            value={formatAmountDisplay(amount)}
+            onChange={(e) => setAmount(parseAmountInput(e.target.value))}
             required
           />
           {insufficientBalance && (
