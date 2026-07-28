@@ -12,7 +12,7 @@ interface ApproveAccountModalProps {
   accountTiers: Record<string, any>[];
   pending?: boolean;
   onCancel: () => void;
-  onConfirm: (payload: { account_product_id: string; account_tier_id?: string }) => void;
+  onConfirm: (payload: { account_product_id: string; account_tier_id: string }) => void;
 }
 
 // Mirrors CustomerType::businessLike() on the API — individual/minor open a
@@ -24,12 +24,12 @@ function expectedProductType(customerType: string) {
   return isBusinessLike ? "current" : "savings";
 }
 
-// Lets the admin pick which account product (and tier) to open for a
-// customer at approval time, instead of the system auto-detecting one.
-// A product must be selected — approval always opens an account now, the
-// backend rejects the request otherwise. Only products matching the
-// customer's expected type (savings for individual/minor, current for
-// business-like) are offered, since the backend rejects a mismatch anyway.
+// Lets the admin pick which account product and tier to open for a customer
+// at approval time, instead of the system auto-detecting one. Both fields
+// are required — the backend rejects the request otherwise. Only products
+// matching the customer's expected type (savings for individual/minor,
+// current for business-like) are offered, since the backend rejects a
+// mismatch anyway.
 export default function ApproveAccountModal({
   isOpen,
   customerName,
@@ -49,6 +49,7 @@ export default function ApproveAccountModal({
   const activeProducts = accountProducts.filter(
     (product) => product.status === "active" && product.product_type === requiredType
   );
+  const activeTiers = accountTiers.filter((tier) => tier.status === "active");
 
   function handleCancel() {
     setAccountProductId("");
@@ -57,11 +58,11 @@ export default function ApproveAccountModal({
   }
 
   function handleConfirm() {
-    if (!accountProductId) return;
+    if (!accountProductId || !accountTierId) return;
 
     onConfirm({
       account_product_id: accountProductId,
-      account_tier_id: accountTierId || undefined,
+      account_tier_id: accountTierId,
     });
   }
 
@@ -120,24 +121,28 @@ export default function ApproveAccountModal({
 
           {accountProductId && (
             <label className="block">
-              <span className="block text-sm font-semibold text-slate-800">
-                Account Tier (optional)
-              </span>
+              <span className="block text-sm font-semibold text-slate-800">Account Tier</span>
               <select
+                required
                 value={accountTierId}
                 onChange={(event) => setAccountTierId(event.target.value)}
                 className="mt-2 w-full cursor-pointer rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
               >
-                <option value="">Default (tier 1)</option>
-                {accountTiers
-                  .filter((tier) => tier.status === "active")
-                  .map((tier) => (
-                    <option key={tier.id} value={tier.id}>
-                      Tier {tier.level}
-                      {tier.description ? ` — ${tier.description}` : ""}
-                    </option>
-                  ))}
+                <option value="" disabled>
+                  Select an account tier...
+                </option>
+                {activeTiers.map((tier) => (
+                  <option key={tier.id} value={tier.id}>
+                    Tier {tier.level}
+                    {tier.description ? ` — ${tier.description}` : ""}
+                  </option>
+                ))}
               </select>
+              {activeTiers.length === 0 && (
+                <p className="mt-1.5 text-xs text-amber-600">
+                  No active account tiers found — activate one first.
+                </p>
+              )}
             </label>
           )}
         </div>
@@ -154,7 +159,7 @@ export default function ApproveAccountModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={pending || !accountProductId}
+            disabled={pending || !accountProductId || !accountTierId}
             className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Please wait..." : "Approve Customer"}

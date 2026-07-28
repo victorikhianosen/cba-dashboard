@@ -9,10 +9,10 @@ import {
   type SelectHTMLAttributes,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Plus, Trash2, UserPlus } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Eye, EyeOff, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
-import { createCustomerAction } from "@/actions/customer.action";
+import { createCustomerAction, lookupCustomerByCifAction } from "@/actions/customer.action";
 import { handleApiError } from "@/lib/errors";
 
 type LookupOption = Record<string, any>;
@@ -21,6 +21,10 @@ type FieldMap = Record<string, any>;
 type CustomerType = "individual" | "business" | "minor" | "government" | "corporate";
 
 const CUSTOMER_TYPES: CustomerType[] = ["individual", "business", "minor", "government", "corporate"];
+
+function isCustomerType(value: string | null): value is CustomerType {
+  return !!value && (CUSTOMER_TYPES as string[]).includes(value);
+}
 
 // business, government and corporate all carry a business block + signatories;
 // only corporate additionally carries directors. Mirrors CustomerType::businessLike() on the API.
@@ -203,8 +207,22 @@ export default function CreateCustomerPage({
   accountOfficers = [],
 }: CreateCustomerPageProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [customerType, setCustomerType] = useState<CustomerType>("individual");
+  // Selected type lives in the URL (?type=minor) so a reload keeps the same
+  // form open instead of resetting to individual.
+  const [customerType, setCustomerTypeState] = useState<CustomerType>(() => {
+    const fromUrl = searchParams.get("type");
+    return isCustomerType(fromUrl) ? fromUrl : "individual";
+  });
+
+  function setCustomerType(type: CustomerType) {
+    setCustomerTypeState(type);
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("type", type);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
   const [submitting, setSubmitting] = useState(false);
 
   const [common, setCommon] = useState<FieldMap>({ ...emptyCommon });
@@ -226,8 +244,100 @@ export default function CreateCustomerPage({
 
   const [geocoding, setGeocoding] = useState(false);
 
+  // undefined = not looked up yet, null = looked up but no match found.
+  const [guardianPreview, setGuardianPreview] = useState<FieldMap | null | undefined>(undefined);
+  const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
+
   const businessLikeType = isBusinessLike(customerType);
   const isNotRegisteredBusiness = businessLikeType && business.business_type === "not_registered";
+
+  // Mirrors every `required` field actually rendered for the current
+  // customer type, so the submit button can't be clicked until they're
+  // all filled in — rather than relying only on native HTML validation.
+  function isFilled(value: any) {
+    return value !== undefined && value !== null && String(value).trim() !== "";
+  }
+
+  function requiredFieldsComplete() {
+    if (!isFilled(common.phone)) return false;
+    if (!isFilled(person.first_name) || !isFilled(person.last_name)) return false;
+
+    if (customerType === "individual") {
+      const fields = [
+        "gender",
+        "marital_status",
+        "dob",
+        "occupation",
+        "working_status",
+        "mother_maiden_name",
+        "bvn",
+        "nin_number",
+      ];
+      if (fields.some((field) => !isFilled(individual[field]))) return false;
+    }
+
+    if (customerType === "minor") {
+      if (!isFilled(minor.gender) || !isFilled(minor.dob) || !guardianPreview?.id) {
+        return false;
+      }
+    }
+
+    if (businessLikeType) {
+      if (!isFilled(businessLike.legal_form)) return false;
+      if (!isFilled(business.business_name) || !isFilled(business.business_type)) return false;
+    }
+
+    if (customerType === "individual" || customerType === "minor") {
+      if (nextOfKin.length === 0) return false;
+      const kinComplete = nextOfKin.every(
+        (kin) =>
+          isFilled(kin.first_name) &&
+          isFilled(kin.last_name) &&
+          isFilled(kin.relationship) &&
+          isFilled(kin.phone)
+      );
+      if (!kinComplete) return false;
+    }
+
+    if (customerType === "corporate" && !isNotRegisteredBusiness) {
+      const directorsComplete = directors.every(
+        (director) =>
+          isFilled(director.first_name) &&
+          isFilled(director.last_name) &&
+          isFilled(director.position) &&
+          isFilled(director.gender) &&
+          isFilled(director.phone)
+      );
+      if (!directorsComplete) return false;
+    }
+
+    if (businessLikeType && !isNotRegisteredBusiness) {
+      if (signatories.length === 0) return false;
+      const signatoriesComplete = signatories.every(
+        (signatory) =>
+          isFilled(signatory.first_name) &&
+          isFilled(signatory.last_name) &&
+          isFilled(signatory.position) &&
+          isFilled(signatory.gender) &&
+          isFilled(signatory.phone)
+      );
+      if (!signatoriesComplete) return false;
+    }
+
+    if (
+      !isFilled(address.type) ||
+      !isFilled(address.address) ||
+      !isFilled(address.city) ||
+      !isFilled(address.state) ||
+      !isFilled(address.country)
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  const canSubmit = requiredFieldsComplete();
 
   function updateField(
     setter: (updater: (current: FieldMap) => FieldMap) => void,
@@ -278,8 +388,38 @@ export default function CreateCustomerPage({
     }
   }
 
+  // Resolves a guardian's CIF number (e.g. "CIF000005") to their id/name via
+  // a dedicated lookup endpoint, so the person entering the minor's details
+  // can confirm they picked the right guardian before submitting — the
+  // resolved numeric id (not the CIF text) is what's actually submitted as
+  // guardian_id.
+  async function lookupGuardian() {
+    const query = minor.guardian_id.trim();
+    if (!query) {
+      setGuardianPreview(undefined);
+      return;
+    }
+
+    setGuardianLookupLoading(true);
+    try {
+      const result: any = await lookupCustomerByCifAction(query);
+      setGuardianPreview(result?.status === "success" ? result.data : null);
+    } catch (error) {
+      console.error("Failed to look up guardian:", error);
+      setGuardianPreview(null);
+    } finally {
+      setGuardianLookupLoading(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!canSubmit) {
+      toast.error("Please fill in all required fields before submitting.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -323,7 +463,9 @@ export default function CreateCustomerPage({
           formData.set(`next_of_kin[${index}][address]`, kin.address);
         });
       } else if (customerType === "minor") {
-        formData.set("guardian_id", minor.guardian_id);
+        // guardian_id on the API is the guardian's numeric customer id, not
+        // their CIF number — use the id resolved by lookupGuardian().
+        formData.set("guardian_id", String(guardianPreview?.id ?? ""));
         formData.set("gender", minor.gender);
         formData.set("dob", minor.dob);
 
@@ -672,7 +814,7 @@ export default function CreateCustomerPage({
 
           {customerType === "minor" && (
             <>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <Select
                   label="Gender"
                   value={minor.gender}
@@ -687,13 +829,49 @@ export default function CreateCustomerPage({
                   value={minor.dob}
                   onChange={(e) => updateField(setMinor, "dob", e.target.value)}
                 />
-                <Input
-                  label="Guardian Customer ID"
-                  value={minor.guardian_id}
-                  onChange={(e) => updateField(setMinor, "guardian_id", onlyDigits(e.target.value, 10))}
-                  placeholder="Existing customer ID"
-                />
               </div>
+
+              <label className="block">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-sm text-slate-800">Guardian Customer ID</span>
+
+                  {guardianLookupLoading && (
+                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                      <Loader2 size={12} className="animate-spin" />
+                      Looking up guardian…
+                    </span>
+                  )}
+                  {!guardianLookupLoading && guardianPreview === null && (
+                    <span className="text-xs font-semibold text-red-600">
+                      No customer found with that ID.
+                    </span>
+                  )}
+                  {!guardianLookupLoading && guardianPreview && (
+                    <span className="text-xs font-semibold text-emerald-700">
+                      Guardian: {guardianPreview.first_name} {guardianPreview.last_name}
+                    </span>
+                  )}
+                </span>
+                <div className="relative mt-2">
+                  <input
+                    required
+                    value={minor.guardian_id}
+                    onChange={(e) => {
+                      updateField(setMinor, "guardian_id", e.target.value);
+                      setGuardianPreview(undefined);
+                    }}
+                    onBlur={lookupGuardian}
+                    placeholder="e.g. CIF000005"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-3 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
+                  />
+                  {guardianLookupLoading && (
+                    <Loader2
+                      size={16}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                    />
+                  )}
+                </div>
+              </label>
             </>
           )}
 
@@ -1236,8 +1414,9 @@ export default function CreateCustomerPage({
           </Link>
           <button
             type="submit"
-            disabled={submitting}
-            className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:opacity-50 transition shadow-sm"
+            disabled={submitting || !canSubmit}
+            title={!canSubmit ? "Fill in all required fields to continue" : undefined}
+            className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm"
           >
             {submitting ? "Please wait..." : "Create Customer"}
           </button>

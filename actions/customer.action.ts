@@ -34,6 +34,21 @@ export async function getCustomerAction(id: number | string) {
   }
 }
 
+// Resolves a customer's id/name from their CIF number — used to confirm a
+// guardian (or any other customer reference) before submitting a form.
+export async function lookupCustomerByCifAction(cifNumber: string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/customers/lookup?cif_number=${encodeURIComponent(cifNumber)}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 // Takes a FormData built on the client so uploaded files (profile picture,
 // utility bill, director/signatory photos and signatures) travel through the
 // Server Action untouched — authApiClient sends it as multipart/form-data.
@@ -51,12 +66,18 @@ export async function createCustomerAction(formData: FormData) {
   }
 }
 
-export async function updateCustomerStatusAction(id: number | string, status: string) {
+// Generic status change to anything in the statuses lookup table (dormant, frozen,
+// suspended, kyc_verified, blacklisted, etc.), with an optional comment.
+export async function updateCustomerStatusAction(
+  id: number | string,
+  status: string,
+  comment?: string
+) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/customers/${id}/status`,
       method: "POST",
-      body: { status },
+      body: { status, comment },
     });
 
     return result;
@@ -81,11 +102,11 @@ export async function updateCustomerAction(id: number | string, formData: FormDa
   }
 }
 
-// account_product_id assigns the account opened for the customer on approval;
-// the backend rejects the request without it.
+// account_product_id/account_tier_id assign the account opened for the
+// customer on approval; the backend rejects the request without both.
 export async function approveCustomerAction(
   id: number | string,
-  payload: { account_product_id: number | string; account_tier_id?: number | string }
+  payload: { account_product_id: number | string; account_tier_id: number | string }
 ) {
   try {
     const result: any = await authApiClient({

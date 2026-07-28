@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 
 import {
   Activity,
+  ArrowLeftRight,
   BookOpen,
   Box,
   Building2,
@@ -133,6 +134,12 @@ export const menuItems: MenuItem[] = [
     name: "Transactions",
     href: "/transactions",
     icon: Activity,
+  },
+  {
+    name: "Postings",
+    href: "/postings",
+    icon: ArrowLeftRight,
+    permission: "view_postings",
   },
   {
     name: "Chart of Accounts",

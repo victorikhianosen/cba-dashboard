@@ -12,6 +12,7 @@ import {
   MapPin,
   Phone,
   Receipt,
+  RefreshCw,
   User,
   XCircle,
 } from "lucide-react";
@@ -23,9 +24,11 @@ import {
   toggleEmailAction,
   toggleInternetBankingAction,
   toggleSmsAction,
+  updateCustomerStatusAction,
 } from "@/actions/customer.action";
 import ApproveAccountModal from "@/components/ApproveAccountModal";
 import ReasonModal from "@/components/ReasonModal";
+import UpdateStatusModal from "@/components/UpdateStatusModal";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 
@@ -35,6 +38,7 @@ interface CustomerDetailProps {
   customer: Customer;
   accountProducts?: Record<string, any>[];
   accountTiers?: Record<string, any>[];
+  statuses?: Record<string, any>[];
 }
 
 const STORAGE_URL = process.env.NEXT_PUBLIC_STORAGE_URL ?? "";
@@ -47,6 +51,14 @@ function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 // Mirrors CustomerType::businessLike() on the API — business, government and
@@ -77,6 +89,7 @@ export default function CustomerDetail({
   customer,
   accountProducts = [],
   accountTiers = [],
+  statuses = [],
 }: CustomerDetailProps) {
   const router = useRouter();
   const isBusiness = isBusinessLike(customer.customer_type);
@@ -85,7 +98,9 @@ export default function CustomerDetail({
 
   const [activeTab, setActiveTab] = useState<TabKey>("customer");
   const [actionPending, setActionPending] = useState<string | null>(null);
-  const [openModal, setOpenModal] = useState<"reject" | "close" | "approve" | null>(null);
+  const [openModal, setOpenModal] = useState<"reject" | "close" | "approve" | "status" | null>(
+    null
+  );
 
   async function runAction(key: string, action: () => Promise<any>, successMessage: string) {
     setActionPending(key);
@@ -107,7 +122,7 @@ export default function CustomerDetail({
     }
   }
 
-  function handleApprove(payload: { account_product_id: string; account_tier_id?: string }) {
+  function handleApprove(payload: { account_product_id: string; account_tier_id: string }) {
     setOpenModal(null);
     runAction(
       "approve",
@@ -124,6 +139,15 @@ export default function CustomerDetail({
   function handleClose(reason: string) {
     setOpenModal(null);
     runAction("close", () => closeCustomerAction(customer.id, reason), "Customer closed.");
+  }
+
+  function handleUpdateStatus(payload: { status: string; comment?: string }) {
+    setOpenModal(null);
+    runAction(
+      "status",
+      () => updateCustomerStatusAction(customer.id, payload.status, payload.comment),
+      "Customer status updated."
+    );
   }
 
   return (
@@ -202,9 +226,27 @@ export default function CustomerDetail({
                 className="border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
               />
             )}
+
+            <ActionButton
+              label="Update Status"
+              icon={<RefreshCw size={14} />}
+              pending={actionPending === "status"}
+              onClick={() => setOpenModal("status")}
+              className="border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+            />
           </div>
         </div>
       </div>
+
+      <UpdateStatusModal
+        isOpen={openModal === "status"}
+        title={`Update Status — ${customerDisplayName(customer)}`}
+        currentStatus={customer.status}
+        statuses={statuses}
+        pending={actionPending === "status"}
+        onCancel={() => setOpenModal(null)}
+        onConfirm={handleUpdateStatus}
+      />
 
       <ApproveAccountModal
         isOpen={openModal === "approve"}
@@ -557,6 +599,30 @@ export default function CustomerDetail({
           </div>
         </Section>
       )}
+
+      {/* RECORD HISTORY */}
+      <Section title="Record History">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Created Date" value={formatDateTime(customer.created_at)} />
+          <Field
+            label="Created By"
+            value={
+              customer.creator
+                ? `${customer.creator.first_name ?? ""} ${customer.creator.last_name ?? ""}`.trim()
+                : undefined
+            }
+          />
+          <Field label="Approved Date" value={formatDateTime(customer.approved_at)} />
+          <Field
+            label="Approved By"
+            value={
+              customer.approver
+                ? `${customer.approver.first_name ?? ""} ${customer.approver.last_name ?? ""}`.trim()
+                : undefined
+            }
+          />
+        </div>
+      </Section>
         </>
       )}
     </>
@@ -760,11 +826,11 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <span
-      className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+      className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
         styles[status] || "bg-slate-100 text-slate-700 border border-slate-300"
       }`}
     >
-      {status ?? "—"}
+      {status ? toDisplayLabel(status) : "—"}
     </span>
   );
 }

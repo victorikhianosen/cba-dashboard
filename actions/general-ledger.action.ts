@@ -4,7 +4,7 @@ import { authApiClient } from "@/lib/api-client";
 
 export async function getGeneralLedgersAction(page: number = 1, search: string = "") {
   try {
-    const params = new URLSearchParams({ page: String(page) });
+    const params = new URLSearchParams({ page: String(page), per_page: "50" });
 
     if (search.trim()) {
       params.set("search", search.trim());
@@ -30,7 +30,7 @@ export async function getAllGeneralLedgersAction() {
 
     do {
       const result: any = await authApiClient({
-        endpoint: `/admin/general-ledgers?page=${page}`,
+        endpoint: `/admin/general-ledgers?page=${page}&per_page=50`,
         method: "GET",
       });
 

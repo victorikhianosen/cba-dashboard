@@ -20,6 +20,7 @@ import {
 import { toast } from "react-toastify";
 import { getCustomersAction } from "@/actions/customer.action";
 import { handleApiError } from "@/lib/errors";
+import { toDisplayLabel } from "@/lib/format";
 
 type Customer = Record<string, any>;
 type Branch = Record<string, any>;
@@ -29,6 +30,14 @@ interface CustomerManagementProps {
   initialCustomers?: Customer[];
   initialMeta?: CustomerMeta;
   branches?: Branch[];
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 // Mirrors CustomerType::businessLike() on the API — business, government and
@@ -245,6 +254,7 @@ export default function CustomerManagement({
                 <Heading>Contact</Heading>
                 <Heading>Branch</Heading>
                 <Heading>Status</Heading>
+                <Heading>Created</Heading>
                 <Heading>Actions</Heading>
               </tr>
             </thead>
@@ -293,6 +303,10 @@ export default function CustomerManagement({
 
                   <td className="px-5">
                     <StatusBadge status={customer.status} />
+                  </td>
+
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {formatDateTime(customer.created_at)}
                   </td>
 
                   <td className="px-5">
@@ -406,11 +420,11 @@ function StatusBadge({ status }: Record<string, any>) {
 
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
         styles[status] || "bg-slate-100 text-slate-700 border border-slate-300"
       }`}
     >
-      {status}
+      {toDisplayLabel(status) || "—"}
     </span>
   );
 }

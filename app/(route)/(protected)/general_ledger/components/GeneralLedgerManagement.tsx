@@ -271,6 +271,7 @@ export default function GeneralLedgerManagement({
                 <Heading>Parent</Heading>
                 <Heading>Balance</Heading>
                 <Heading>Status</Heading>
+                <Heading>Assigned</Heading>
                 <Heading>Actions</Heading>
               </tr>
             </thead>
@@ -316,6 +317,18 @@ export default function GeneralLedgerManagement({
 
                   <td className="px-5">
                     <StatusBadge status={ledger.status} />
+                  </td>
+
+                  <td className="px-5">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                        ledger.is_assigned
+                          ? "bg-blue-100 text-blue-800 border border-blue-300"
+                          : "bg-slate-100 text-slate-600 border border-slate-300"
+                      }`}
+                    >
+                      {ledger.is_assigned ? "Yes" : "No"}
+                    </span>
                   </td>
 
                   <td className="px-5">
