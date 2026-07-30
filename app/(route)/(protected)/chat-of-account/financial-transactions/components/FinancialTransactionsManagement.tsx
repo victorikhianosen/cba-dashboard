@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Eye, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import { getFinancialTransactionsAction } from "@/actions/financial-transaction.action";
+import ActionMenu from "@/components/ActionMenu";
 import ExportButtons from "@/components/ExportButtons";
 import { handleApiError } from "@/lib/errors";
 
@@ -13,6 +15,8 @@ type Meta = Record<string, any> | null;
 const STATUS_OPTIONS = ["pending", "posted", "completed", "failed", "reversed"];
 
 export default function FinancialTransactionsManagement() {
+  const router = useRouter();
+
   const [transactions, setTransactions] = useState<Txn[]>([]);
   const [meta, setMeta] = useState<Meta>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -21,6 +25,7 @@ export default function FinancialTransactionsManagement() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [status, setStatus] = useState("");
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -128,22 +133,21 @@ export default function FinancialTransactionsManagement() {
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <Heading>Date</Heading>
                 <Heading>Reference</Heading>
                 <Heading>Customer</Heading>
                 <Heading>Module</Heading>
                 <Heading>Type</Heading>
                 <Heading>Amount</Heading>
                 <Heading>Status</Heading>
+                <Heading>Date</Heading>
+                <Heading>Actions</Heading>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
               {transactions.map((txn) => (
                 <tr key={txn.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-5 py-4 text-sm font-medium text-slate-800">
-                    {txn.created_at ? new Date(txn.created_at).toLocaleString() : "—"}
-                  </td>
+
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {txn.transaction_reference ?? "—"}
                   </td>
@@ -161,23 +165,63 @@ export default function FinancialTransactionsManagement() {
                   </td>
                   <td className="px-5">
                     <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
-                        txn.status === "completed" || txn.status === "posted"
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${txn.status === "completed" || txn.status === "posted"
                           ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                           : txn.status === "failed"
-                          ? "bg-red-100 text-red-800 border border-red-300"
-                          : "bg-amber-100 text-amber-800 border border-amber-300"
-                      }`}
+                            ? "bg-red-100 text-red-800 border border-red-300"
+                            : "bg-amber-100 text-amber-800 border border-amber-300"
+                        }`}
                     >
                       {txn.status}
                     </span>
+                  </td>
+
+                  <td className="px-5 py-4 text-sm font-medium text-slate-800">
+                    {txn.created_at ? (
+                      <>
+                        <div>
+                          {new Date(txn.created_at).toLocaleDateString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {new Date(txn.created_at).toLocaleTimeString("en-GB", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
+                  <td className="px-5">
+                    <ActionMenu
+                      isOpen={actionMenuId === txn.id}
+                      onToggle={() => setActionMenuId(actionMenuId === txn.id ? null : txn.id)}
+                      onClose={() => setActionMenuId(null)}
+                    >
+                      <ActionButton
+                        onClick={() => {
+                          setActionMenuId(null);
+                          router.push(`/chat-of-account/financial-transactions/${txn.id}`);
+                        }}
+                      >
+                        <Eye size={16} />
+                        View
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}
 
               {!pageLoading && transactions.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
+                  <td colSpan={8} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
                     No financial transactions found.
                   </td>
                 </tr>
@@ -224,5 +268,17 @@ function Heading({ children }: { children: ReactNode }) {
     <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
       {children}
     </th>
+  );
+}
+
+function ActionButton(props: Record<string, any>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+    >
+      {props.children}
+    </button>
   );
 }

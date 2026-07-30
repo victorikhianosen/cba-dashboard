@@ -24,3 +24,16 @@ export async function getJournalEntriesAction(
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }
 }
+
+export async function getJournalEntryAction(id: number | string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/journal-entries/${id}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}

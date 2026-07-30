@@ -24,3 +24,16 @@ export async function getFinancialTransactionsAction(
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }
 }
+
+export async function getFinancialTransactionAction(id: number | string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/financial-transactions/${id}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}

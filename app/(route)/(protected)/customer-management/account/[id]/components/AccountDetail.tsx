@@ -1,31 +1,38 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Eye,
   Landmark,
   Mail,
   Phone,
   Receipt,
   RefreshCw,
+  RotateCcw,
+  Search,
   ShieldAlert,
   Wallet,
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
-  getAccountTransactionsAction,
   toggleAccountPncAction,
   toggleAccountPndAction,
   updateAccountStatusAction,
 } from "@/actions/account.action";
+import { getTransactionsAction } from "@/actions/transaction.action";
+import ActionMenu from "@/components/ActionMenu";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
+
+const TRANSACTION_STATUSES = ["pending", "completed", "failed", "reversed"];
 
 type Account = Record<string, any>;
 
@@ -70,8 +77,14 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export default function AccountDetail({ account: initialAccount }: AccountDetailProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [account, setAccount] = useState<Account>(initialAccount);
-  const [activeTab, setActiveTab] = useState<TabKey>("details");
+  // Read from the URL so the tab survives a reload instead of always resetting to "details".
+  const [activeTab, setActiveTabState] = useState<TabKey>(
+    searchParams.get("tab") === "transactions" ? "transactions" : "details"
+  );
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [statusChoice, setStatusChoice] = useState(initialAccount.status ?? "");
   const [statusModalOpen, setStatusModalOpen] = useState(false);
@@ -80,6 +93,25 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
   const [transactionsMeta, setTransactionsMeta] = useState<Record<string, any> | null>(null);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsLoaded, setTransactionsLoaded] = useState(false);
+  const [txnActionMenuId, setTxnActionMenuId] = useState<number | string | null>(null);
+
+  const [txnSearch, setTxnSearch] = useState("");
+  const [txnFrom, setTxnFrom] = useState("");
+  const [txnTo, setTxnTo] = useState("");
+  const [txnStatus, setTxnStatus] = useState("");
+  const isFirstTxnFilterRender = useRef(true);
+
+  function setActiveTab(tab: TabKey) {
+    setActiveTabState(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "details") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
 
   useEffect(() => {
     if (activeTab === "transactions" && !transactionsLoaded) {
@@ -88,10 +120,30 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Debounced re-fetch whenever a transaction filter changes, same pattern as the
+  // main transactions/financial-transactions list pages.
+  useEffect(() => {
+    if (isFirstTxnFilterRender.current) {
+      isFirstTxnFilterRender.current = false;
+      return;
+    }
+    if (activeTab !== "transactions") return;
+
+    const timeout = setTimeout(() => fetchTransactions(1), 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txnSearch, txnFrom, txnTo, txnStatus]);
+
   async function fetchTransactions(page: number) {
     setTransactionsLoading(true);
     try {
-      const result: any = await getAccountTransactionsAction(account.id, page);
+      const result: any = await getTransactionsAction(page, {
+        account_id: String(account.id),
+        search: txnSearch,
+        from: txnFrom,
+        to: txnTo,
+        status: txnStatus,
+      });
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to load transactions.");
@@ -177,6 +229,13 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                 </span>
                 <StatusBadge status={account.status} />
               </div>
+
+              <p className="mt-2 text-lg font-bold text-slate-900">
+                ₦{formatCurrency(account.available_balance)}
+                <span className="ml-1.5 text-xs font-semibold text-slate-500">
+                  Available Balance
+                </span>
+              </p>
             </div>
           </div>
 
@@ -299,6 +358,73 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
 
       {activeTab === "transactions" && (
         <Section title="Transactions">
+          {/* FILTERS */}
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:flex-wrap">
+            <div className="relative flex-1 md:min-w-50">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                type="search"
+                value={txnSearch}
+                onChange={(event) => setTxnSearch(event.target.value)}
+                placeholder="Search by reference or narration..."
+                className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-4 text-sm text-slate-900 placeholder-slate-500 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+              />
+            </div>
+
+            <select
+              value={txnStatus}
+              onChange={(event) => setTxnStatus(event.target.value)}
+              className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+            >
+              <option value="">All Statuses</option>
+              {TRANSACTION_STATUSES.map((option) => (
+                <option key={option} value={option}>
+                  {toDisplayLabel(option)}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="date"
+              value={txnFrom}
+              onChange={(event) => setTxnFrom(event.target.value)}
+              className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+            />
+
+            <input
+              type="date"
+              value={txnTo}
+              onChange={(event) => setTxnTo(event.target.value)}
+              className="h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                setTxnSearch("");
+                setTxnStatus("");
+                setTxnFrom("");
+                setTxnTo("");
+              }}
+              disabled={!txnSearch && !txnStatus && !txnFrom && !txnTo}
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RotateCcw size={16} />
+              Reset
+            </button>
+
+            <ExportDropdown
+              baseEndpoint="/admin/transactions"
+              params={{
+                account_id: String(account.id),
+                search: txnSearch,
+                status: txnStatus,
+                from: txnFrom,
+                to: txnTo,
+              }}
+            />
+          </div>
+
           {transactionsLoading && transactions.length === 0 ? (
             <p className="py-8 text-center text-sm font-medium text-slate-500">
               Loading transactions...
@@ -313,76 +439,144 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-200">
+                <table className="w-full min-w-225">
                   <thead>
                     <tr className="border-b border-slate-200">
-                      <Heading>Date</Heading>
-                      <Heading>Narration</Heading>
+                      <Heading>Reference</Heading>
                       <Heading>Type</Heading>
                       <Heading>Amount</Heading>
+                      <Heading>Balance Before</Heading>
                       <Heading>Balance After</Heading>
                       <Heading>Status</Heading>
+                      <Heading>Date</Heading>
+                      <Heading>Actions</Heading>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {transactions.map((txn) => (
-                      <tr key={txn.id}>
-                        <td className="px-3 py-3 text-sm text-slate-700">
-                          {formatDateTime(txn.posting_date)}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-slate-800">{txn.narration || "—"}</td>
-                        <td className="px-3 py-3 text-sm">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${
-                              txn.type === "credit"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {txn.type}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-sm font-bold text-slate-900">
-                          ₦{formatCurrency(txn.amount)}
-                        </td>
-                        <td className="px-3 py-3 text-sm text-slate-700">
-                          ₦{formatCurrency(txn.balance_after)}
-                        </td>
-                        <td className="px-3 py-3 text-sm">
-                          <StatusBadge status={txn.status} />
-                        </td>
-                      </tr>
-                    ))}
+                    {transactions.map((txn) => {
+                      const match = /^([^(]+)\(([^)]+)\)$/.exec(txn.type ?? "");
+                      const typeLabel = match ? match[1].trim() : txn.type;
+                      const isDebit = typeLabel?.toLowerCase() === "debit";
+
+                      return (
+                        <tr key={txn.id}>
+                          <td className="px-3 py-3 text-sm text-slate-800">
+                            <p className="font-semibold">{txn.reference ?? "—"}</p>
+                            {txn.transaction_reference && (
+                              <p className="mt-0.5 text-xs font-medium text-slate-400">
+                                {txn.transaction_reference}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-sm">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${
+                                isDebit
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {typeLabel ?? "—"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-sm font-bold text-slate-900">
+                            ₦{formatCurrency(txn.amount)}
+                          </td>
+                          <td className="px-3 py-3 text-sm text-slate-700">
+                            ₦{formatCurrency(txn.balance_before)}
+                          </td>
+                          <td className="px-3 py-3 text-sm text-slate-700">
+                            ₦{formatCurrency(txn.balance_after)}
+                          </td>
+                          <td className="px-3 py-3 text-sm">
+                            <StatusBadge status={txn.status} />
+                          </td>
+                          <td className="px-3 py-3 text-sm text-slate-700">
+                            {formatDateTime(txn.date)}
+                          </td>
+                          <td className="px-3 py-3">
+                            <ActionMenu
+                              isOpen={txnActionMenuId === txn.id}
+                              onToggle={() =>
+                                setTxnActionMenuId(txnActionMenuId === txn.id ? null : txn.id)
+                              }
+                              onClose={() => setTxnActionMenuId(null)}
+                            >
+                              <TxnActionButton
+                                onClick={() => {
+                                  setTxnActionMenuId(null);
+                                  router.push(`/chat-of-account/transactions/${txn.id}`);
+                                }}
+                              >
+                                <Eye size={16} />
+                                View
+                              </TxnActionButton>
+                            </ActionMenu>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {transactionsMeta && transactionsMeta.last_page > 1 && (
-                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+              {transactionsMeta && (
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm font-medium text-slate-600">
-                    Page {transactionsMeta.current_page} of {transactionsMeta.last_page}
+                    Showing {transactionsMeta.from ?? 0}-{transactionsMeta.to ?? 0} of{" "}
+                    {transactionsMeta.total ?? transactions.length} transactions
                   </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fetchTransactions(transactionsMeta.current_page - 1)}
-                      disabled={transactionsLoading || transactionsMeta.current_page <= 1}
-                      className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fetchTransactions(transactionsMeta.current_page + 1)}
-                      disabled={
-                        transactionsLoading ||
-                        transactionsMeta.current_page >= transactionsMeta.last_page
-                      }
-                      className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
+
+                  {transactionsMeta.last_page > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fetchTransactions(transactionsMeta.current_page - 1)}
+                        disabled={transactionsLoading || transactionsMeta.current_page <= 1}
+                        className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      {getPageNumbers(transactionsMeta.current_page, transactionsMeta.last_page).map(
+                        (page, index) =>
+                          page === "..." ? (
+                            <span
+                              key={`ellipsis-${index}`}
+                              className="px-2 text-sm font-semibold text-slate-400 select-none"
+                            >
+                              …
+                            </span>
+                          ) : (
+                            <button
+                              key={page}
+                              type="button"
+                              onClick={() => fetchTransactions(page)}
+                              disabled={transactionsLoading}
+                              className={`min-w-9.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                                page === transactionsMeta.current_page
+                                  ? "bg-[#173673] text-white shadow-sm"
+                                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          )
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => fetchTransactions(transactionsMeta.current_page + 1)}
+                        disabled={
+                          transactionsLoading ||
+                          transactionsMeta.current_page >= transactionsMeta.last_page
+                        }
+                        className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -452,6 +646,18 @@ function ActionButton({
     >
       {icon}
       {pending ? "Please wait..." : label}
+    </button>
+  );
+}
+
+function TxnActionButton(props: Record<string, any>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+    >
+      {props.children}
     </button>
   );
 }
@@ -562,4 +768,29 @@ function StatusBadge({ status }: { status: string }) {
       {status ? toDisplayLabel(status) : "—"}
     </span>
   );
+}
+
+// Builds a compact page list: first, last, and a window around the current
+// page, e.g. 1 ... 4 5 6 ... 20. Falls back to showing every page when few.
+function getPageNumbers(current: number, last: number): (number | "...")[] {
+  if (last <= 5) {
+    return Array.from({ length: last }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, last, current]);
+
+  if (current > 1) pages.add(current - 1);
+  if (current < last) pages.add(current + 1);
+
+  const sorted = Array.from(pages).sort((a, b) => a - b);
+
+  const result: (number | "...")[] = [];
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) {
+      result.push("...");
+    }
+    result.push(page);
+  });
+
+  return result;
 }

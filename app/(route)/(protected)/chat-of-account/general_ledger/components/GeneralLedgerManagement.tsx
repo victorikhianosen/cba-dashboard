@@ -48,6 +48,9 @@ export default function GeneralLedgerManagement({
   const [pageLoading, setPageLoading] = useState(false);
 
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [isAssigned, setIsAssigned] = useState("");
+  const [currencyId, setCurrencyId] = useState("");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedLedger, setSelectedLedger] = useState<Ledger | null>(null);
@@ -87,10 +90,20 @@ export default function GeneralLedgerManagement({
     fetchStats();
   }, []);
 
-  async function fetchPage(page: number, searchTerm: string = search) {
+  async function fetchPage(
+    page: number,
+    searchTerm: string = search,
+    statusFilter: string = status,
+    assignedFilter: string = isAssigned,
+    currencyFilter: string = currencyId
+  ) {
     setPageLoading(true);
     try {
-      const result: any = await getGeneralLedgersAction(page, searchTerm);
+      const result: any = await getGeneralLedgersAction(page, searchTerm, {
+        status: statusFilter,
+        is_assigned: assignedFilter,
+        currency_id: currencyFilter,
+      });
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to load chart of accounts.");
@@ -124,12 +137,12 @@ export default function GeneralLedgerManagement({
     }
 
     const timeout = setTimeout(() => {
-      fetchPage(1, search);
+      fetchPage(1, search, status, isAssigned, currencyId);
     }, 400);
 
     return () => clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [search, status, isAssigned, currencyId]);
 
   function openCreateDrawer() {
     setSelectedLedger(null);
@@ -237,7 +250,10 @@ export default function GeneralLedgerManagement({
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons baseEndpoint="/admin/general-ledgers" params={{ search }} />
+          <ExportButtons
+            baseEndpoint="/admin/general-ledgers"
+            params={{ search, status, is_assigned: isAssigned, currency_id: currencyId }}
+          />
 
           <button
             type="button"
@@ -308,6 +324,39 @@ export default function GeneralLedgerManagement({
             className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder-slate-500 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
           />
         </div>
+
+        <select
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+
+        <select
+          value={isAssigned}
+          onChange={(event) => setIsAssigned(event.target.value)}
+          className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+        >
+          <option value="">Assigned & Unassigned</option>
+          <option value="1">Assigned</option>
+          <option value="0">Unassigned</option>
+        </select>
+
+        <select
+          value={currencyId}
+          onChange={(event) => setCurrencyId(event.target.value)}
+          className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+        >
+          <option value="">All Currencies</option>
+          {currencies.map((currency) => (
+            <option key={currency.id} value={currency.id}>
+              {currency.code}
+            </option>
+          ))}
+        </select>
       </section>
 
       {/* DATATABLE */}
@@ -322,6 +371,7 @@ export default function GeneralLedgerManagement({
                 <Heading>Balance</Heading>
                 <Heading>Status</Heading>
                 <Heading>Assigned</Heading>
+                <Heading>Created</Heading>
                 <Heading>Actions</Heading>
               </tr>
             </thead>
@@ -381,6 +431,17 @@ export default function GeneralLedgerManagement({
                     </span>
                   </td>
 
+                  <td className="px-5 py-4 text-sm font-medium text-slate-800">
+                    {ledger.created_at ? (
+                      <>
+                        <div>{formatDate(ledger.created_at)}</div>
+                        <div className="text-xs text-slate-500">{formatTime(ledger.created_at)}</div>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+
                   <td className="px-5">
                     <ActionMenu
                       isOpen={actionMenuId === ledger.id}
@@ -408,7 +469,7 @@ export default function GeneralLedgerManagement({
               {ledgers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-5 py-16 text-center text-sm font-medium text-slate-500"
                   >
                     No accounts found.
@@ -485,6 +546,22 @@ export default function GeneralLedgerManagement({
       />
     </>
   );
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 // Turns "operating_expenses" into "Operating Expenses" for display.

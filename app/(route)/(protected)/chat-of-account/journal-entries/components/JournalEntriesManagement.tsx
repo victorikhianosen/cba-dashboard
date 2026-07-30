@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { BookOpen, ChevronLeft, ChevronRight, Eye, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import { getJournalEntriesAction } from "@/actions/journal-entry.action";
+import ActionMenu from "@/components/ActionMenu";
 import ExportButtons from "@/components/ExportButtons";
 import { handleApiError } from "@/lib/errors";
 
@@ -11,6 +13,8 @@ type Entry = Record<string, any>;
 type Meta = Record<string, any> | null;
 
 export default function JournalEntriesManagement() {
+  const router = useRouter();
+
   const [entries, setEntries] = useState<Entry[]>([]);
   const [meta, setMeta] = useState<Meta>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -18,6 +22,7 @@ export default function JournalEntriesManagement() {
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -112,30 +117,21 @@ export default function JournalEntriesManagement() {
           <table className="w-full min-w-[1100px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <Heading>Posting Date</Heading>
-                <Heading>Journal Ref</Heading>
-                <Heading>Transaction Ref</Heading>
                 <Heading>General Ledger</Heading>
+                <Heading>Reference</Heading>
                 <Heading>Type</Heading>
                 <Heading>Amount</Heading>
+                <Heading>Balance Before</Heading>
                 <Heading>Balance After</Heading>
-                <Heading>Narration</Heading>
+                <Heading>Posting Date</Heading>
+                <Heading>Actions</Heading>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
               {entries.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-5 py-4 text-sm font-medium text-slate-800">
-                    {entry.posting_date ?? "—"}
-                  </td>
-                  <td className="px-5 text-sm font-medium text-slate-800">
-                    {entry.journal_reference ?? "—"}
-                  </td>
-                  <td className="px-5 text-sm font-medium text-slate-800">
-                    {entry.transaction_reference ?? "—"}
-                  </td>
-                  <td className="px-5 text-sm font-medium text-slate-800">
+                    <td className="px-5 text-sm font-medium text-slate-800">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#29478f]">
                         <BookOpen size={15} />
@@ -146,6 +142,16 @@ export default function JournalEntriesManagement() {
                       </div>
                     </div>
                   </td>
+              
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    <p>{entry.journal_reference ?? "—"}</p>
+                    {entry.transaction_reference && (
+                      <p className="mt-0.5 text-xs font-medium text-slate-400">
+                        {entry.transaction_reference}
+                      </p>
+                    )}
+                  </td>
+
                   <td className="px-5">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
@@ -161,17 +167,59 @@ export default function JournalEntriesManagement() {
                     {entry.currency_code} {entry.amount}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800">
+                    {entry.currency_code} {entry.balance_before}
+                  </td>
+                  <td className="px-5 text-sm font-medium text-slate-800">
                     {entry.currency_code} {entry.balance_after}
                   </td>
-                  <td className="px-5 text-sm font-medium text-slate-600 max-w-[220px] truncate">
-                    {entry.narration ?? "—"}
+
+               <td className="px-5 py-4 text-sm font-medium text-slate-800">
+  {entry.posting_date ? (
+    <>
+      <div>
+        {new Date(entry.posting_date).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })}
+      </div>
+      <div className="text-xs text-slate-500">
+        {new Date(entry.posting_date).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        })}
+      </div>
+    </>
+  ) : (
+    "—"
+  )}
+</td>
+
+                  <td className="px-5">
+                    <ActionMenu
+                      isOpen={actionMenuId === entry.id}
+                      onToggle={() => setActionMenuId(actionMenuId === entry.id ? null : entry.id)}
+                      onClose={() => setActionMenuId(null)}
+                    >
+                      <ActionButton
+                        onClick={() => {
+                          setActionMenuId(null);
+                          router.push(`/chat-of-account/journal-entries/${entry.id}`);
+                        }}
+                      >
+                        <Eye size={16} />
+                        View
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}
 
               {!pageLoading && entries.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
+                  <td colSpan={7} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
                     No journal entries found.
                   </td>
                 </tr>
@@ -226,5 +274,17 @@ function Heading({ children }: { children: ReactNode }) {
     <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
       {children}
     </th>
+  );
+}
+
+function ActionButton(props: Record<string, any>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+    >
+      {props.children}
+    </button>
   );
 }

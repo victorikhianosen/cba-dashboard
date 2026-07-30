@@ -131,11 +131,6 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "Transactions",
-    href: "/transactions",
-    icon: Activity,
-  },
-  {
     name: "Postings",
     href: "/postings",
     icon: ArrowLeftRight,

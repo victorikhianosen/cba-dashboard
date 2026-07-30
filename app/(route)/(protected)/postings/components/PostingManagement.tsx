@@ -14,9 +14,14 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getPostingsAction } from "@/actions/posting.action";
+import { bulkApprovePostingsAction, getPostingsAction } from "@/actions/posting.action";
+import ActionMenu from "@/components/ActionMenu";
+import ConfirmModal from "@/components/ConfirmModal";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
+import { usePermissions } from "@/lib/permissions";
+
+const MAX_BULK_APPROVE = 50;
 
 type Posting = Record<string, any>;
 type PostingMeta = Record<string, any> | null;
@@ -76,6 +81,7 @@ export default function PostingManagement({
   initialMeta = null,
 }: PostingManagementProps) {
   const router = useRouter();
+  const { currentUser } = usePermissions();
 
   const [postings, setPostings] = useState<Posting[]>(initialPostings);
   const [meta, setMeta] = useState<PostingMeta>(initialMeta);
@@ -84,6 +90,10 @@ export default function PostingManagement({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
+  const [bulkApproveModalOpen, setBulkApproveModalOpen] = useState(false);
 
   const totalPostings = meta?.total ?? postings.length;
   const pendingPostings = postings.filter((p) => p.status === "pending").length;
@@ -118,7 +128,80 @@ export default function PostingManagement({
       return;
     }
 
+    setSelectedIds(new Set());
     await fetchPage(page);
+  }
+
+  function isPending(posting: Posting) {
+    return posting.status === "pending";
+  }
+
+  function isOwnPosting(posting: Posting) {
+    return Boolean(currentUser?.id) && String(currentUser?.id) === String(posting.created_by);
+  }
+
+  function isSelectable(posting: Posting) {
+    return isPending(posting) && !isOwnPosting(posting);
+  }
+
+  function toggleSelect(id: number | string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else if (next.size < MAX_BULK_APPROVE) {
+        next.add(id);
+      } else {
+        toast.warn(`You can only bulk-approve up to ${MAX_BULK_APPROVE} postings at once.`);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAllOnPage(selectablePostings: Posting[]) {
+    setSelectedIds((prev) => {
+      const allSelected = selectablePostings.length > 0 && selectablePostings.every((p) => prev.has(p.id));
+      if (allSelected) {
+        const next = new Set(prev);
+        selectablePostings.forEach((p) => next.delete(p.id));
+        return next;
+      }
+
+      const next = new Set(prev);
+      for (const posting of selectablePostings) {
+        if (next.size >= MAX_BULK_APPROVE) {
+          toast.warn(`You can only bulk-approve up to ${MAX_BULK_APPROVE} postings at once.`);
+          break;
+        }
+        next.add(posting.id);
+      }
+      return next;
+    });
+  }
+
+  function handleBulkApprove() {
+    const ids = Array.from(selectedIds);
+
+    // Fire-and-forget: the backend just queues the batch, so the UI doesn't wait
+    // on it — close the modal and clear the selection right away.
+    setBulkApproveModalOpen(false);
+    setSelectedIds(new Set());
+    toast.success(`${ids.length} posting(s) queued for approval — they will update shortly.`);
+
+    bulkApprovePostingsAction(ids)
+      .then((result: any) => {
+        if (result?.status !== "success") {
+          handleApiError(result, "Failed to queue postings for approval.");
+          return;
+        }
+
+        // Give the queue a moment to work through the batch, then refresh this page.
+        setTimeout(() => fetchPage(currentPage), 3000);
+      })
+      .catch((error) => {
+        console.error("Failed to bulk-approve postings:", error);
+        toast.error("A network error occurred. Please try again.");
+      });
   }
 
   const filteredPostings = useMemo(() => {
@@ -243,12 +326,62 @@ export default function PostingManagement({
         </select>
       </section>
 
+      {/* BULK APPROVE BAR */}
+      {selectedIds.size > 0 && (
+        <section className="mt-4 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-5 py-3">
+          <p className="text-sm font-semibold text-blue-900">
+            {selectedIds.size} posting{selectedIds.size === 1 ? "" : "s"} selected
+            {selectedIds.size >= MAX_BULK_APPROVE ? ` (max ${MAX_BULK_APPROVE})` : ""}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-blue-900 hover:bg-blue-100 transition"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkApproveModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-[#173673] px-4 py-2 text-sm font-semibold text-white hover:bg-[#10295c] transition"
+            >
+              <CheckCircle2 size={16} />
+              Approve Selected
+            </button>
+          </div>
+        </section>
+      )}
+
+      <ConfirmModal
+        isOpen={bulkApproveModalOpen}
+        title="Approve Selected Postings"
+        description={`Approve ${selectedIds.size} selected posting(s)? They'll be queued and posted to the ledger in the background — you don't need to wait, they'll update shortly.`}
+        confirmLabel="Yes, Approve"
+        confirmTone="primary"
+        pending={false}
+        onCancel={() => setBulkApproveModalOpen(false)}
+        onConfirm={handleBulkApprove}
+      />
+
       {/* DATATABLE */}
       <section className="mt-5 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-275">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="w-10 px-5 py-4">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all pending on this page"
+                    checked={
+                      filteredPostings.some(isSelectable) &&
+                      filteredPostings.filter(isSelectable).every((p) => selectedIds.has(p.id))
+                    }
+                    onChange={() => toggleSelectAllOnPage(filteredPostings.filter(isSelectable))}
+                    className="h-4 w-4 cursor-pointer rounded border-slate-300"
+                  />
+                </th>
                 <Heading>Reference</Heading>
                 <Heading>Type</Heading>
                 <Heading>Source</Heading>
@@ -263,6 +396,23 @@ export default function PostingManagement({
             <tbody className="divide-y divide-slate-100">
               {filteredPostings.map((posting) => (
                 <tr key={posting.id} className="hover:bg-slate-50/80 transition-colors">
+                  <td className="w-10 px-5 py-5">
+                    {isPending(posting) && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Select posting ${posting.reference}`}
+                        checked={selectedIds.has(posting.id)}
+                        disabled={isOwnPosting(posting)}
+                        title={
+                          isOwnPosting(posting)
+                            ? "You cannot approve a posting you created yourself"
+                            : undefined
+                        }
+                        onChange={() => toggleSelect(posting.id)}
+                        className="h-4 w-4 cursor-pointer rounded border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                      />
+                    )}
+                  </td>
                   <td className="px-5 py-5">
                     <p className="font-bold text-sm text-slate-900">{posting.reference}</p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500 capitalize">
@@ -305,14 +455,23 @@ export default function PostingManagement({
                   </td>
 
                   <td className="px-5">
-                    <button
-                      type="button"
-                      onClick={() => router.push(`/postings/${posting.id}`)}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                    <ActionMenu
+                      isOpen={actionMenuId === posting.id}
+                      onToggle={() =>
+                        setActionMenuId(actionMenuId === posting.id ? null : posting.id)
+                      }
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <Eye size={14} />
-                      View
-                    </button>
+                      <ActionButton
+                        onClick={() => {
+                          setActionMenuId(null);
+                          router.push(`/postings/${posting.id}`);
+                        }}
+                      >
+                        <Eye size={16} />
+                        View
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}
@@ -401,6 +560,18 @@ function Heading({ children }: { children: ReactNode }) {
     <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
       {children}
     </th>
+  );
+}
+
+function ActionButton(props: Record<string, any>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+    >
+      {props.children}
+    </button>
   );
 }
 

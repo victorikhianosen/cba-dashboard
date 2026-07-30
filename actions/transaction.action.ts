@@ -11,6 +11,7 @@ export async function getTransactionsAction(
     account_id?: string;
     transaction_type?: string;
     direction?: string;
+    status?: string;
   } = {}
 ) {
   try {
@@ -22,9 +23,23 @@ export async function getTransactionsAction(
     if (filters.account_id) params.set("account_id", filters.account_id);
     if (filters.transaction_type) params.set("transaction_type", filters.transaction_type);
     if (filters.direction) params.set("direction", filters.direction);
+    if (filters.status) params.set("status", filters.status);
 
     const result: any = await authApiClient({
       endpoint: `/admin/transactions?${params.toString()}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function getTransactionAction(id: number | string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/transactions/${id}`,
       method: "GET",
     });
 

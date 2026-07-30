@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getAccountsAction } from "@/actions/account.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 
@@ -52,6 +53,7 @@ export default function AccountManagement({
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
 
   const totalAccounts = meta?.total ?? accounts.length;
   const activeAccounts = accounts.filter((a) => a.status === "active").length;
@@ -265,16 +267,23 @@ export default function AccountManagement({
                   </td>
 
                   <td className="px-5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(`/customer-management/account/${account.id}`)
+                    <ActionMenu
+                      isOpen={actionMenuId === account.id}
+                      onToggle={() =>
+                        setActionMenuId(actionMenuId === account.id ? null : account.id)
                       }
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <Eye size={14} />
-                      View
-                    </button>
+                      <ActionButton
+                        onClick={() => {
+                          setActionMenuId(null);
+                          router.push(`/customer-management/account/${account.id}`);
+                        }}
+                      >
+                        <Eye size={16} />
+                        View
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}
@@ -364,6 +373,18 @@ function Heading({ children }: { children: ReactNode }) {
     <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
       {children}
     </th>
+  );
+}
+
+function ActionButton(props: Record<string, any>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+    >
+      {props.children}
+    </button>
   );
 }
 

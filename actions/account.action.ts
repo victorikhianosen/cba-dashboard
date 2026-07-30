@@ -34,18 +34,6 @@ export async function getAccountAction(id: number | string) {
   }
 }
 
-export async function getAccountTransactionsAction(id: number | string, page: number = 1) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/accounts/${id}/transactions?page=${page}`,
-      method: "GET",
-    });
-
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
-}
 
 export async function updateAccountStatusAction(id: number | string, status: string) {
   try {

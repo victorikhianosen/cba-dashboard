@@ -2,12 +2,28 @@
 
 import { authApiClient } from "@/lib/api-client";
 
-export async function getGeneralLedgersAction(page: number = 1, search: string = "") {
+export async function getGeneralLedgersAction(
+  page: number = 1,
+  search: string = "",
+  filters: { status?: string; is_assigned?: string; currency_id?: string } = {}
+) {
   try {
     const params = new URLSearchParams({ page: String(page), per_page: "50" });
 
     if (search.trim()) {
       params.set("search", search.trim());
+    }
+
+    if (filters.status) {
+      params.set("status", filters.status);
+    }
+
+    if (filters.is_assigned) {
+      params.set("is_assigned", filters.is_assigned);
+    }
+
+    if (filters.currency_id) {
+      params.set("currency_id", filters.currency_id);
     }
 
     const result: any = await authApiClient({
