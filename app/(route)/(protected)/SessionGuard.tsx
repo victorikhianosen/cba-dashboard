@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { logoutAction } from "@/actions/auth.action";
+import { sessionTimeoutAction } from "@/actions/auth.action";
 
 // Log the user out this long before the token actually expires, instead of
 // waiting for an API call to start failing with 401s.
@@ -29,7 +29,7 @@ export default function SessionGuard() {
       if (loggedOutRef.current) return;
       loggedOutRef.current = true;
 
-      await logoutAction();
+      await sessionTimeoutAction();
       toast.info("Your session has expired. Please log in again.");
       router.replace("/login");
       router.refresh();

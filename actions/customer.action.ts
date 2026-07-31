@@ -66,6 +66,42 @@ export async function createCustomerAction(formData: FormData) {
   }
 }
 
+// Each file in the FormData becomes its own document — the field name it's sent
+// under becomes that document's title/type on the API (arbitrary custom labels).
+export async function uploadCustomerDocumentsAction(id: number | string, formData: FormData) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/customers/${id}/documents`,
+      method: "POST",
+      body: formData,
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+// Approves, rejects or otherwise updates a single document (status: pending,
+// verified, approved, rejected).
+export async function updateCustomerDocumentAction(
+  customerId: number | string,
+  documentId: number | string,
+  payload: { status?: string; title?: string; type?: string; comments?: string }
+) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/customers/${customerId}/documents/${documentId}`,
+      method: "PUT",
+      body: payload,
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 // Generic status change to anything in the statuses lookup table (dormant, frozen,
 // suspended, kyc_verified, blacklisted, etc.), with an optional comment.
 export async function updateCustomerStatusAction(

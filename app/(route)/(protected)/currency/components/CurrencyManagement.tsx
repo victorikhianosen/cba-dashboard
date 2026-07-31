@@ -8,16 +8,11 @@ import {
   ChevronRight,
   Coins,
   Edit3,
-  Plus,
   Search,
   Star,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import {
-  createCurrencyAction,
-  getCurrenciesAction,
-  updateCurrencyAction,
-} from "@/actions/currency.action";
+import { getCurrenciesAction, updateCurrencyAction } from "@/actions/currency.action";
 import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import CurrencyFormDrawer from "./CurrencyFormDrawer";
@@ -47,9 +42,13 @@ export default function CurrencyManagement({
 
   const [submitting, setSubmitting] = useState(false);
 
-  const totalCurrencies = meta?.total ?? currencies.length;
-  const baseCurrency = currencies.find((currency) => currency.is_base_currency);
-  const activeCurrencies = currencies.filter((c) => c.status === "active").length;
+  const stats = meta?.statistics;
+
+  // Counted across every currency by the backend, not just the current page —
+  // filtering `currencies` here would only ever reflect whatever page is loaded.
+  const totalCurrencies = stats?.total_currencies ?? meta?.total ?? currencies.length;
+  const activeCurrencies = stats?.total_active ?? currencies.filter((c) => c.status === "active").length;
+  const baseCurrency = stats?.base_currency ?? currencies.find((currency) => currency.is_base_currency);
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -102,12 +101,6 @@ export default function CurrencyManagement({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  function openCreateDrawer() {
-    setSelectedCurrency(null);
-    setActionMenuId(null);
-    setDrawerOpen(true);
-  }
-
   function openUpdateDrawer(currency: Currency) {
     setSelectedCurrency(currency);
     setActionMenuId(null);
@@ -120,7 +113,12 @@ export default function CurrencyManagement({
     setSelectedCurrency(null);
   }
 
+  // Currencies can't be created here — only updated (rate, symbol, base flag, ...).
+  // selectedCurrency is always set by the time this runs, since the drawer only
+  // ever opens via openUpdateDrawer().
   async function handleFormSubmit(formData: CurrencyFormData) {
+    if (!selectedCurrency) return;
+
     setSubmitting(true);
     try {
       const payload = {
@@ -133,29 +131,16 @@ export default function CurrencyManagement({
         is_base_currency: Boolean(formData.is_base_currency),
       };
 
-      if (selectedCurrency) {
-        const result: any = await updateCurrencyAction(selectedCurrency.id, payload);
+      const result: any = await updateCurrencyAction(selectedCurrency.id, payload);
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update currency.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Currency updated successfully.");
-      } else {
-        const result: any = await createCurrencyAction(payload);
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create currency.");
-          return;
-        }
-
-        await fetchPage(1);
-
-        toast.success(result.message || "Currency created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update currency.");
+        return;
       }
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Currency updated successfully.");
       setDrawerOpen(false);
       setSelectedCurrency(null);
     } catch (error) {
@@ -175,18 +160,9 @@ export default function CurrencyManagement({
             Currencies
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Manage supported currencies and exchange rates
+            Update exchange rates for the platform&apos;s supported currencies
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={openCreateDrawer}
-          className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
-        >
-          <Plus size={18} />
-          Add Currency
-        </button>
       </div>
 
       {/* SUMMARY */}
@@ -210,7 +186,7 @@ export default function CurrencyManagement({
         <SummaryCard
           title="Active Currencies"
           value={activeCurrencies}
-          description="Currently active on this page"
+          description="Currently active"
           icon={<CheckCircle2 size={22} />}
           iconStyle="bg-emerald-100 text-emerald-800"
         />

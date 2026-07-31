@@ -68,28 +68,8 @@ export async function getCurrencyAction(id: number | string) {
   }
 }
 
-export async function createCurrencyAction(data: {
-  code: string;
-  name: string;
-  symbol: string;
-  buy_rate: number;
-  sell_rate: number;
-  exchange_rate: number;
-  is_base_currency: boolean;
-}) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: "/admin/currencies",
-      method: "POST",
-      body: data,
-    });
-
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
-}
-
+// No createCurrencyAction — currencies are a fixed, curated list seeded by the
+// backend (CurrencySeeder). Only updates (exchange rate, status, etc.) are allowed.
 export async function updateCurrencyAction(
   id: number | string,
   data: {

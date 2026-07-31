@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
+const baseURL = process.env.API_BASE_URL;
 
 // Proxies CSV/PDF export downloads to the backend. Browsers can't attach the
 // httpOnly auth cookie's token as a Bearer header themselves, so this route

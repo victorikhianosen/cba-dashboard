@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 
-const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
+const baseURL = process.env.API_BASE_URL;
 
 type RequestConfig = {
   endpoint: string;

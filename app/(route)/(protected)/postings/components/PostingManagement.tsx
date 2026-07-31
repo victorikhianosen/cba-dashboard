@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeftRight,
@@ -10,6 +10,7 @@ import {
   Clock3,
   Eye,
   Plus,
+  RotateCcw,
   Search,
   XCircle,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import { toast } from "react-toastify";
 import { bulkApprovePostingsAction, getPostingsAction } from "@/actions/posting.action";
 import ActionMenu from "@/components/ActionMenu";
 import ConfirmModal from "@/components/ConfirmModal";
+import ExportButtons from "@/components/ExportButtons";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
@@ -88,6 +90,8 @@ export default function PostingManagement({
   const [pageLoading, setPageLoading] = useState(false);
 
   const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
@@ -103,10 +107,20 @@ export default function PostingManagement({
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
 
+  const isFirstRender = useRef(true);
+
+  const exportParams = {
+    from,
+    to,
+    search,
+    status: statusFilter === "all" ? "" : statusFilter,
+    type: typeFilter === "all" ? "" : typeFilter,
+  };
+
   async function fetchPage(page: number) {
     setPageLoading(true);
     try {
-      const result: any = await getPostingsAction(page);
+      const result: any = await getPostingsAction(page, exportParams);
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to load postings.");
@@ -121,6 +135,26 @@ export default function PostingManagement({
     } finally {
       setPageLoading(false);
     }
+  }
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    setSelectedIds(new Set());
+    const timeout = setTimeout(() => fetchPage(1), 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, from, to, statusFilter, typeFilter]);
+
+  function resetFilters() {
+    setSearch("");
+    setFrom("");
+    setTo("");
+    setStatusFilter("all");
+    setTypeFilter("all");
   }
 
   async function goToPage(page: number) {
@@ -204,34 +238,6 @@ export default function PostingManagement({
       });
   }
 
-  const filteredPostings = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-
-    return postings.filter((posting) => {
-      const searchableData = [
-        posting.reference,
-        posting.transaction_reference,
-        posting.source?.account_number,
-        posting.source?.name,
-        posting.destination?.account_number,
-        posting.destination?.name,
-        posting.remarks,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = searchableData.includes(keyword);
-      const matchesStatus = statusFilter === "all" || posting.status === statusFilter;
-      const type = POSTING_TYPES.find(
-        (t) => t.source === posting.source_type && t.destination === posting.destination_type
-      );
-      const matchesType = typeFilter === "all" || type?.value === typeFilter;
-
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [postings, search, statusFilter, typeFilter]);
-
   return (
     <>
       {/* PAGE HEADER */}
@@ -243,14 +249,18 @@ export default function PostingManagement({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => router.push("/postings/create")}
-          className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
-        >
-          <Plus size={18} />
-          New Posting
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButtons baseEndpoint="/admin/postings" params={exportParams} />
+
+          <button
+            type="button"
+            onClick={() => router.push("/postings/create")}
+            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
+          >
+            <Plus size={18} />
+            New Posting
+          </button>
+        </div>
       </div>
 
       {/* SUMMARY */}
@@ -296,7 +306,7 @@ export default function PostingManagement({
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by reference, account or GL..."
+            placeholder="Search by reference or remarks..."
             className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder-slate-500 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
           />
         </div>
@@ -324,6 +334,31 @@ export default function PostingManagement({
           <option value="approved">Approved</option>
           <option value="rejected">Rejected</option>
         </select>
+
+        <input
+          type="date"
+          value={from}
+          max={to || undefined}
+          onChange={(event) => setFrom(event.target.value)}
+          className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+        />
+
+        <input
+          type="date"
+          value={to}
+          min={from || undefined}
+          onChange={(event) => setTo(event.target.value)}
+          className="h-12 rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+        />
+
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          <RotateCcw size={16} />
+          Reset
+        </button>
       </section>
 
       {/* BULK APPROVE BAR */}
@@ -375,10 +410,10 @@ export default function PostingManagement({
                     type="checkbox"
                     aria-label="Select all pending on this page"
                     checked={
-                      filteredPostings.some(isSelectable) &&
-                      filteredPostings.filter(isSelectable).every((p) => selectedIds.has(p.id))
+                      postings.some(isSelectable) &&
+                      postings.filter(isSelectable).every((p) => selectedIds.has(p.id))
                     }
-                    onChange={() => toggleSelectAllOnPage(filteredPostings.filter(isSelectable))}
+                    onChange={() => toggleSelectAllOnPage(postings.filter(isSelectable))}
                     className="h-4 w-4 cursor-pointer rounded border-slate-300"
                   />
                 </th>
@@ -394,7 +429,7 @@ export default function PostingManagement({
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredPostings.map((posting) => (
+              {postings.map((posting) => (
                 <tr key={posting.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="w-10 px-5 py-5">
                     {isPending(posting) && (
@@ -479,7 +514,7 @@ export default function PostingManagement({
           </table>
         </div>
 
-        {!pageLoading && filteredPostings.length === 0 && (
+        {!pageLoading && postings.length === 0 && (
           <div className="py-16 text-center text-sm font-medium text-slate-500">
             No postings found.
           </div>
@@ -490,7 +525,7 @@ export default function PostingManagement({
           <p className="text-sm font-medium text-slate-600">
             {meta
               ? `Showing ${meta.from ?? 0}-${meta.to ?? 0} of ${meta.total ?? totalPostings} postings`
-              : `Showing ${filteredPostings.length} postings`}
+              : `Showing ${postings.length} postings`}
           </p>
           <div className="flex items-center gap-2">
             <button

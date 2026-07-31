@@ -2,58 +2,72 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileClock,
-  Search,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Footprints, Search } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAuditTrailsAction } from "@/actions/audit.action";
+import { getUserJourneySessionsAction } from "@/actions/journey.action";
 import { handleApiError } from "@/lib/errors";
 
-type AuditLog = Record<string, any>;
-type AuditLogMeta = Record<string, any> | null;
+type JourneySession = Record<string, any>;
+type JourneyMeta = Record<string, any> | null;
 
-interface AuditLogManagementProps {
-  initialLogs?: AuditLog[];
-  initialMeta?: AuditLogMeta;
+interface UserJourneyManagementProps {
+  initialSessions?: JourneySession[];
+  initialMeta?: JourneyMeta;
 }
 
-export default function AuditLogManagement({
-  initialLogs = [],
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+// Rough human duration between two timestamps, e.g. "12m", "1h 03m".
+function duration(start: string | null | undefined, end: string | null | undefined) {
+  if (!start || !end) return "—";
+  const ms = new Date(end).getTime() - new Date(start).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+
+  const minutes = Math.floor(ms / 60000);
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+
+  return hours > 0 ? `${hours}h ${String(remMinutes).padStart(2, "0")}m` : `${minutes}m`;
+}
+
+export default function UserJourneyManagement({
+  initialSessions = [],
   initialMeta = null,
-}: AuditLogManagementProps) {
+}: UserJourneyManagementProps) {
   const router = useRouter();
 
-  const [logs, setLogs] = useState<AuditLog[]>(initialLogs);
-  const [meta, setMeta] = useState<AuditLogMeta>(initialMeta);
+  const [sessions, setSessions] = useState<JourneySession[]>(initialSessions);
+  const [meta, setMeta] = useState<JourneyMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
 
   const [search, setSearch] = useState("");
 
-  const totalLogs = meta?.total ?? logs.length;
+  const totalSessions = meta?.total ?? sessions.length;
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
 
-  // Skips the debounce effect on mount, since logs are already
-  // server-fetched for page 1 before this component renders.
   const isFirstRender = useRef(true);
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
     try {
-      const result: any = await getAuditTrailsAction(page, searchTerm);
+      const result: any = await getUserJourneySessionsAction(page, searchTerm);
 
       if (result?.status !== "success") {
-        handleApiError(result, "Failed to load audit logs.");
+        handleApiError(result, "Failed to load user journeys.");
         return;
       }
 
-      setLogs(Array.isArray(result.data) ? result.data : []);
+      setSessions(Array.isArray(result.data) ? result.data : []);
       setMeta(result.meta ?? null);
     } catch (error) {
-      console.error("Failed to load audit logs:", error);
+      console.error("Failed to load user journeys:", error);
       toast.error("A network error occurred. Please try again.");
     } finally {
       setPageLoading(false);
@@ -68,8 +82,6 @@ export default function AuditLogManagement({
     await fetchPage(page);
   }
 
-  // Debounced server-side search: wait for the user to stop typing, then
-  // re-fetch page 1 from the backend with the search term applied.
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -84,8 +96,8 @@ export default function AuditLogManagement({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  function viewLog(log: AuditLog) {
-    router.push(`/audit-logs/${log.id}`);
+  function viewSession(session: JourneySession) {
+    router.push(`/audit/user-journeys/${session.session_id}`);
   }
 
   return (
@@ -93,11 +105,9 @@ export default function AuditLogManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Audit Logs
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">User Journeys</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Review all activity recorded across the platform
+            Every login session and the complete timeline of activity within it
           </p>
         </div>
       </div>
@@ -105,15 +115,12 @@ export default function AuditLogManagement({
       {/* SEARCH */}
       <section className="mt-7 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
-          <Search
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
-          />
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="search"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by description, module, action or user..."
+            placeholder="Search by user..."
             className="h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder-slate-500 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
           />
         </div>
@@ -125,62 +132,70 @@ export default function AuditLogManagement({
           <table className="w-full min-w-[900px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <Heading>Description</Heading>
-                <Heading>Module</Heading>
-                <Heading>Action</Heading>
-                <Heading>Performed By</Heading>
-                <Heading>Date</Heading>
+                <Heading>User</Heading>
+                <Heading>Started</Heading>
+                <Heading>Ended</Heading>
+                <Heading>Duration</Heading>
+                <Heading>Events</Heading>
+                <Heading>IP</Heading>
+                <Heading>Status</Heading>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {logs.map((log) => (
+              {sessions.map((session) => (
                 <tr
-                  key={log.id}
-                  onClick={() => viewLog(log)}
+                  key={session.session_id}
+                  onClick={() => viewSession(session)}
                   className="cursor-pointer hover:bg-slate-50/80 transition-colors"
                 >
                   <td className="px-5 py-5">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
-                        <FileClock size={17} />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
+                        <Footprints size={17} />
                       </div>
-                      <p className="text-sm font-medium text-slate-800 max-w-md">
-                        {log.description}
-                      </p>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          {session.performed_by_name ?? "—"}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          Session #{session.session_id}
+                        </p>
+                      </div>
                     </div>
                   </td>
 
-                  <td className="px-5 text-sm font-medium text-slate-800 capitalize">
-                    {log.module?.replace(/_/g, " ") ?? "—"}
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {formatDateTime(session.started_at)}
                   </td>
+
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {formatDateTime(session.ended_at)}
+                  </td>
+
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {duration(session.started_at, session.ended_at ?? session.last_activity_at)}
+                  </td>
+
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {session.event_count ?? "—"}
+                  </td>
+
+                  <td className="px-5 text-sm font-medium text-slate-800">{session.ip ?? "—"}</td>
 
                   <td className="px-5">
-                    <ActionBadge action={log.action} />
-                  </td>
-
-                  <td className="px-5 text-sm font-medium text-slate-800">
-                    {log.performed_by_name ?? "System"}
-                    <p className="mt-0.5 text-xs font-semibold text-slate-500 capitalize">
-                      {log.performed_by_type ?? ""}
-                    </p>
-                  </td>
-
-                  <td className="px-5 text-sm font-medium text-slate-800">
-                    {log.created_at
-                      ? new Date(log.created_at).toLocaleString()
-                      : "—"}
+                    <SessionStatusBadge session={session} />
                   </td>
                 </tr>
               ))}
 
-              {logs.length === 0 && (
+              {sessions.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-5 py-16 text-center text-sm font-medium text-slate-500"
                   >
-                    No audit logs found.
+                    No user journeys found.
                   </td>
                 </tr>
               )}
@@ -192,8 +207,8 @@ export default function AuditLogManagement({
         <div className="flex flex-col gap-3 border-t border-slate-200 p-5 bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-medium text-slate-600">
             {meta
-              ? `Showing ${meta.from ?? 0}-${meta.to ?? 0} of ${meta.total ?? totalLogs} logs`
-              : `Showing ${logs.length} logs`}
+              ? `Showing ${meta.from ?? 0}-${meta.to ?? 0} of ${meta.total ?? totalSessions} sessions`
+              : `Showing ${sessions.length} sessions`}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -253,38 +268,30 @@ function Heading({ children }: { children: ReactNode }) {
   );
 }
 
-// Turns "two_factor_challenge_issued" into "Two Factor Challenge Issued".
-function formatActionLabel(action: string) {
-  return (action ?? "")
-    .split("_")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
+function SessionStatusBadge({ session }: { session: JourneySession }) {
+  if (!session.ended_at) {
+    return (
+      <span className="inline-flex rounded-full border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+        Active
+      </span>
+    );
+  }
 
-function ActionBadge({ action }: Record<string, any>) {
-  const styles: Record<string, string> = {
-    created: "bg-green-100 text-green-800 border border-green-300",
-    updated: "bg-amber-100 text-amber-800 border border-amber-300",
-    status_updated: "bg-amber-100 text-amber-800 border border-amber-300",
-    deleted: "bg-red-100 text-red-800 border border-red-300",
-    login: "bg-blue-100 text-blue-800 border border-blue-300",
-    logout: "bg-slate-100 text-slate-700 border border-slate-300",
-  };
+  if (session.timed_out) {
+    return (
+      <span className="inline-flex rounded-full border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+        Timed Out
+      </span>
+    );
+  }
 
   return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
-        styles[action] || "bg-slate-100 text-slate-700 border border-slate-300"
-      }`}
-    >
-      {action ? formatActionLabel(action) : "—"}
+    <span className="inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+      Logged Out
     </span>
   );
 }
 
-// Builds a compact page list: first, last, and a window around the current
-// page, e.g. 1 ... 4 5 6 ... 20. Falls back to showing every page when few.
 function getPageNumbers(current: number, last: number): (number | "...")[] {
   if (last <= 5) {
     return Array.from({ length: last }, (_, index) => index + 1);

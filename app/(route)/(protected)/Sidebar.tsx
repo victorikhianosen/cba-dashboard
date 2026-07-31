@@ -17,6 +17,7 @@ import {
   CreditCard,
   FileCheck2,
   FileText,
+  Footprints,
   KeyRound,
   Landmark,
   LayoutDashboard,
@@ -84,30 +85,6 @@ export const menuItems: MenuItem[] = [
     permission: "view_account_officers",
   },
   {
-    name: "User Mgt",
-    icon: Users,
-    children: [
-      {
-        name: "Users",
-        href: "/user-management/user",
-        icon: Users,
-        permission: "view_users",
-      },
-      {
-        name: "Roles",
-        href: "/user-management/role",
-        icon: ShieldQuestion,
-        permission: "view_roles",
-      },
-      {
-        name: "Permissions",
-        href: "/user-management/permission",
-        icon: KeyRound,
-        permission: "view_permissions",
-      },
-    ],
-  },
-  {
     name: "Customer Mgt",
     icon: CreditCard,
     children: [
@@ -166,21 +143,47 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
-  {
-    name: "Products",
-    href: "/products",
-    icon: Box,
-    anyPermission: [
-      "view_account_products",
-      "view_loan_products",
-      "view_investment_products",
+   {
+    name: "User Mgt",
+    icon: Users,
+    children: [
+      {
+        name: "Users",
+        href: "/user-management/user",
+        icon: Users,
+        permission: "view_users",
+      },
+      {
+        name: "Roles",
+        href: "/user-management/role",
+        icon: ShieldQuestion,
+        permission: "view_roles",
+      },
+      {
+        name: "Permissions",
+        href: "/user-management/permission",
+        icon: KeyRound,
+        permission: "view_permissions",
+      },
     ],
   },
   {
-    name: "Audit Logs",
-    href: "/audit-logs",
+    name: "Audit",
     icon: FileCheck2,
-    permission: "view_audit_trails",
+    children: [
+      {
+        name: "Audit Log",
+        href: "/audit/audit-logs",
+        icon: FileCheck2,
+        permission: "view_audit_trails",
+      },
+      {
+        name: "User Journeys",
+        href: "/audit/user-journeys",
+        icon: Footprints,
+        permission: "view_user_journeys",
+      },
+    ],
   },
 ];
 

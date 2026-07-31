@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getCustomersAction } from "@/actions/customer.action";
+import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 
@@ -68,6 +69,7 @@ export default function CustomerManagement({
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [meta, setMeta] = useState<CustomerMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -156,7 +158,7 @@ export default function CustomerManagement({
 
         <button
           type="button"
-          onClick={() => router.push("/customer-management/customer/create")}
+          onClick={() => router.push("/customer-management/customer/create?type=individual")}
           className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
         >
           <Plus size={18} />
@@ -310,16 +312,23 @@ export default function CustomerManagement({
                   </td>
 
                   <td className="px-5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(`/customer-management/customer/${customer.id}`)
+                    <ActionMenu
+                      isOpen={actionMenuId === customer.id}
+                      onToggle={() =>
+                        setActionMenuId(actionMenuId === customer.id ? null : customer.id)
                       }
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+                      onClose={() => setActionMenuId(null)}
                     >
-                      <Eye size={14} />
-                      View
-                    </button>
+                      <ActionButton
+                        onClick={() => {
+                          setActionMenuId(null);
+                          router.push(`/customer-management/customer/${customer.id}`);
+                        }}
+                      >
+                        <Eye size={16} />
+                        View
+                      </ActionButton>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}
@@ -400,6 +409,18 @@ function SummaryCard(props: Record<string, any>) {
       <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
       <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
     </div>
+  );
+}
+
+function ActionButton(props: Record<string, any>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-slate-100 text-sm font-semibold text-slate-800 transition"
+    >
+      {props.children}
+    </button>
   );
 }
 

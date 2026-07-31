@@ -87,11 +87,9 @@ export default function CurrencyFormDrawer({
       >
         <div className="flex justify-between items-center border-b border-slate-200 p-6 bg-slate-50">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              {selectedCurrency ? "Update Currency" : "Add New Currency"}
-            </h2>
+            <h2 className="text-xl font-bold text-slate-900">Update Currency</h2>
             <p className="text-sm text-slate-600 mt-1">
-              Enter the currency information below.
+              Only rates and the base currency flag can be changed here.
             </p>
           </div>
           <button
@@ -106,32 +104,11 @@ export default function CurrencyFormDrawer({
         <form onSubmit={handleFormSubmit} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-5 overflow-y-auto p-6 bg-white">
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Currency Code"
-                name="code"
-                value={formData.code}
-                onChange={handleInputChange}
-                placeholder="e.g. USD"
-                maxLength={3}
-                className="uppercase"
-              />
-
-              <Input
-                label="Symbol"
-                name="symbol"
-                value={formData.symbol}
-                onChange={handleInputChange}
-                placeholder="e.g. $"
-              />
+              <Input label="Currency Code" name="code" value={formData.code} disabled className="uppercase" />
+              <Input label="Symbol" name="symbol" value={formData.symbol} disabled />
             </div>
 
-            <Input
-              label="Currency Name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              placeholder="e.g. United States Dollar"
-            />
+            <Input label="Currency Name" name="name" value={formData.name} disabled />
 
             <div className="grid grid-cols-2 gap-4">
               <Input
@@ -198,11 +175,7 @@ export default function CurrencyFormDrawer({
               disabled={submitting}
               className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:opacity-50 transition shadow-sm"
             >
-              {submitting
-                ? "Please wait..."
-                : selectedCurrency
-                ? "Update Currency"
-                : "Create Currency"}
+              {submitting ? "Please wait..." : "Update Currency"}
             </button>
           </div>
         </form>
@@ -219,7 +192,7 @@ function Input(props: Record<string, any>) {
       <input
         required
         {...rest}
-        className={`mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition ${
+        className={`mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
           className ?? ""
         }`}
       />

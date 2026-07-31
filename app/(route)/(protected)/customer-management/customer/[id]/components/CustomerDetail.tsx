@@ -24,6 +24,7 @@ import {
   toggleEmailAction,
   toggleInternetBankingAction,
   toggleSmsAction,
+  updateCustomerDocumentAction,
   updateCustomerStatusAction,
 } from "@/actions/customer.action";
 import ApproveAccountModal from "@/components/ApproveAccountModal";
@@ -98,6 +99,7 @@ export default function CustomerDetail({
 
   const [activeTab, setActiveTab] = useState<TabKey>("customer");
   const [actionPending, setActionPending] = useState<string | null>(null);
+  const [documentActionPending, setDocumentActionPending] = useState<number | null>(null);
   const [openModal, setOpenModal] = useState<"reject" | "close" | "approve" | "status" | null>(
     null
   );
@@ -148,6 +150,26 @@ export default function CustomerDetail({
       () => updateCustomerStatusAction(customer.id, payload.status, payload.comment),
       "Customer status updated."
     );
+  }
+
+  async function handleDocumentStatus(documentId: number, status: "approved" | "rejected") {
+    setDocumentActionPending(documentId);
+    try {
+      const result: any = await updateCustomerDocumentAction(customer.id, documentId, { status });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update document.");
+        return;
+      }
+
+      toast.success(result.message || `Document ${status}.`);
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to update document:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setDocumentActionPending(null);
+    }
   }
 
   return (
@@ -577,26 +599,64 @@ export default function CustomerDetail({
         <Section title="Documents">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {customer.documents.map((document: Record<string, any>) => (
-              <a
+              <div
                 key={document.id}
-                href={document.url || documentUrl(document.path)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-[#29478f] hover:bg-blue-50/40"
+                className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-[#29478f] hover:bg-blue-50/40"
               >
-                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={document.url || documentUrl(document.path)}
-                    alt={document.title}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-slate-900">{document.title}</p>
-                  <StatusBadge status={document.status} />
-                </div>
-              </a>
+                {document.status === "pending" && (
+                  <div className="flex justify-end gap-1.5">
+                    <button
+                      type="button"
+                      disabled={documentActionPending === document.id}
+                      onClick={() => handleDocumentStatus(document.id, "approved")}
+                      className="flex items-center gap-1 rounded-lg border border-emerald-300 bg-emerald-50 px-1.5 py-1 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      <CheckCircle2 size={12} />
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={documentActionPending === document.id}
+                      onClick={() => handleDocumentStatus(document.id, "rejected")}
+                      className="flex items-center gap-1 rounded-lg border border-red-300 bg-red-50 px-1.5 py-1 text-[11px] font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                    >
+                      <XCircle size={12} />
+                      Reject
+                    </button>
+                  </div>
+                )}
+
+                <a
+                  href={document.url || documentUrl(document.path)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3"
+                >
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={document.url || documentUrl(document.path)}
+                      alt={document.title}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900">{document.title}</p>
+                    <StatusBadge status={document.status} />
+                  </div>
+                </a>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {/* CUSTOM FIELDS — arbitrary key/label/value entries added at onboarding or via edit */}
+      {Array.isArray(customer.metadata) && customer.metadata.length > 0 && (
+        <Section title="Custom Fields">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+            {customer.metadata.map((field: Record<string, any>, index: number) => (
+              <Field key={field.key ?? index} label={field.label || field.key} value={field.value} />
             ))}
           </div>
         </Section>

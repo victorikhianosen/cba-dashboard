@@ -2,10 +2,27 @@
 
 import { authApiClient } from "@/lib/api-client";
 
-export async function getPostingsAction(page: number = 1) {
+export async function getPostingsAction(
+  page: number = 1,
+  filters: {
+    from?: string;
+    to?: string;
+    search?: string;
+    status?: string;
+    type?: string;
+  } = {}
+) {
   try {
+    const params = new URLSearchParams({ page: String(page), per_page: "50" });
+
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.status) params.set("status", filters.status);
+    if (filters.type) params.set("type", filters.type);
+
     const result: any = await authApiClient({
-      endpoint: `/admin/postings?page=${page}&per_page=50`,
+      endpoint: `/admin/postings?${params.toString()}`,
       method: "GET",
     });
 

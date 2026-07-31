@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useState,
   type ChangeEvent,
   type FormEvent,
@@ -12,7 +13,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
-import { createCustomerAction, lookupCustomerByCifAction } from "@/actions/customer.action";
+import {
+  createCustomerAction,
+  lookupCustomerByCifAction,
+  uploadCustomerDocumentsAction,
+} from "@/actions/customer.action";
 import { handleApiError } from "@/lib/errors";
 
 type LookupOption = Record<string, any>;
@@ -186,6 +191,37 @@ function newDirector() {
   };
 }
 
+// Custom label/value field the user defines on the fly — persisted as-is
+// in the API's `metadata` JSON column, no fixed schema on either side.
+function newMetadataField() {
+  return {
+    key: nextRowKey(),
+    label: "",
+    value: "",
+  };
+}
+
+// A user-labelled document — uploaded after the customer is created via the
+// existing uploadDocuments endpoint, where the field name (here, the label
+// the user typed, slugified) becomes the document's type/title.
+function newCustomDocument() {
+  return {
+    key: nextRowKey(),
+    label: "",
+    file: null as File | null,
+  };
+}
+
+function slugifyDocumentLabel(label: string, index: number) {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return slug || `custom_document_${index + 1}`;
+}
+
 function newSignatory() {
   return {
     key: nextRowKey(),
@@ -223,6 +259,18 @@ export default function CreateCustomerPage({
     params.set("type", type);
     router.replace(`?${params.toString()}`, { scroll: false });
   }
+
+  // Landing on /create with no ?type reflects the default "individual" selection
+  // in the URL too, so the address bar always matches what's shown/selected.
+  useEffect(() => {
+    if (!isCustomerType(searchParams.get("type"))) {
+      const params = new URLSearchParams(window.location.search);
+      params.set("type", "individual");
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [submitting, setSubmitting] = useState(false);
 
   const [common, setCommon] = useState<FieldMap>({ ...emptyCommon });
@@ -241,6 +289,11 @@ export default function CreateCustomerPage({
   const [nextOfKin, setNextOfKin] = useState<FieldMap[]>([newNextOfKin()]);
   const [directors, setDirectors] = useState<FieldMap[]>([newDirector()]);
   const [signatories, setSignatories] = useState<FieldMap[]>([newSignatory()]);
+
+  // Arbitrary custom fields (key/label/value) and custom-labelled document
+  // uploads — both entirely user-defined, no fixed schema on either side.
+  const [metadata, setMetadata] = useState<FieldMap[]>([]);
+  const [customDocuments, setCustomDocuments] = useState<FieldMap[]>([]);
 
   const [geocoding, setGeocoding] = useState(false);
 
@@ -546,6 +599,11 @@ export default function CreateCustomerPage({
       formData.set("address[longitude]", address.longitude);
       formData.set("address[latitude]", address.latitude);
 
+      metadata.forEach((field, index) => {
+        formData.set(`metadata[${index}][label]`, field.label);
+        formData.set(`metadata[${index}][value]`, field.value ?? "");
+      });
+
       const result: any = await createCustomerAction(formData);
 
       if (result?.status !== "success") {
@@ -553,9 +611,23 @@ export default function CreateCustomerPage({
         return;
       }
 
+      const customerId = result.data?.customer?.id;
+      const documentsToUpload = customDocuments.filter((doc) => doc.file);
+
+      if (customerId && documentsToUpload.length > 0) {
+        const documentsFormData = new FormData();
+        documentsToUpload.forEach((doc, index) => {
+          documentsFormData.set(slugifyDocumentLabel(doc.label, index), doc.file as File);
+        });
+
+        const uploadResult: any = await uploadCustomerDocumentsAction(customerId, documentsFormData);
+        if (uploadResult?.status !== "success") {
+          toast.warning("Customer created, but some documents failed to upload.");
+        }
+      }
+
       toast.success(result.message || "Customer created successfully.");
       router.push("/customer-management/customer");
-      router.refresh();
     } catch (error) {
       console.error("Failed to create customer:", error);
       toast.error("A network error occurred. Please try again.");
@@ -646,8 +718,9 @@ export default function CreateCustomerPage({
             <Input
               label="Phone"
               value={common.phone}
-              onChange={(e) => updateField(setCommon, "phone", e.target.value)}
+              onChange={(e) => updateField(setCommon, "phone", onlyDigits(e.target.value, 15))}
               placeholder="e.g. 08031234567"
+              maxLength={15}
             />
             <Input
               label="Email"
@@ -995,7 +1068,10 @@ export default function CreateCustomerPage({
                 label="Business Phone"
                 required={false}
                 value={business.business_phone}
-                onChange={(e) => updateField(setBusiness, "business_phone", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_phone", onlyDigits(e.target.value, 15))
+                }
+                maxLength={15}
               />
               <Input
                 label="Business Email"
@@ -1027,6 +1103,59 @@ export default function CreateCustomerPage({
             )}
           </div>
         </Section>
+
+        {/* CUSTOM DOCUMENTS — user picks their own label + file per row, uploaded
+            after the customer is created; the label becomes the document's title. */}
+        <RepeatingSection
+          title="Additional Documents"
+          rows={customDocuments}
+          onAdd={() => setCustomDocuments((current) => [...current, newCustomDocument()])}
+          onRemove={(key) =>
+            setCustomDocuments((current) => current.filter((row) => row.key !== key))
+          }
+          minRows={0}
+          renderRow={(doc) => (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Document Label"
+                required={false}
+                value={doc.label}
+                onChange={(e) => updateRow(setCustomDocuments, doc.key, "label", e.target.value)}
+                placeholder="e.g. Proof of Address"
+              />
+              <FileInput
+                label="File"
+                onChange={(file) => updateRow(setCustomDocuments, doc.key, "file", file)}
+              />
+            </div>
+          )}
+        />
+
+        {/* CUSTOM FIELDS — arbitrary key/label/value entries the user defines,
+            stored as-is in the customer's `metadata` JSON column. */}
+        <RepeatingSection
+          title="Custom Fields"
+          rows={metadata}
+          onAdd={() => setMetadata((current) => [...current, newMetadataField()])}
+          onRemove={(key) => setMetadata((current) => current.filter((row) => row.key !== key))}
+          minRows={0}
+          renderRow={(field) => (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Label"
+                value={field.label}
+                onChange={(e) => updateRow(setMetadata, field.key, "label", e.target.value)}
+                placeholder="e.g. Referral Source"
+              />
+              <Input
+                label="Value"
+                required={false}
+                value={field.value}
+                onChange={(e) => updateRow(setMetadata, field.key, "value", e.target.value)}
+              />
+            </div>
+          )}
+        />
 
         {(customerType === "individual" || customerType === "minor") && (
           <RepeatingSection
@@ -1107,7 +1236,10 @@ export default function CreateCustomerPage({
                   <Input
                     label="Phone"
                     value={kin.phone}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "phone", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "phone", onlyDigits(e.target.value, 15))
+                    }
+                    maxLength={15}
                   />
                   <Input
                     label="Email"
@@ -1201,7 +1333,10 @@ export default function CreateCustomerPage({
                   <Input
                     label="Phone"
                     value={director.phone}
-                    onChange={(e) => updateRow(setDirectors, director.key, "phone", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setDirectors, director.key, "phone", onlyDigits(e.target.value, 15))
+                    }
+                    maxLength={15}
                   />
                   <Input
                     label="Email"
@@ -1296,7 +1431,10 @@ export default function CreateCustomerPage({
                   <Input
                     label="Phone"
                     value={signatory.phone}
-                    onChange={(e) => updateRow(setSignatories, signatory.key, "phone", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setSignatories, signatory.key, "phone", onlyDigits(e.target.value, 15))
+                    }
+                    maxLength={15}
                   />
                   <Input
                     label="Email"

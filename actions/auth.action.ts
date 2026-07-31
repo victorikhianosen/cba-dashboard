@@ -51,6 +51,23 @@ export async function logoutAction() {
   return { status: "success" };
 }
 
+// Called by SessionGuard's idle timer, distinct from logoutAction() so the backend
+// records a "session_timeout" journey/audit entry instead of a manual logout.
+export async function sessionTimeoutAction() {
+  try {
+    await authApiClient({
+      endpoint: "/admin/auth/session-timeout",
+      method: "POST",
+    });
+  } catch {
+    // ignore network/API errors — always clear the local session below
+  } finally {
+    await clearToken();
+  }
+
+  return { status: "success" };
+}
+
 export async function verifyTwoFactorAction(data: { code: string; two_factor_token: string }) {
   try {
     const result: any = await publicApiClient({

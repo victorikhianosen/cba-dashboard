@@ -10,9 +10,9 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { updateCustomerAction } from "@/actions/customer.action";
+import { updateCustomerAction, uploadCustomerDocumentsAction } from "@/actions/customer.action";
 import { handleApiError } from "@/lib/errors";
 
 type LookupOption = Record<string, any>;
@@ -55,6 +55,61 @@ function onlyDigits(value: string, maxLength: number) {
 }
 
 const EMAIL_PATTERN = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+
+const STORAGE_URL = process.env.NEXT_PUBLIC_STORAGE_URL ?? "";
+
+function documentUrl(path: string) {
+  return `${STORAGE_URL}/${path}`;
+}
+
+// Finds the customer's currently-uploaded document of a given type (e.g.
+// "profile_picture") so its thumbnail can be shown before a replacement is chosen.
+function existingDocumentUrl(customer: Customer, type: string): string | undefined {
+  const document = Array.isArray(customer.documents)
+    ? customer.documents.find((doc: Record<string, any>) => doc.type === type)
+    : undefined;
+
+  if (!document) return undefined;
+
+  return document.url || documentUrl(document.path);
+}
+
+let rowKeySeed = 0;
+function nextRowKey() {
+  rowKeySeed += 1;
+  return rowKeySeed;
+}
+
+// Custom label/value field the user defines on the fly — persisted as-is
+// in the API's `metadata` JSON column, no fixed schema on either side.
+function newMetadataField(field: { label?: string; value?: string } = {}) {
+  return {
+    key: nextRowKey(),
+    label: field.label ?? "",
+    value: field.value ?? "",
+  };
+}
+
+// A user-labelled document — uploaded via the existing uploadDocuments
+// endpoint, where the field name (here, the label the user typed, slugified)
+// becomes the document's type/title.
+function newCustomDocument() {
+  return {
+    key: nextRowKey(),
+    label: "",
+    file: null as File | null,
+  };
+}
+
+function slugifyDocumentLabel(label: string, index: number) {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  return slug || `custom_document_${index + 1}`;
+}
 
 interface EditCustomerPageProps {
   customer: Customer;
@@ -143,12 +198,34 @@ export default function EditCustomerPage({
   const [validId, setValidId] = useState<File | null>(null);
   const [businessLogo, setBusinessLogo] = useState<File | null>(null);
 
+  // Arbitrary custom fields (key/label/value), pre-filled from the customer's
+  // existing metadata, and custom-labelled document uploads.
+  const [metadata, setMetadata] = useState(() =>
+    Array.isArray(customer.metadata)
+      ? customer.metadata.map((field: Record<string, any>) => newMetadataField(field))
+      : []
+  );
+  const [customDocuments, setCustomDocuments] = useState<
+    { key: number; label: string; file: File | null }[]
+  >([]);
+
   function updateField(
     setter: (updater: (current: any) => any) => void,
     name: string,
     value: any
   ) {
     setter((current: any) => ({ ...current, [name]: value }));
+  }
+
+  function updateRow(
+    setter: (updater: (current: any[]) => any[]) => void,
+    key: number,
+    name: string,
+    value: any
+  ) {
+    setter((current: any[]) =>
+      current.map((row) => (row.key === key ? { ...row, [name]: value } : row))
+    );
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -198,6 +275,12 @@ export default function EditCustomerPage({
       formData.set("address[state]", address.state);
       formData.set("address[country]", address.country);
 
+      // Sending the full array replaces the customer's metadata wholesale.
+      metadata.forEach((field, index) => {
+        formData.set(`metadata[${index}][label]`, field.label);
+        formData.set(`metadata[${index}][value]`, field.value ?? "");
+      });
+
       const result: any = await updateCustomerAction(customer.id, formData);
 
       if (result?.status !== "success") {
@@ -205,9 +288,21 @@ export default function EditCustomerPage({
         return;
       }
 
+      const documentsToUpload = customDocuments.filter((doc) => doc.file);
+      if (documentsToUpload.length > 0) {
+        const documentsFormData = new FormData();
+        documentsToUpload.forEach((doc, index) => {
+          documentsFormData.set(slugifyDocumentLabel(doc.label, index), doc.file as File);
+        });
+
+        const uploadResult: any = await uploadCustomerDocumentsAction(customer.id, documentsFormData);
+        if (uploadResult?.status !== "success") {
+          toast.warning("Customer updated, but some documents failed to upload.");
+        }
+      }
+
       toast.success(result.message || "Customer updated successfully.");
       router.push(`/customer-management/customer/${customer.id}`);
-      router.refresh();
     } catch (error) {
       console.error("Failed to update customer:", error);
       toast.error("A network error occurred. Please try again.");
@@ -267,7 +362,8 @@ export default function EditCustomerPage({
             <Input
               label="Phone"
               value={common.phone}
-              onChange={(e) => updateField(setCommon, "phone", e.target.value)}
+              onChange={(e) => updateField(setCommon, "phone", onlyDigits(e.target.value, 15))}
+              maxLength={15}
             />
             <Input
               label="Email"
@@ -520,7 +616,10 @@ export default function EditCustomerPage({
               <Input
                 label="Business Phone"
                 value={business.business_phone}
-                onChange={(e) => updateField(setBusiness, "business_phone", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_phone", onlyDigits(e.target.value, 15))
+                }
+                maxLength={15}
               />
               <Input
                 label="Business Email"
@@ -545,14 +644,81 @@ export default function EditCustomerPage({
             Only choose a file for documents you want to replace — everything else stays as-is.
           </p>
           <div className={`grid gap-4 ${businessLikeType ? "grid-cols-4" : "grid-cols-3"}`}>
-            <FileInput label="Profile Picture" onChange={(file) => setProfilePicture(file)} />
-            <FileInput label="Utility Bill" onChange={(file) => setUtilityBill(file)} />
-            <FileInput label="Valid ID" onChange={(file) => setValidId(file)} />
+            <FileInput
+              label="Profile Picture"
+              existingUrl={existingDocumentUrl(customer, "profile_picture")}
+              onChange={(file) => setProfilePicture(file)}
+            />
+            <FileInput
+              label="Utility Bill"
+              existingUrl={existingDocumentUrl(customer, "utility_bill")}
+              onChange={(file) => setUtilityBill(file)}
+            />
+            <FileInput
+              label="Valid ID"
+              existingUrl={existingDocumentUrl(customer, "valid_id")}
+              onChange={(file) => setValidId(file)}
+            />
             {businessLikeType && (
-              <FileInput label="Business Logo" onChange={(file) => setBusinessLogo(file)} />
+              <FileInput
+                label="Business Logo"
+                existingUrl={existingDocumentUrl(customer, "business_logo")}
+                onChange={(file) => setBusinessLogo(file)}
+              />
             )}
           </div>
         </Section>
+
+        {/* CUSTOM DOCUMENTS — user picks their own label + file per row, uploaded
+            after the customer is updated; the label becomes the document's title. */}
+        <RepeatingSection
+          title="Additional Documents"
+          rows={customDocuments}
+          onAdd={() => setCustomDocuments((current) => [...current, newCustomDocument()])}
+          onRemove={(key) =>
+            setCustomDocuments((current) => current.filter((row) => row.key !== key))
+          }
+          minRows={0}
+          renderRow={(doc) => (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Document Label"
+                value={doc.label}
+                onChange={(e) => updateRow(setCustomDocuments, doc.key, "label", e.target.value)}
+                placeholder="e.g. Proof of Address"
+              />
+              <FileInput
+                label="File"
+                onChange={(file) => updateRow(setCustomDocuments, doc.key, "file", file)}
+              />
+            </div>
+          )}
+        />
+
+        {/* CUSTOM FIELDS — arbitrary key/label/value entries the user defines,
+            stored as-is in the customer's `metadata` JSON column. */}
+        <RepeatingSection
+          title="Custom Fields"
+          rows={metadata}
+          onAdd={() => setMetadata((current) => [...current, newMetadataField()])}
+          onRemove={(key) => setMetadata((current) => current.filter((row) => row.key !== key))}
+          minRows={0}
+          renderRow={(field) => (
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Label"
+                value={field.label}
+                onChange={(e) => updateRow(setMetadata, field.key, "label", e.target.value)}
+                placeholder="e.g. Referral Source"
+              />
+              <Input
+                label="Value"
+                value={field.value}
+                onChange={(e) => updateRow(setMetadata, field.key, "value", e.target.value)}
+              />
+            </div>
+          )}
+        />
 
         <Section title="Address">
           <div className="grid grid-cols-2 gap-4">
@@ -633,6 +799,63 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+function RepeatingSection({
+  title,
+  rows,
+  onAdd,
+  onRemove,
+  minRows,
+  renderRow,
+}: {
+  title: string;
+  rows: { key: number; [key: string]: any }[];
+  onAdd: () => void;
+  onRemove: (key: number) => void;
+  minRows: number;
+  renderRow: (row: any) => ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 transition"
+        >
+          <Plus size={14} />
+          Add
+        </button>
+      </div>
+
+      <div className="mt-4 space-y-4">
+        {rows.map((row, index) => (
+          <div key={row.key} className="rounded-xl border border-slate-200 p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {title} #{index + 1}
+              </p>
+              {rows.length > minRows && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(row.key)}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 transition"
+                >
+                  <Trash2 size={14} />
+                  Remove
+                </button>
+              )}
+            </div>
+            {renderRow(row)}
+          </div>
+        ))}
+
+        {rows.length === 0 && <p className="text-xs font-medium text-slate-500">None added.</p>}
+      </div>
+    </section>
+  );
+}
+
 function Input({
   label,
   ...rest
@@ -668,24 +891,47 @@ function Select({
 
 function FileInput({
   label,
+  existingUrl,
   onChange,
 }: {
   label: string;
+  existingUrl?: string;
   onChange: (file: File | null) => void;
 }) {
+  const [preview, setPreview] = useState<string | null>(null);
+
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    onChange(event.target.files?.[0] ?? null);
+    const file = event.target.files?.[0] ?? null;
+    onChange(file);
+    setPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return file ? URL.createObjectURL(file) : null;
+    });
   }
+
+  // A newly-picked file always wins; otherwise fall back to whatever's
+  // already on the customer so the current document isn't just a blank slot.
+  const displayUrl = preview || existingUrl;
 
   return (
     <label className="block">
       <span className="block font-bold text-sm text-slate-800">{label}</span>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleChange}
-        className="mt-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
-      />
+      <div className="mt-2 flex items-center gap-3">
+        {displayUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={displayUrl}
+            alt={`${label} preview`}
+            className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
+          />
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleChange}
+          className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200"
+        />
+      </div>
     </label>
   );
 }

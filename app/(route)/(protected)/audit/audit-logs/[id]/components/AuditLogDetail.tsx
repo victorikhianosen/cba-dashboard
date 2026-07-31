@@ -38,7 +38,7 @@ export default function AuditLogDetail({ log }: AuditLogDetailProps) {
       {/* HEADER */}
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <Link
-          href="/audit-logs"
+          href="/audit/audit-logs"
           className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-[#29478f] transition"
         >
           <ArrowLeft size={16} />
