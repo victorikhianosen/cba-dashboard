@@ -10,17 +10,20 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 import { updateCustomerAction, uploadCustomerDocumentsAction } from "@/actions/customer.action";
+import { lookupAccountByNumberAction } from "@/actions/account.action";
 import { handleApiError } from "@/lib/errors";
 
 type LookupOption = Record<string, any>;
 type Customer = Record<string, any>;
 
-// Mirrors CustomerType::businessLike() on the API.
+// Mirrors CustomerType::businessLike() on the API. "Corporate" is not a separate
+// customer_type — it's a business customer with director rows added. "Government" is not
+// a separate customer_type either — it's a business customer with legal_form = "government".
 function isBusinessLike(customerType: string) {
-  return customerType === "business" || customerType === "government" || customerType === "corporate";
+  return customerType === "business";
 }
 
 // App\Enums\Customer\LegalForm
@@ -124,7 +127,6 @@ export default function EditCustomerPage({
 }: EditCustomerPageProps) {
   const router = useRouter();
   const businessLikeType = isBusinessLike(customer.customer_type);
-  const isMinor = customer.customer_type === "minor";
   const isIndividual = customer.customer_type === "individual";
 
   const [submitting, setSubmitting] = useState(false);
@@ -156,11 +158,36 @@ export default function EditCustomerPage({
     spouse_name: customer.spouse_name ?? "",
   });
 
-  const [minor, setMinor] = useState({
-    guardian_id: customer.guardian_id ?? "",
-    gender: customer.gender ?? "male",
-    dob: customer.dob ?? "",
-  });
+  // "minor" isn't its own customer_type — it's an individual with guardian_id set.
+  // Defaults checked if this customer already has a guardian; unchecking clears it.
+  const [isMinor, setIsMinor] = useState(Boolean(customer.guardian_id));
+  const [guardianAccountNumber, setGuardianAccountNumber] = useState("");
+  const [guardianPreview, setGuardianPreview] = useState<Record<string, any> | null | undefined>(
+    undefined
+  );
+  const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
+
+  // Resolves a guardian's account number to their id/name, same lookup used on the create
+  // form. Only called when the admin actually types a new account number — leaving it blank
+  // means "keep the existing guardian," not "remove them."
+  async function lookupGuardian() {
+    const query = guardianAccountNumber.trim();
+    if (!query) {
+      setGuardianPreview(undefined);
+      return;
+    }
+
+    setGuardianLookupLoading(true);
+    try {
+      const result: any = await lookupAccountByNumberAction(query);
+      setGuardianPreview(result?.status === "success" ? result.data?.customer ?? null : null);
+    } catch (error) {
+      console.error("Failed to look up guardian:", error);
+      setGuardianPreview(null);
+    } finally {
+      setGuardianLookupLoading(false);
+    }
+  }
 
   const [businessLike, setBusinessLike] = useState({
     legal_form: customer.legal_form ?? "",
@@ -253,10 +280,16 @@ export default function EditCustomerPage({
         Object.entries(individual).forEach(([field, value]) => {
           formData.set(field, (value as string) ?? "");
         });
-      } else if (isMinor) {
-        formData.set("guardian_id", minor.guardian_id);
-        formData.set("gender", minor.gender);
-        formData.set("dob", minor.dob);
+
+        // Only send guardian_id if the admin actually looked up a (new) guardian this
+        // session — omitting it entirely leaves the existing guardian untouched
+        // (guardian_id is 'sometimes' on the API, a true partial update).
+        if (isMinor && guardianPreview?.id) {
+          formData.set("guardian_id", String(guardianPreview.id));
+        } else if (!isMinor && customer.guardian_id) {
+          // Checkbox was unticked on a customer that previously had a guardian — clear it.
+          formData.set("guardian_id", "");
+        }
       } else if (businessLikeType) {
         formData.set("legal_form", businessLike.legal_form);
         formData.set("rc_number", businessLike.rc_number);
@@ -486,31 +519,74 @@ export default function EditCustomerPage({
                   onChange={(e) => updateField(setIndividual, "tin", e.target.value)}
                 />
               </div>
-            </>
-          )}
 
-          {isMinor && (
-            <div className="grid grid-cols-3 gap-4">
-              <Select
-                label="Gender"
-                value={minor.gender}
-                onChange={(e) => updateField(setMinor, "gender", e.target.value)}
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </Select>
-              <Input
-                label="Date of Birth"
-                type="date"
-                value={minor.dob}
-                onChange={(e) => updateField(setMinor, "dob", e.target.value)}
-              />
-              <Input
-                label="Guardian Customer ID"
-                value={minor.guardian_id}
-                onChange={(e) => updateField(setMinor, "guardian_id", onlyDigits(e.target.value, 10))}
-              />
-            </div>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-3">
+                <input
+                  type="checkbox"
+                  checked={isMinor}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsMinor(checked);
+                    if (!checked) {
+                      setGuardianAccountNumber("");
+                      setGuardianPreview(undefined);
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-[#173673] focus:ring-[#29478f]"
+                />
+                <span className="text-sm font-bold text-slate-800">This customer is a minor</span>
+              </label>
+
+              {isMinor && (
+                <label className="block">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-sm text-slate-800">
+                      Guardian Account Number
+                      {customer.guardian_id && !guardianPreview && (
+                        <span className="ml-2 font-normal text-slate-500">
+                          (leave blank to keep the current guardian)
+                        </span>
+                      )}
+                    </span>
+
+                    {guardianLookupLoading && (
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <Loader2 size={12} className="animate-spin" />
+                        Looking up guardian…
+                      </span>
+                    )}
+                    {!guardianLookupLoading && guardianPreview === null && (
+                      <span className="text-xs font-semibold text-red-600">
+                        No account found with that number.
+                      </span>
+                    )}
+                    {!guardianLookupLoading && guardianPreview && (
+                      <span className="text-xs font-semibold text-emerald-700">
+                        Guardian: {guardianPreview.full_name} ({guardianPreview.cif_number})
+                      </span>
+                    )}
+                  </span>
+                  <div className="relative mt-2">
+                    <input
+                      value={guardianAccountNumber}
+                      onChange={(e) => {
+                        setGuardianAccountNumber(e.target.value);
+                        setGuardianPreview(undefined);
+                      }}
+                      onBlur={lookupGuardian}
+                      placeholder="e.g. 1000000001"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
+                    />
+                    {guardianLookupLoading && (
+                      <Loader2
+                        size={16}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                      />
+                    )}
+                  </div>
+                </label>
+              )}
+            </>
           )}
 
           {businessLikeType && (

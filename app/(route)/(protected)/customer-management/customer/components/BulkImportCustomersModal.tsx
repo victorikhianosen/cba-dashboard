@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent } from "react";
 import { CheckCircle2, Download, Loader2, Upload, X, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
+import * as XLSX from "xlsx";
 import { bulkImportCustomersAction } from "@/actions/customer.action";
 
 interface BulkImportCustomersModalProps {
@@ -24,18 +25,52 @@ export default function BulkImportCustomersModal({ isOpen, onClose, onImported }
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ImportResult>(null);
+  const [previewRows, setPreviewRows] = useState<Record<string, any>[]>([]);
+  const [previewColumns, setPreviewColumns] = useState<string[]>([]);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
 
   if (!isOpen) return null;
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    setFile(event.target.files?.[0] ?? null);
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0] ?? null;
+    setFile(selected);
     setResult(null);
+    setPreviewRows([]);
+    setPreviewColumns([]);
+    setPreviewError(null);
+
+    if (!selected) return;
+
+    setParsing(true);
+    try {
+      const buffer = await selected.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+
+      if (rows.length === 0) {
+        setPreviewError("No rows found in this sheet.");
+        return;
+      }
+
+      setPreviewColumns(Object.keys(rows[0]));
+      setPreviewRows(rows);
+    } catch (error) {
+      console.error("Failed to parse spreadsheet for preview:", error);
+      setPreviewError("Could not read this file for preview. It can still be uploaded as-is.");
+    } finally {
+      setParsing(false);
+    }
   }
 
   function handleClose() {
     if (submitting) return;
     setFile(null);
     setResult(null);
+    setPreviewRows([]);
+    setPreviewColumns([]);
+    setPreviewError(null);
     onClose();
   }
 
@@ -73,7 +108,7 @@ export default function BulkImportCustomersModal({ isOpen, onClose, onImported }
 
   return (
     <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 p-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Bulk Upload Customers</h2>
@@ -90,7 +125,7 @@ export default function BulkImportCustomersModal({ isOpen, onClose, onImported }
           </button>
         </div>
 
-        <div className="space-y-5 p-6">
+        <div className="space-y-5 overflow-y-auto p-6">
           <a
             href="/api/export?endpoint=%2Fadmin%2Fcustomers%2Fbulk-import%2Ftemplate"
             className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -114,6 +149,59 @@ export default function BulkImportCustomersModal({ isOpen, onClose, onImported }
               Fill in the downloaded template, keep the column headers unchanged, then upload it here.
             </p>
           </label>
+
+          {parsing && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 size={16} className="animate-spin" />
+              Reading file for preview...
+            </div>
+          )}
+
+          {previewError && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              {previewError}
+            </div>
+          )}
+
+          {previewRows.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-800">Preview</span>
+                <span className="text-xs font-medium text-slate-500">
+                  {previewRows.length} row{previewRows.length === 1 ? "" : "s"} found — review before uploading
+                </span>
+              </div>
+              <div className="max-h-72 overflow-auto rounded-xl border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200 text-xs">
+                  <thead className="sticky top-0 bg-slate-50">
+                    <tr>
+                      <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-600">#</th>
+                      {previewColumns.map((column) => (
+                        <th
+                          key={column}
+                          className="whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-600"
+                        >
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {previewRows.map((row, index) => (
+                      <tr key={index} className="hover:bg-slate-50">
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-400">{index + 1}</td>
+                        {previewColumns.map((column) => (
+                          <td key={column} className="whitespace-nowrap px-3 py-2 text-slate-700">
+                            {String(row[column] ?? "")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {result && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -152,7 +240,7 @@ export default function BulkImportCustomersModal({ isOpen, onClose, onImported }
           </button>
           <button
             type="button"
-            disabled={submitting || !file}
+            disabled={submitting || parsing || !file}
             onClick={handleUpload}
             className="flex items-center gap-2 rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm"
           >

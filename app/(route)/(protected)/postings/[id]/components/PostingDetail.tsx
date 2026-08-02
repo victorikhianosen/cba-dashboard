@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowLeft,
   ArrowLeftRight,
   CheckCircle2,
@@ -152,31 +151,22 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
             </div>
           </div>
 
-          {isPending && (
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <ActionButton
-                  label="Reject"
-                  icon={<XCircle size={14} />}
-                  pending={actionPending === "reject"}
-                  onClick={() => setRejectModalOpen(true)}
-                  className="border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-                />
-                <ActionButton
-                  label="Approve"
-                  icon={<CheckCircle2 size={14} />}
-                  pending={actionPending === "approve"}
-                  disabled={isOwnPosting}
-                  onClick={() => setApproveModalOpen(true)}
-                  className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                />
-              </div>
-              {isOwnPosting && (
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-                  <AlertTriangle size={13} />
-                  You can&apos;t approve a posting you created — another admin must approve it.
-                </p>
-              )}
+          {isPending && !isOwnPosting && (
+            <div className="flex flex-wrap items-center gap-2">
+              <ActionButton
+                label="Reject"
+                icon={<XCircle size={14} />}
+                pending={actionPending === "reject"}
+                onClick={() => setRejectModalOpen(true)}
+                className="border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+              />
+              <ActionButton
+                label="Approve"
+                icon={<CheckCircle2 size={14} />}
+                pending={actionPending === "approve"}
+                onClick={() => setApproveModalOpen(true)}
+                className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              />
             </div>
           )}
         </div>

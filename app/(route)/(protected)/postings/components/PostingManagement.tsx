@@ -12,6 +12,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Upload,
   XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -22,6 +23,7 @@ import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
+import BulkImportPostingsModal from "./BulkImportPostingsModal";
 
 const MAX_BULK_APPROVE = 50;
 
@@ -98,6 +100,7 @@ export default function PostingManagement({
 
   const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
   const [bulkApproveModalOpen, setBulkApproveModalOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const totalPostings = meta?.total ?? postings.length;
   const pendingPostings = postings.filter((p) => p.status === "pending").length;
@@ -254,6 +257,15 @@ export default function PostingManagement({
 
           <button
             type="button"
+            onClick={() => setBulkImportOpen(true)}
+            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 shadow-sm"
+          >
+            <Upload size={18} />
+            Bulk Upload
+          </button>
+
+          <button
+            type="button"
             onClick={() => router.push("/postings/create")}
             className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
           >
@@ -262,6 +274,12 @@ export default function PostingManagement({
           </button>
         </div>
       </div>
+
+      <BulkImportPostingsModal
+        isOpen={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onImported={() => fetchPage(1)}
+      />
 
       {/* SUMMARY */}
       <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">

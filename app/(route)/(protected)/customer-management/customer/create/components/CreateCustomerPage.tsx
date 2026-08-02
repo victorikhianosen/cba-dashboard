@@ -13,28 +13,36 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
-import {
-  createCustomerAction,
-  lookupCustomerByCifAction,
-  uploadCustomerDocumentsAction,
-} from "@/actions/customer.action";
+import { createCustomerAction, uploadCustomerDocumentsAction } from "@/actions/customer.action";
+import { lookupAccountByNumberAction } from "@/actions/account.action";
 import { handleApiError } from "@/lib/errors";
 
 type LookupOption = Record<string, any>;
 type FieldMap = Record<string, any>;
 
-type CustomerType = "individual" | "business" | "minor" | "government" | "corporate";
+// "minor" is not its own customer_type — a minor is just an individual with the
+// "This customer is a minor" checkbox ticked, which adds a guardian account number lookup.
+// Mirrors App\Enums\Customer\CustomerType on the API (MINOR case removed there too).
+// "corporate" is not its own customer_type — it's a business customer with director rows
+// added, an optional addition available to any business-like type, not a distinct category.
+// Toggled via the "Add Directors" checkbox, not a type selection.
+// Mirrors App\Enums\Customer\CustomerType on the API (CORPORATE case removed there too).
+// "government" is not its own customer_type either — it's a business customer with
+// legal_form = "government", picked from the Legal Form dropdown in the business block,
+// not a type selection. Mirrors CustomerType on the API (GOVERNMENT case removed there too).
+type CustomerType = "individual" | "business";
 
-const CUSTOMER_TYPES: CustomerType[] = ["individual", "business", "minor", "government", "corporate"];
+const CUSTOMER_TYPES: CustomerType[] = ["individual", "business"];
 
 function isCustomerType(value: string | null): value is CustomerType {
   return !!value && (CUSTOMER_TYPES as string[]).includes(value);
 }
 
-// business, government and corporate all carry a business block + signatories;
-// only corporate additionally carries directors. Mirrors CustomerType::businessLike() on the API.
+// business customers carry a business block + signatories, and may optionally carry
+// directors too (toggled per-customer, not per-type). Mirrors
+// CustomerType::businessLike() on the API.
 function isBusinessLike(type: CustomerType) {
-  return type === "business" || type === "government" || type === "corporate";
+  return type === "business";
 }
 
 interface CreateCustomerPageProps {
@@ -96,7 +104,7 @@ const emptyCommon: FieldMap = {
 };
 
 // Shared by every customer type — first/last name are required for
-// individual, minor and every business-like type on the API.
+// individual and every business-like type on the API.
 const emptyPerson: FieldMap = {
   title: "",
   first_name: "",
@@ -104,6 +112,9 @@ const emptyPerson: FieldMap = {
   last_name: "",
 };
 
+// Also used for a minor — a minor is just an individual with the "is a minor" checkbox
+// ticked, using these same gender/dob fields, plus a resolved guardian_id (not part of
+// this object, since it's a lookup result, not a directly-typed field).
 const emptyIndividual: FieldMap = {
   marital_status: "single",
   gender: "male",
@@ -115,12 +126,6 @@ const emptyIndividual: FieldMap = {
   tin: "",
   mother_maiden_name: "",
   spouse_name: "",
-};
-
-const emptyMinor: FieldMap = {
-  guardian_id: "",
-  gender: "male",
-  dob: "",
 };
 
 const emptyBusinessLike: FieldMap = {
@@ -232,7 +237,6 @@ function newSignatory() {
     email: "",
     gender: "male",
     bvn: "",
-    director_index: "",
     signature: null as File | null,
     passport_photo: null as File | null,
   };
@@ -276,7 +280,8 @@ export default function CreateCustomerPage({
   const [common, setCommon] = useState<FieldMap>({ ...emptyCommon });
   const [person, setPerson] = useState<FieldMap>({ ...emptyPerson });
   const [individual, setIndividual] = useState<FieldMap>({ ...emptyIndividual });
-  const [minor, setMinor] = useState<FieldMap>({ ...emptyMinor });
+  const [isMinor, setIsMinor] = useState(false);
+  const [guardianAccountNumber, setGuardianAccountNumber] = useState("");
   const [businessLike, setBusinessLike] = useState<FieldMap>({ ...emptyBusinessLike });
   const [business, setBusiness] = useState<FieldMap>({ ...emptyBusiness });
 
@@ -302,6 +307,10 @@ export default function CreateCustomerPage({
   const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
 
   const businessLikeType = isBusinessLike(customerType);
+
+  // "Corporate" is not a separate customer_type anymore — it's a business-like customer with
+  // director rows added, toggled here instead of picked as a type.
+  const [addDirectors, setAddDirectors] = useState(false);
   const isNotRegisteredBusiness = businessLikeType && business.business_type === "not_registered";
 
   // Mirrors every `required` field actually rendered for the current
@@ -329,10 +338,8 @@ export default function CreateCustomerPage({
       if (fields.some((field) => !isFilled(individual[field]))) return false;
     }
 
-    if (customerType === "minor") {
-      if (!isFilled(minor.gender) || !isFilled(minor.dob) || !guardianPreview?.id) {
-        return false;
-      }
+    if (customerType === "individual" && isMinor && !guardianPreview?.id) {
+      return false;
     }
 
     if (businessLikeType) {
@@ -340,7 +347,7 @@ export default function CreateCustomerPage({
       if (!isFilled(business.business_name) || !isFilled(business.business_type)) return false;
     }
 
-    if (customerType === "individual" || customerType === "minor") {
+    if (customerType === "individual") {
       if (nextOfKin.length === 0) return false;
       const kinComplete = nextOfKin.every(
         (kin) =>
@@ -352,7 +359,7 @@ export default function CreateCustomerPage({
       if (!kinComplete) return false;
     }
 
-    if (customerType === "corporate" && !isNotRegisteredBusiness) {
+    if (businessLikeType && addDirectors && !isNotRegisteredBusiness) {
       const directorsComplete = directors.every(
         (director) =>
           isFilled(director.first_name) &&
@@ -441,13 +448,12 @@ export default function CreateCustomerPage({
     }
   }
 
-  // Resolves a guardian's CIF number (e.g. "CIF000005") to their id/name via
-  // a dedicated lookup endpoint, so the person entering the minor's details
-  // can confirm they picked the right guardian before submitting — the
-  // resolved numeric id (not the CIF text) is what's actually submitted as
-  // guardian_id.
+  // Resolves a guardian's account number to their id/name via the same account lookup
+  // endpoint used for investment funding accounts, so the person entering the minor's
+  // details can confirm they picked the right guardian before submitting — the resolved
+  // numeric customer id (not the account number) is what's actually submitted as guardian_id.
   async function lookupGuardian() {
-    const query = minor.guardian_id.trim();
+    const query = guardianAccountNumber.trim();
     if (!query) {
       setGuardianPreview(undefined);
       return;
@@ -455,8 +461,8 @@ export default function CreateCustomerPage({
 
     setGuardianLookupLoading(true);
     try {
-      const result: any = await lookupCustomerByCifAction(query);
-      setGuardianPreview(result?.status === "success" ? result.data : null);
+      const result: any = await lookupAccountByNumberAction(query);
+      setGuardianPreview(result?.status === "success" ? result.data?.customer ?? null : null);
     } catch (error) {
       console.error("Failed to look up guardian:", error);
       setGuardianPreview(null);
@@ -502,25 +508,11 @@ export default function CreateCustomerPage({
           formData.set(field, value ?? "");
         });
 
-        nextOfKin.forEach((kin, index) => {
-          formData.set(`next_of_kin[${index}][title]`, kin.title);
-          formData.set(`next_of_kin[${index}][first_name]`, kin.first_name);
-          formData.set(`next_of_kin[${index}][middle_name]`, kin.middle_name);
-          formData.set(`next_of_kin[${index}][last_name]`, kin.last_name);
-          formData.set(`next_of_kin[${index}][relationship]`, kin.relationship);
-          formData.set(`next_of_kin[${index}][gender]`, kin.gender);
-          formData.set(`next_of_kin[${index}][dob]`, kin.dob);
-          formData.set(`next_of_kin[${index}][phone]`, kin.phone);
-          formData.set(`next_of_kin[${index}][email]`, kin.email);
-          formData.set(`next_of_kin[${index}][occupation]`, kin.occupation);
-          formData.set(`next_of_kin[${index}][address]`, kin.address);
-        });
-      } else if (customerType === "minor") {
-        // guardian_id on the API is the guardian's numeric customer id, not
-        // their CIF number — use the id resolved by lookupGuardian().
-        formData.set("guardian_id", String(guardianPreview?.id ?? ""));
-        formData.set("gender", minor.gender);
-        formData.set("dob", minor.dob);
+        // A minor is just an individual with guardian_id resolved from the account
+        // number lookup — same request shape, one extra field.
+        if (isMinor && guardianPreview?.id) {
+          formData.set("guardian_id", String(guardianPreview.id));
+        }
 
         nextOfKin.forEach((kin, index) => {
           formData.set(`next_of_kin[${index}][title]`, kin.title);
@@ -536,7 +528,7 @@ export default function CreateCustomerPage({
           formData.set(`next_of_kin[${index}][address]`, kin.address);
         });
       } else {
-        // business, government, corporate
+        // business (optionally government, via legal_form) — optionally with directors added
         formData.set("legal_form", businessLike.legal_form);
         formData.set("rc_number", businessLike.rc_number);
 
@@ -546,7 +538,7 @@ export default function CreateCustomerPage({
           formData.set(`business[${field}]`, value ?? "");
         });
 
-        if (customerType === "corporate") {
+        if (addDirectors) {
           directors.forEach((director, index) => {
             formData.set(`directors[${index}][title]`, director.title);
             formData.set(`directors[${index}][first_name]`, director.first_name);
@@ -574,11 +566,6 @@ export default function CreateCustomerPage({
             formData.set(`signatories[${index}][email]`, signatory.email);
             formData.set(`signatories[${index}][gender]`, signatory.gender);
             formData.set(`signatories[${index}][bvn]`, signatory.bvn);
-
-            // Links this signatory to a director row by array index — corporate only.
-            if (customerType === "corporate" && signatory.director_index !== "") {
-              formData.set(`signatories[${index}][director_index]`, signatory.director_index);
-            }
 
             if (signatory.signature) {
               formData.set(`signatories[${index}][signature]`, signatory.signature);
@@ -655,7 +642,7 @@ export default function CreateCustomerPage({
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add New Customer</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Onboard an individual, minor, business, government or corporate customer.
+              Onboard an individual (optionally a minor) or business customer (optionally government, via legal form) — business customers can optionally add directors.
             </p>
           </div>
         </div>
@@ -664,7 +651,7 @@ export default function CreateCustomerPage({
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         {/* CUSTOMER TYPE */}
         <Section title="Customer Type">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {CUSTOMER_TYPES.map((type) => (
               <button
                 key={type}
@@ -882,69 +869,67 @@ export default function CreateCustomerPage({
                   onChange={(e) => updateField(setIndividual, "tin", e.target.value)}
                 />
               </div>
-            </>
-          )}
 
-          {customerType === "minor" && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <Select
-                  label="Gender"
-                  value={minor.gender}
-                  onChange={(e) => updateField(setMinor, "gender", e.target.value)}
-                >
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                </Select>
-                <Input
-                  label="Date of Birth"
-                  type="date"
-                  value={minor.dob}
-                  onChange={(e) => updateField(setMinor, "dob", e.target.value)}
-                />
-              </div>
-
-              <label className="block">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold text-sm text-slate-800">Guardian Customer ID</span>
-
-                  {guardianLookupLoading && (
-                    <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                      <Loader2 size={12} className="animate-spin" />
-                      Looking up guardian…
-                    </span>
-                  )}
-                  {!guardianLookupLoading && guardianPreview === null && (
-                    <span className="text-xs font-semibold text-red-600">
-                      No customer found with that ID.
-                    </span>
-                  )}
-                  {!guardianLookupLoading && guardianPreview && (
-                    <span className="text-xs font-semibold text-emerald-700">
-                      Guardian: {guardianPreview.first_name} {guardianPreview.last_name}
-                    </span>
-                  )}
-                </span>
-                <div className="relative mt-2">
-                  <input
-                    required
-                    value={minor.guardian_id}
-                    onChange={(e) => {
-                      updateField(setMinor, "guardian_id", e.target.value);
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-3">
+                <input
+                  type="checkbox"
+                  checked={isMinor}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsMinor(checked);
+                    if (!checked) {
+                      setGuardianAccountNumber("");
                       setGuardianPreview(undefined);
-                    }}
-                    onBlur={lookupGuardian}
-                    placeholder="e.g. CIF000005"
-                    className="w-full rounded-xl border border-slate-300 bg-white p-3 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
-                  />
-                  {guardianLookupLoading && (
-                    <Loader2
-                      size={16}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
-                    />
-                  )}
-                </div>
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-[#173673] focus:ring-[#29478f]"
+                />
+                <span className="text-sm font-bold text-slate-800">This customer is a minor</span>
               </label>
+
+              {isMinor && (
+                <label className="block">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-bold text-sm text-slate-800">Guardian Account Number</span>
+
+                    {guardianLookupLoading && (
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                        <Loader2 size={12} className="animate-spin" />
+                        Looking up guardian…
+                      </span>
+                    )}
+                    {!guardianLookupLoading && guardianPreview === null && (
+                      <span className="text-xs font-semibold text-red-600">
+                        No account found with that number.
+                      </span>
+                    )}
+                    {!guardianLookupLoading && guardianPreview && (
+                      <span className="text-xs font-semibold text-emerald-700">
+                        Guardian: {guardianPreview.full_name} ({guardianPreview.cif_number})
+                      </span>
+                    )}
+                  </span>
+                  <div className="relative mt-2">
+                    <input
+                      required
+                      value={guardianAccountNumber}
+                      onChange={(e) => {
+                        setGuardianAccountNumber(e.target.value);
+                        setGuardianPreview(undefined);
+                      }}
+                      onBlur={lookupGuardian}
+                      placeholder="e.g. 1000000001"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
+                    />
+                    {guardianLookupLoading && (
+                      <Loader2
+                        size={16}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                      />
+                    )}
+                  </div>
+                </label>
+              )}
             </>
           )}
 
@@ -1157,7 +1142,7 @@ export default function CreateCustomerPage({
           )}
         />
 
-        {(customerType === "individual" || customerType === "minor") && (
+        {customerType === "individual" && (
           <RepeatingSection
             title="Next of Kin"
             rows={nextOfKin}
@@ -1270,8 +1255,20 @@ export default function CreateCustomerPage({
           />
         )}
 
-        {/* DIRECTORS — corporate only */}
-        {customerType === "corporate" && !isNotRegisteredBusiness && (
+        {businessLikeType && !isNotRegisteredBusiness && (
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={addDirectors}
+              onChange={(e) => setAddDirectors(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300"
+            />
+            Add Directors
+          </label>
+        )}
+
+        {/* Directors — optional addition on business-like customers, not a separate type */}
+        {businessLikeType && addDirectors && !isNotRegisteredBusiness && (
           <RepeatingSection
             title="Directors"
             rows={directors}
@@ -1455,24 +1452,6 @@ export default function CreateCustomerPage({
                   }
                   maxLength={11}
                 />
-
-                {customerType === "corporate" && directors.length > 0 && (
-                  <Select
-                    label="Linked Director"
-                    required={false}
-                    value={signatory.director_index}
-                    onChange={(e) =>
-                      updateRow(setSignatories, signatory.key, "director_index", e.target.value)
-                    }
-                  >
-                    <option value="">Not linked to a director</option>
-                    {directors.map((director, index) => (
-                      <option key={director.key} value={index}>
-                        {director.first_name || `Director #${index + 1}`} {director.last_name}
-                      </option>
-                    ))}
-                  </Select>
-                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <FileInput

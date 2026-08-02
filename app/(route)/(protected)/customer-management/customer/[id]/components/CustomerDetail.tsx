@@ -62,11 +62,13 @@ function formatDateTime(value: string | null | undefined) {
     : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-// Mirrors CustomerType::businessLike() on the API — business, government and
-// corporate customers all carry a business record and signatories instead of
-// personal fields; only corporate additionally carries directors.
+// Mirrors CustomerType::businessLike() on the API — business customers carry a business
+// record and signatories instead of personal fields. "Corporate" is not a separate
+// customer_type — it's a business-like customer that additionally has director rows on
+// file (see hasDirectors below). "Government" is not a separate customer_type either —
+// it's a business customer with legal_form = "government".
 function isBusinessLike(customerType: string) {
-  return customerType === "business" || customerType === "government" || customerType === "corporate";
+  return customerType === "business";
 }
 
 function customerDisplayName(customer: Customer) {
@@ -94,8 +96,9 @@ export default function CustomerDetail({
 }: CustomerDetailProps) {
   const router = useRouter();
   const isBusiness = isBusinessLike(customer.customer_type);
-  const isCorporate = customer.customer_type === "corporate";
-  const isMinor = customer.customer_type === "minor";
+  const hasDirectors = Array.isArray(customer.directors) && customer.directors.length > 0;
+  // "minor" isn't its own customer_type — it's an individual with guardian_id set.
+  const isMinor = Boolean(customer.guardian_id);
 
   const [activeTab, setActiveTab] = useState<TabKey>("customer");
   const [actionPending, setActionPending] = useState<string | null>(null);
@@ -481,8 +484,8 @@ export default function CustomerDetail({
         </Section>
       )}
 
-      {/* DIRECTORS — corporate only; business/government have no directors */}
-      {isCorporate && Array.isArray(customer.directors) && customer.directors.length > 0 && (
+      {/* Directors — shown whenever this business-like customer has director rows on file */}
+      {hasDirectors && (
         <Section title="Directors">
           <div className="space-y-4">
             {customer.directors.map((director: Record<string, any>) => (

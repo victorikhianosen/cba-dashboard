@@ -86,6 +86,24 @@ export async function bulkApprovePostingsAction(ids: Array<number | string>) {
   }
 }
 
+// Bulk-creates pending postings from an uploaded multi-sheet spreadsheet (Postings + GL
+// Reference) — the template for it is downloaded via ExportDropdown's proxy pattern
+// (/api/export?endpoint=...), not this action, since that's a file download rather than a
+// JSON call.
+export async function bulkImportPostingsAction(formData: FormData) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: "/admin/postings/bulk-import",
+      method: "POST",
+      body: formData,
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 export async function rejectPostingAction(id: number | string, reason: string) {
   try {
     const result: any = await authApiClient({

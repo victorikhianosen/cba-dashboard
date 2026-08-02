@@ -10,6 +10,7 @@ import {
   CircleOff,
   Clock3,
   Eye,
+  Lock,
   Mail,
   Phone,
   Plus,
@@ -42,10 +43,12 @@ function formatDateTime(value: string | null | undefined) {
     : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-// Mirrors CustomerType::businessLike() on the API — business, government and
-// corporate customers all carry a business record instead of a personal one.
+// Mirrors CustomerType::businessLike() on the API — business customers carry a business
+// record instead of a personal one. "Corporate" is not a separate customer_type — it's a
+// business-like customer with directors added. "Government" is not a separate
+// customer_type either — it's a business customer with legal_form = "government".
 function isBusinessLike(customerType: string) {
-  return customerType === "business" || customerType === "government" || customerType === "corporate";
+  return customerType === "business";
 }
 
 function customerDisplayName(customer: Customer) {
@@ -85,6 +88,8 @@ export default function CustomerManagement({
     stats?.total_pending ?? customers.filter((c) => c.status === "pending").length;
   const inactiveCustomers =
     stats?.total_inactive ?? customers.filter((c) => c.status === "inactive").length;
+  const closedCustomers =
+    stats?.total_closed ?? customers.filter((c) => c.status === "closed").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -184,7 +189,7 @@ export default function CustomerManagement({
       />
 
       {/* SUMMARY */}
-      <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-5">
         <SummaryCard
           title="Total Customers"
           value={totalCustomers}
@@ -216,6 +221,14 @@ export default function CustomerManagement({
           icon={<CircleOff size={22} />}
           iconStyle="bg-red-100 text-red-800"
         />
+
+        <SummaryCard
+          title="Closed Customers"
+          value={closedCustomers}
+          description="Account closed"
+          icon={<Lock size={22} />}
+          iconStyle="bg-slate-200 text-slate-700"
+        />
       </section>
 
       {/* SEARCH & FILTERS */}
@@ -244,10 +257,7 @@ export default function CustomerManagement({
         >
           <option value="all">All Types</option>
           <option value="individual">Individual</option>
-          <option value="minor">Minor</option>
           <option value="business">Business</option>
-          <option value="government">Government</option>
-          <option value="corporate">Corporate</option>
         </select>
 
         <select
