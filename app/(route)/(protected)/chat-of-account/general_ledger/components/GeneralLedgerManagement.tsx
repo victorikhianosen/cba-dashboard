@@ -21,7 +21,7 @@ import {
   updateGeneralLedgerStatusAction,
 } from "@/actions/general-ledger.action";
 import ActionMenu from "@/components/ActionMenu";
-import ExportButtons from "@/components/ExportButtons";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 import GeneralLedgerFormDrawer from "./GeneralLedgerFormDrawer";
 
@@ -250,7 +250,7 @@ export default function GeneralLedgerManagement({
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
+          <ExportDropdown
             baseEndpoint="/admin/general-ledgers"
             params={{ search, status, is_assigned: isAssigned, currency_id: currencyId }}
           />

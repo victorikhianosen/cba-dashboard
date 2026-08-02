@@ -6,7 +6,7 @@ import { BookOpen, ChevronLeft, ChevronRight, Eye, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import { getJournalEntriesAction } from "@/actions/journal-entry.action";
 import ActionMenu from "@/components/ActionMenu";
-import ExportButtons from "@/components/ExportButtons";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 
 type Entry = Record<string, any>;
@@ -80,7 +80,7 @@ export default function JournalEntriesManagement() {
           </p>
         </div>
 
-        <ExportButtons baseEndpoint="/admin/journal-entries" params={{ from, to, search }} />
+        <ExportDropdown baseEndpoint="/admin/journal-entries" params={{ from, to, search }} />
       </div>
 
       {/* FILTERS */}

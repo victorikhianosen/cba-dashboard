@@ -21,6 +21,22 @@ export async function getAccountsAction(page: number = 1, search: string = "") {
   }
 }
 
+// Resolves an account by its exact account number — used by flows (like opening an
+// investment) that need the account name/balance/currency and owning customer without a
+// separate customer-search step.
+export async function lookupAccountByNumberAction(accountNumber: string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/accounts/lookup?account_number=${encodeURIComponent(accountNumber)}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 export async function getAccountAction(id: number | string) {
   try {
     const result: any = await authApiClient({

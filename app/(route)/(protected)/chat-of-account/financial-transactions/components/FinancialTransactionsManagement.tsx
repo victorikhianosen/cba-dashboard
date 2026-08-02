@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Eye, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import { getFinancialTransactionsAction } from "@/actions/financial-transaction.action";
 import ActionMenu from "@/components/ActionMenu";
-import ExportButtons from "@/components/ExportButtons";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 
 type Txn = Record<string, any>;
@@ -83,7 +83,7 @@ export default function FinancialTransactionsManagement() {
           </p>
         </div>
 
-        <ExportButtons baseEndpoint="/admin/financial-transactions" params={{ from, to, search, status }} />
+        <ExportDropdown baseEndpoint="/admin/financial-transactions" params={{ from, to, search, status }} />
       </div>
 
       {/* FILTERS */}

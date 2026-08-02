@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { X } from "lucide-react";
+import SearchableSelect from "@/components/SearchableSelect";
 
 type Ledger = Record<string, any>;
 type Currency = Record<string, any>;
@@ -149,25 +150,18 @@ export default function GeneralLedgerFormDrawer({
             />
 
             {!selectedLedger && (
-              <label className="block">
-                <span className="block font-bold text-sm text-slate-800">Currency</span>
-                <select
-                  name="currency_id"
-                  required
-                  value={formData.currency_id}
-                  onChange={handleInputChange}
-                  className="mt-2 w-full cursor-pointer rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
-                >
-                  <option value="" disabled>
-                    Select a currency
-                  </option>
-                  {currencies.map((currency) => (
-                    <option key={currency.id} value={currency.id}>
-                      {currency.code} — {currency.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SearchableSelect
+                label="Currency"
+                name="currency_id"
+                value={formData.currency_id}
+                onChange={handleInputChange}
+                placeholder="Select a currency"
+                options={currencies.map((currency) => ({
+                  value: String(currency.id),
+                  label: `${currency.code} — ${currency.name}`,
+                  sublabel: currency.code,
+                }))}
+              />
             )}
 
             <div className="grid grid-cols-2 gap-4">

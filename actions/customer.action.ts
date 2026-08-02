@@ -66,6 +66,23 @@ export async function createCustomerAction(formData: FormData) {
   }
 }
 
+// Bulk-creates individual customers from an uploaded spreadsheet — the template for it is
+// downloaded via ExportDropdown's proxy pattern (/api/export?endpoint=...), not this action,
+// since that's a file download rather than a JSON call.
+export async function bulkImportCustomersAction(formData: FormData) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: "/admin/customers/bulk-import",
+      method: "POST",
+      body: formData,
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 // Each file in the FormData becomes its own document — the field name it's sent
 // under becomes that document's title/type on the API (arbitrary custom labels).
 export async function uploadCustomerDocumentsAction(id: number | string, formData: FormData) {

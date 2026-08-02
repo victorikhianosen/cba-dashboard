@@ -49,6 +49,22 @@ function partyLabel(party: Record<string, any> | null | undefined) {
   return "—";
 }
 
+// Accounts expose both a raw ledger balance and an available (lien-adjusted) balance;
+// GLs only have one balance figure.
+function partyBalance(party: Record<string, any> | null | undefined) {
+  if (!party) return null;
+  if (party.type === "account") {
+    return [
+      { label: "Available Balance", value: party.available_balance },
+      { label: "Account Balance", value: party.account_balance },
+    ];
+  }
+  if (party.type === "general_ledger") {
+    return [{ label: "Balance", value: party.balance }];
+  }
+  return null;
+}
+
 function userName(user: Record<string, any> | null | undefined) {
   if (!user) return undefined;
   return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username;
@@ -196,6 +212,11 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
               Source ({partyKind(posting.source_type)})
             </p>
             <p className="mt-1 text-sm font-bold text-slate-900">{partyLabel(posting.source)}</p>
+            {partyBalance(posting.source)?.map(({ label, value }) => (
+              <p key={label} className="mt-1 text-xs font-semibold text-slate-500">
+                {label}: <span className="text-slate-800">₦{formatCurrency(value)}</span>
+              </p>
+            ))}
             {posting.source?.customer_id && (
               <Link
                 href={`/customer-management/customer/${posting.source.customer_id}`}
@@ -212,6 +233,11 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
             <p className="mt-1 text-sm font-bold text-slate-900">
               {partyLabel(posting.destination)}
             </p>
+            {partyBalance(posting.destination)?.map(({ label, value }) => (
+              <p key={label} className="mt-1 text-xs font-semibold text-slate-500">
+                {label}: <span className="text-slate-800">₦{formatCurrency(value)}</span>
+              </p>
+            ))}
             {posting.destination?.customer_id && (
               <Link
                 href={`/customer-management/customer/${posting.destination.customer_id}`}

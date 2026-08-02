@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Eye, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import { getTransactionsAction, getTransactionTypesAction } from "@/actions/transaction.action";
 import ActionMenu from "@/components/ActionMenu";
-import ExportButtons from "@/components/ExportButtons";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 
 type Txn = Record<string, any>;
@@ -105,7 +105,7 @@ export default function TransactionsManagement() {
           </p>
         </div>
 
-        <ExportButtons
+        <ExportDropdown
           baseEndpoint="/admin/transactions"
           params={{ from, to, search, transaction_type: transactionType, direction }}
         />

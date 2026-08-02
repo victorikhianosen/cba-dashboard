@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { toast } from "react-toastify";
+import SearchableSelect from "@/components/SearchableSelect";
 import { toDisplayLabel } from "@/lib/format";
 
 type AccountProduct = Record<string, any>;
@@ -172,6 +173,13 @@ export default function AccountProductFormDrawer({
     (currency) => String(currency.id) === String(formData.currency_id)
   );
 
+  // Until a currency is picked there's nothing to filter against, so show every GL.
+  // Once one is picked, only that currency's GLs are offered — a mismatch becomes
+  // impossible to create, not just flagged after the fact.
+  const currencyFilteredLedgers = formData.currency_id
+    ? generalLedgers.filter((ledger) => String(ledger.currency_id) === String(formData.currency_id))
+    : generalLedgers;
+
   // Re-derived on every render so the mismatch warning is live as the user
   // picks the product currency and/or any GL account.
   const glCurrencyErrors: Record<string, string> = {};
@@ -223,7 +231,7 @@ export default function AccountProductFormDrawer({
       )}
 
       <aside
-        className={`fixed right-0 top-0 z-[9999] flex h-screen w-full max-w-[880px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
+        className={`fixed right-0 top-0 z-[9999] flex h-screen w-full max-w-[1180px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -270,19 +278,18 @@ export default function AccountProductFormDrawer({
                   <option value="wallet">Wallet</option>
                 </Select>
 
-                <Select
+                <SearchableSelect
                   label="Currency"
                   name="currency_id"
                   value={formData.currency_id}
                   onChange={handleInputChange}
-                >
-                  <option value="">Select currency</option>
-                  {currencies.map((currency) => (
-                    <option key={currency.id} value={currency.id}>
-                      {currency.code ?? currency.name} — {currency.name}
-                    </option>
-                  ))}
-                </Select>
+                  placeholder="Select currency"
+                  options={currencies.map((currency) => ({
+                    value: String(currency.id),
+                    label: `${currency.code ?? currency.name} — ${currency.name}`,
+                    sublabel: currency.code,
+                  }))}
+                />
               </div>
 
               <Textarea
@@ -546,7 +553,7 @@ export default function AccountProductFormDrawer({
                   Select a product currency above to enable GL currency matching.
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {GL_FIELDS.map(({ key, label }) => (
                   <GLSelect
                     key={key}
@@ -554,8 +561,13 @@ export default function AccountProductFormDrawer({
                     name={key}
                     value={formData[key]}
                     onChange={handleInputChange}
-                    generalLedgers={generalLedgers}
+                    generalLedgers={currencyFilteredLedgers}
                     error={glCurrencyErrors[key]}
+                    emptyMessage={
+                      selectedCurrency
+                        ? `No GL account with ${selectedCurrency.code} currency.`
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -651,6 +663,15 @@ function Select(props: Record<string, any>) {
   );
 }
 
+// Badge color per GL classification — kept muted/neutral so it reads as a label, not a status.
+const CLASSIFICATION_BADGE_CLASSES: Record<string, string> = {
+  asset: "bg-blue-50 text-blue-700 border-blue-200",
+  liability: "bg-amber-50 text-amber-700 border-amber-200",
+  equity: "bg-purple-50 text-purple-700 border-purple-200",
+  income: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  expense: "bg-rose-50 text-rose-700 border-rose-200",
+};
+
 function GLSelect({
   label,
   name,
@@ -658,6 +679,7 @@ function GLSelect({
   onChange,
   generalLedgers,
   error,
+  emptyMessage,
 }: {
   label: string;
   name: string;
@@ -665,18 +687,41 @@ function GLSelect({
   onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
   generalLedgers: LookupOption[];
   error?: string;
+  emptyMessage?: string;
 }) {
+  const selectedLedger = generalLedgers.find((ledger) => String(ledger.id) === String(value));
+
   return (
-    <Select label={label} name={name} value={value} onChange={onChange} error={error}>
-      <option value="">Select GL account</option>
-      {generalLedgers.map((ledger) => (
-        <option key={ledger.id} value={ledger.id}>
-          {ledger.gl_code ? `${ledger.gl_code} — ` : ""}
-          {toDisplayLabel(ledger.name)}
-          {ledger.currency_code ? ` (${ledger.currency_code})` : ""}
-        </option>
-      ))}
-    </Select>
+    <div>
+      <SearchableSelect
+        label={label}
+        name={name}
+        value={value ?? ""}
+        onChange={onChange}
+        error={error}
+        placeholder="Select GL account"
+        emptyMessage={emptyMessage}
+        options={generalLedgers.map((ledger) => ({
+          value: String(ledger.id),
+          label: `${ledger.gl_code ? `${ledger.gl_code} — ` : ""}${toDisplayLabel(ledger.name)}${
+            ledger.currency_code ? ` (${ledger.currency_code})` : ""
+          }`,
+          sublabel: [ledger.gl_code, ledger.currency_code, ledger.classification ? toDisplayLabel(ledger.classification) : null]
+            .filter(Boolean)
+            .join(" · "),
+        }))}
+      />
+      {selectedLedger?.classification && (
+        <span
+          className={`mt-1.5 inline-block rounded-md border px-2 py-0.5 text-xs font-semibold ${
+            CLASSIFICATION_BADGE_CLASSES[selectedLedger.classification] ??
+            "bg-slate-50 text-slate-700 border-slate-200"
+          }`}
+        >
+          {toDisplayLabel(selectedLedger.classification)}
+        </span>
+      )}
+    </div>
   );
 }
 

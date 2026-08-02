@@ -18,7 +18,7 @@ import { toast } from "react-toastify";
 import { bulkApprovePostingsAction, getPostingsAction } from "@/actions/posting.action";
 import ActionMenu from "@/components/ActionMenu";
 import ConfirmModal from "@/components/ConfirmModal";
-import ExportButtons from "@/components/ExportButtons";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 import { usePermissions } from "@/lib/permissions";
@@ -250,7 +250,7 @@ export default function PostingManagement({
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons baseEndpoint="/admin/postings" params={exportParams} />
+          <ExportDropdown baseEndpoint="/admin/postings" params={exportParams} />
 
           <button
             type="button"

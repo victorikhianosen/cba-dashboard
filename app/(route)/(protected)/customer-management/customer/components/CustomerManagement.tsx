@@ -14,23 +14,24 @@ import {
   Phone,
   Plus,
   Search,
+  Upload,
   User,
   Users,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getCustomersAction } from "@/actions/customer.action";
 import ActionMenu from "@/components/ActionMenu";
+import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
+import BulkImportCustomersModal from "./BulkImportCustomersModal";
 
 type Customer = Record<string, any>;
-type Branch = Record<string, any>;
 type CustomerMeta = Record<string, any> | null;
 
 interface CustomerManagementProps {
   initialCustomers?: Customer[];
   initialMeta?: CustomerMeta;
-  branches?: Branch[];
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -62,7 +63,6 @@ function customerDisplayName(customer: Customer) {
 export default function CustomerManagement({
   initialCustomers = [],
   initialMeta = null,
-  branches = [],
 }: CustomerManagementProps) {
   const router = useRouter();
 
@@ -70,6 +70,7 @@ export default function CustomerManagement({
   const [meta, setMeta] = useState<CustomerMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
   const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -87,12 +88,6 @@ export default function CustomerManagement({
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
-
-  const branchNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    branches.forEach((branch) => map.set(String(branch.id), branch.name));
-    return map;
-  }, [branches]);
 
   async function fetchPage(page: number) {
     setPageLoading(true);
@@ -156,15 +151,37 @@ export default function CustomerManagement({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => router.push("/customer-management/customer/create?type=individual")}
-          className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
-        >
-          <Plus size={18} />
-          Add Customer
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportDropdown
+            baseEndpoint="/admin/customers"
+            params={{ search, status: statusFilter === "all" ? undefined : statusFilter }}
+          />
+
+          <button
+            type="button"
+            onClick={() => setBulkImportOpen(true)}
+            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 shadow-sm"
+          >
+            <Upload size={18} />
+            Bulk Upload
+          </button>
+
+          <button
+            type="button"
+            onClick={() => router.push("/customer-management/customer/create?type=individual")}
+            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
+          >
+            <Plus size={18} />
+            Add Customer
+          </button>
+        </div>
       </div>
+
+      <BulkImportCustomersModal
+        isOpen={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onImported={() => fetchPage(1)}
+      />
 
       {/* SUMMARY */}
       <section className="mt-7 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -254,7 +271,7 @@ export default function CustomerManagement({
                 <Heading>Customer</Heading>
                 <Heading>Type</Heading>
                 <Heading>Contact</Heading>
-                <Heading>Branch</Heading>
+                <Heading>Account Number</Heading>
                 <Heading>Status</Heading>
                 <Heading>Created</Heading>
                 <Heading>Actions</Heading>
@@ -300,7 +317,17 @@ export default function CustomerManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {branchNameById.get(String(customer.branch_id)) ?? "—"}
+                    {Array.isArray(customer.accounts) && customer.accounts.length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        {customer.accounts.map((account: Record<string, any>) => (
+                          <span key={account.id} className="font-mono text-xs font-semibold text-slate-800">
+                            {account.account_number}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      "—"
+                    )}
                   </td>
 
                   <td className="px-5">
