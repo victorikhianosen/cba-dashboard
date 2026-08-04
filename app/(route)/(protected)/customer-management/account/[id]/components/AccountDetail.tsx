@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Eye,
   Landmark,
+  Lock,
   Mail,
   Phone,
   Receipt,
@@ -21,14 +22,19 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { getAccountLiensAction, releaseLienAction } from "@/actions/account-lien.action";
 import {
+  placeLienAction,
   toggleAccountPncAction,
   toggleAccountPndAction,
   updateAccountStatusAction,
 } from "@/actions/account.action";
 import { getTransactionsAction } from "@/actions/transaction.action";
 import ActionMenu from "@/components/ActionMenu";
+import AmountInput from "@/components/AmountInput";
 import ExportDropdown from "@/components/ExportDropdown";
+import ReasonModal from "@/components/ReasonModal";
+import { usePermissions } from "@/lib/permissions";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
 
@@ -70,8 +76,26 @@ function formatDateTime(value: string | null | undefined) {
 
 const TABS = [
   { key: "details", label: "Account Details", icon: Landmark },
+  { key: "liens", label: "Liens", icon: Lock },
   { key: "transactions", label: "Transactions", icon: Receipt },
 ] as const;
+
+const LIEN_STATUS_STYLES: Record<string, string> = {
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+  active: "bg-blue-50 text-blue-700 border-blue-200",
+  released: "bg-slate-100 text-slate-600 border-slate-200",
+  rejected: "bg-red-50 text-red-700 border-red-200",
+  expired: "bg-slate-100 text-slate-600 border-slate-200",
+};
+
+function LienStatusBadge({ status }: { status: string }) {
+  const style = LIEN_STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600 border-slate-200";
+  return (
+    <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}>
+      {status}
+    </span>
+  );
+}
 
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -82,12 +106,24 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
 
   const [account, setAccount] = useState<Account>(initialAccount);
   // Read from the URL so the tab survives a reload instead of always resetting to "details".
-  const [activeTab, setActiveTabState] = useState<TabKey>(
-    searchParams.get("tab") === "transactions" ? "transactions" : "details"
-  );
+  const [activeTab, setActiveTabState] = useState<TabKey>(() => {
+    const tab = searchParams.get("tab");
+    return tab === "transactions" || tab === "liens" ? tab : "details";
+  });
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [statusChoice, setStatusChoice] = useState(initialAccount.status ?? "");
   const [statusModalOpen, setStatusModalOpen] = useState(false);
+
+  const { currentUser } = usePermissions();
+
+  const [lienModalOpen, setLienModalOpen] = useState(false);
+  const [lienAmount, setLienAmount] = useState("");
+  const [lienReason, setLienReason] = useState("");
+
+  const [liens, setLiens] = useState<Record<string, any>[]>([]);
+  const [liensLoading, setLiensLoading] = useState(false);
+  const [liensLoaded, setLiensLoaded] = useState(false);
+  const [releaseTarget, setReleaseTarget] = useState<Record<string, any> | null>(null);
 
   const [transactions, setTransactions] = useState<Record<string, any>[]>([]);
   const [transactionsMeta, setTransactionsMeta] = useState<Record<string, any> | null>(null);
@@ -117,8 +153,57 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     if (activeTab === "transactions" && !transactionsLoaded) {
       fetchTransactions(1);
     }
+    if (activeTab === "liens" && !liensLoaded) {
+      fetchLiens();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  async function fetchLiens() {
+    setLiensLoading(true);
+    try {
+      const result: any = await getAccountLiensAction(account.id);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to load liens.");
+        return;
+      }
+
+      setLiens(Array.isArray(result.data) ? result.data : []);
+      setLiensLoaded(true);
+    } catch (error) {
+      console.error("Failed to load liens:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setLiensLoading(false);
+    }
+  }
+
+  async function handleReleaseLien(reason: string) {
+    if (!releaseTarget) return;
+    const target = releaseTarget;
+    setReleaseTarget(null);
+
+    setActionPending("release-lien");
+    try {
+      const result: any = await releaseLienAction(target.id, reason.trim() || undefined);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to release lien.");
+        return;
+      }
+
+      toast.success(result.message || "Lien released successfully.");
+      setLiensLoaded(false);
+      fetchLiens();
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to release lien:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setActionPending(null);
+    }
+  }
 
   // Debounced re-fetch whenever a transaction filter changes, same pattern as the
   // main transactions/financial-transactions list pages.
@@ -190,6 +275,32 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
       () => updateAccountStatusAction(account.id, statusChoice),
       "Account status updated."
     );
+  }
+
+  async function handlePlaceLien() {
+    if (!lienAmount || Number(lienAmount) <= 0) return;
+    setLienModalOpen(false);
+
+    setActionPending("lien");
+    try {
+      const result: any = await placeLienAction(account.id, lienAmount, lienReason.trim() || undefined);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to submit lien request.");
+        return;
+      }
+
+      toast.success(result.message || "Lien request submitted for approval.");
+      setLiensLoaded(false);
+      if (activeTab === "liens") fetchLiens();
+    } catch (error) {
+      console.error("Failed to place lien:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setActionPending(null);
+      setLienAmount("");
+      setLienReason("");
+    }
   }
 
   return (
@@ -267,6 +378,13 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
               }
             />
             <ActionButton
+              label="Place Lien"
+              icon={<Lock size={14} />}
+              pending={actionPending === "lien"}
+              onClick={() => setLienModalOpen(true)}
+              className="border-blue-300 bg-blue-50 text-[#173673] hover:bg-blue-100"
+            />
+            <ActionButton
               label="Update Status"
               icon={<RefreshCw size={14} />}
               pending={actionPending === "status"}
@@ -290,6 +408,17 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
         pending={actionPending === "status"}
         onCancel={() => setStatusModalOpen(false)}
         onConfirm={handleUpdateStatus}
+      />
+
+      <PlaceLienModal
+        isOpen={lienModalOpen}
+        amount={lienAmount}
+        onAmountChange={setLienAmount}
+        reason={lienReason}
+        onReasonChange={setLienReason}
+        pending={actionPending === "lien"}
+        onCancel={() => setLienModalOpen(false)}
+        onConfirm={handlePlaceLien}
       />
 
       {/* TABS */}
@@ -355,6 +484,92 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
           </Section>
         </>
       )}
+
+      {activeTab === "liens" && (
+        <Section title="Liens">
+          {liensLoading && liens.length === 0 ? (
+            <p className="py-8 text-center text-sm font-medium text-slate-500">Loading liens...</p>
+          ) : liens.length === 0 ? (
+            <div className="py-12 text-center">
+              <Lock size={28} className="mx-auto text-slate-300" />
+              <p className="mt-3 text-sm font-medium text-slate-500">
+                No liens have been placed on this account yet.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-225">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <Heading>Reference</Heading>
+                    <Heading>Amount</Heading>
+                    <Heading>Reason</Heading>
+                    <Heading>Status</Heading>
+                    <Heading>Requested By</Heading>
+                    <Heading>Requested</Heading>
+                    <Heading>Actions</Heading>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {liens.map((lien) => {
+                    const isOwnRequest =
+                      currentUser?.id != null && String(lien.created_by) === String(currentUser.id);
+
+                    return (
+                      <tr key={lien.id}>
+                        <td className="px-3 py-3 text-sm font-semibold text-slate-800">
+                          {lien.reference}
+                        </td>
+                        <td className="px-3 py-3 text-sm font-bold text-slate-900">
+                          ₦{formatCurrency(lien.amount)}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-700">{lien.reason ?? "—"}</td>
+                        <td className="px-3 py-3 text-sm">
+                          <LienStatusBadge status={lien.status} />
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-700">
+                          {lien.created_by_name ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-700">
+                          {formatDateTime(lien.created_at)}
+                        </td>
+                        <td className="px-3 py-3">
+                          {lien.status === "active" && !isOwnRequest && (
+                            <button
+                              type="button"
+                              onClick={() => setReleaseTarget(lien)}
+                              disabled={actionPending === "release-lien"}
+                              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Release
+                            </button>
+                          )}
+                          {lien.status === "pending" && (
+                            <span className="text-xs font-medium text-slate-400">
+                              Awaiting approval
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      )}
+
+      <ReasonModal
+        isOpen={!!releaseTarget}
+        title="Release Lien"
+        description={`Provide a reason for releasing lien '${releaseTarget?.reference ?? ""}'.`}
+        confirmLabel="Release Lien"
+        confirmTone="primary"
+        pending={actionPending === "release-lien"}
+        onCancel={() => setReleaseTarget(null)}
+        onConfirm={handleReleaseLien}
+      />
 
       {activeTab === "transactions" && (
         <Section title="Transactions">
@@ -659,6 +874,102 @@ function TxnActionButton(props: Record<string, any>) {
     >
       {props.children}
     </button>
+  );
+}
+
+function PlaceLienModal({
+  isOpen,
+  amount,
+  onAmountChange,
+  reason,
+  onReasonChange,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  amount: string;
+  onAmountChange: (value: string) => void;
+  reason: string;
+  onReasonChange: (value: string) => void;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  if (!isOpen || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-9999 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close dialog"
+        onClick={onCancel}
+        className="fixed inset-0 bg-black/40"
+      />
+
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Request Lien</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Submits a lien request for approval — funds are only set aside once approved.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close dialog"
+            onClick={onCancel}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <label className="mt-5 block">
+          <span className="block text-sm font-semibold text-slate-800">Amount</span>
+          <AmountInput
+            value={amount}
+            onChange={onAmountChange}
+            placeholder="e.g. 50,000"
+            autoFocus
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+          />
+        </label>
+
+        <label className="mt-4 block">
+          <span className="block text-sm font-semibold text-slate-800">
+            Reason <span className="font-normal text-slate-400">(optional)</span>
+          </span>
+          <input
+            type="text"
+            value={reason}
+            onChange={(event) => onReasonChange(event.target.value)}
+            placeholder="e.g. Pending dispute resolution"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+          />
+        </label>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending || !amount || Number(amount) <= 0}
+            className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "Please wait..." : "Place Lien"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

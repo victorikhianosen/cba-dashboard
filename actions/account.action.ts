@@ -65,6 +65,20 @@ export async function updateAccountStatusAction(id: number | string, status: str
   }
 }
 
+export async function placeLienAction(id: number | string, amount: string, reason?: string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/accounts/${id}/lien`,
+      method: "POST",
+      body: { amount, reason },
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 export async function toggleAccountPndAction(id: number | string) {
   try {
     const result: any = await authApiClient({

@@ -55,7 +55,6 @@ const NUMERIC_FIELDS = [
   "annual_fee_amount",
   "annual_fee_on_month",
   "annual_fee_on_day",
-  "max_allowed_lien_limit",
   "savingsControlGLId",
   "interestOnSavingsGLId",
   "incomeFromFeeGLId",

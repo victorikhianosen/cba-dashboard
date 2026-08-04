@@ -189,6 +189,24 @@ export async function approveCustomerAction(
   }
 }
 
+// Opens an additional account for an existing (active) customer.
+export async function openCustomerAccountAction(
+  id: number | string,
+  payload: { account_product_id: number | string; account_type: string; account_tier_id?: number | string }
+) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/customers/${id}/accounts`,
+      method: "POST",
+      body: payload,
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 export async function rejectCustomerAction(id: number | string, reason: string) {
   try {
     const result: any = await authApiClient({

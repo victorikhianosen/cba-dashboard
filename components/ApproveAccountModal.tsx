@@ -11,6 +11,9 @@ interface ApproveAccountModalProps {
   accountProducts: Record<string, any>[];
   accountTiers: Record<string, any>[];
   pending?: boolean;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
   onCancel: () => void;
   onConfirm: (payload: { account_product_id: string; account_tier_id: string }) => void;
 }
@@ -33,6 +36,9 @@ export default function ApproveAccountModal({
   accountProducts,
   accountTiers,
   pending = false,
+  title,
+  description = "Select which account product to open.",
+  confirmLabel = "Confirm",
   onCancel,
   onConfirm,
 }: ApproveAccountModalProps) {
@@ -71,10 +77,8 @@ export default function ApproveAccountModal({
       <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Approve {customerName}</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Select which account product to open on approval.
-            </p>
+            <h2 className="text-lg font-bold text-slate-900">{title ?? `Approve ${customerName}`}</h2>
+            <p className="mt-1 text-sm text-slate-500">{description}</p>
           </div>
           <button
             type="button"
@@ -154,7 +158,7 @@ export default function ApproveAccountModal({
             disabled={pending || !accountProductId || !accountTierId}
             className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "Please wait..." : "Approve Customer"}
+            {pending ? "Please wait..." : confirmLabel}
           </button>
         </div>
       </div>

@@ -11,7 +11,7 @@ import {
   Mail,
   MapPin,
   Phone,
-  Receipt,
+  PlusCircle,
   RefreshCw,
   User,
   XCircle,
@@ -20,6 +20,7 @@ import { toast } from "react-toastify";
 import {
   approveCustomerAction,
   closeCustomerAction,
+  openCustomerAccountAction,
   rejectCustomerAction,
   toggleEmailAction,
   toggleInternetBankingAction,
@@ -83,7 +84,6 @@ function customerDisplayName(customer: Customer) {
 const TABS = [
   { key: "customer", label: "Customer", icon: User },
   { key: "accounts", label: "Accounts", icon: Landmark },
-  { key: "transactions", label: "Transactions", icon: Receipt },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -103,9 +103,9 @@ export default function CustomerDetail({
   const [activeTab, setActiveTab] = useState<TabKey>("customer");
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [documentActionPending, setDocumentActionPending] = useState<number | null>(null);
-  const [openModal, setOpenModal] = useState<"reject" | "close" | "approve" | "status" | null>(
-    null
-  );
+  const [openModal, setOpenModal] = useState<
+    "reject" | "close" | "approve" | "status" | "add-account" | null
+  >(null);
 
   async function runAction(key: string, action: () => Promise<any>, successMessage: string) {
     setActionPending(key);
@@ -133,6 +133,25 @@ export default function CustomerDetail({
       "approve",
       () => approveCustomerAction(customer.id, payload),
       "Customer approved."
+    );
+  }
+
+  function handleAddAccount(payload: { account_product_id: string; account_tier_id: string }) {
+    setOpenModal(null);
+
+    const product = accountProducts.find(
+      (item) => String(item.id) === String(payload.account_product_id)
+    );
+
+    runAction(
+      "add-account",
+      () =>
+        openCustomerAccountAction(customer.id, {
+          account_product_id: payload.account_product_id,
+          account_type: product?.product_type,
+          account_tier_id: payload.account_tier_id,
+        }),
+      "Account opened successfully."
     );
   }
 
@@ -243,13 +262,22 @@ export default function CustomerDetail({
             )}
 
             {customer.status === "active" && (
-              <ActionButton
-                label="Close"
-                icon={<XCircle size={14} />}
-                pending={actionPending === "close"}
-                onClick={() => setOpenModal("close")}
-                className="border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-              />
+              <>
+                <ActionButton
+                  label="Add Account"
+                  icon={<PlusCircle size={14} />}
+                  pending={actionPending === "add-account"}
+                  onClick={() => setOpenModal("add-account")}
+                  className="border-blue-300 bg-blue-50 text-[#173673] hover:bg-blue-100"
+                />
+                <ActionButton
+                  label="Close"
+                  icon={<XCircle size={14} />}
+                  pending={actionPending === "close"}
+                  onClick={() => setOpenModal("close")}
+                  className="border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                />
+              </>
             )}
 
             {customer.status !== "pending" && (
@@ -269,7 +297,7 @@ export default function CustomerDetail({
         isOpen={openModal === "status"}
         title={`Update Status — ${customerDisplayName(customer)}`}
         currentStatus={customer.status}
-        statuses={statuses}
+        statuses={statuses.filter((item) => item.code !== "lien")}
         pending={actionPending === "status"}
         onCancel={() => setOpenModal(null)}
         onConfirm={handleUpdateStatus}
@@ -282,8 +310,23 @@ export default function CustomerDetail({
         accountProducts={accountProducts}
         accountTiers={accountTiers}
         pending={actionPending === "approve"}
+        confirmLabel="Approve Customer"
         onCancel={() => setOpenModal(null)}
         onConfirm={handleApprove}
+      />
+
+      <ApproveAccountModal
+        isOpen={openModal === "add-account"}
+        customerName={customerDisplayName(customer)}
+        customerType={customer.customer_type}
+        accountProducts={accountProducts}
+        accountTiers={accountTiers}
+        pending={actionPending === "add-account"}
+        title={`Add Account — ${customerDisplayName(customer)}`}
+        description="Select which account product and tier to open for this customer."
+        confirmLabel="Open Account"
+        onCancel={() => setOpenModal(null)}
+        onConfirm={handleAddAccount}
       />
 
       <ReasonModal
@@ -357,14 +400,6 @@ export default function CustomerDetail({
             />
           )}
         </>
-      )}
-
-      {activeTab === "transactions" && (
-        <EmptyTabState
-          icon={<Receipt size={28} />}
-          title="Transactions coming soon"
-          description="Transaction history for this customer's accounts isn't wired up yet."
-        />
       )}
 
       {activeTab === "customer" && (
@@ -744,7 +779,6 @@ function AccountRow({ account }: { account: Record<string, any> }) {
       <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
         <Field label="Available Balance" value={`₦${formatCurrency(account.available_balance)}`} />
         <Field label="Ledger Balance" value={`₦${formatCurrency(account.account_balance)}`} />
-        <Field label="Lien Balance" value={`₦${formatCurrency(account.lien_balance)}`} />
         <Field
           label="Flags"
           value={[account.pnd && "PND", account.pnc && "PNC"].filter(Boolean).join(", ") || "None"}

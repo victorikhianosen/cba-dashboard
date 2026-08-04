@@ -110,6 +110,12 @@ export const menuItems: MenuItem[] = [
         icon: Box,
         permission: "view_account_products",
       },
+      {
+        name: "Lien Approvals",
+        href: "/customer-management/lien-approvals",
+        icon: ListChecks,
+        permission: "approve_liens",
+      },
     ],
   },
   {

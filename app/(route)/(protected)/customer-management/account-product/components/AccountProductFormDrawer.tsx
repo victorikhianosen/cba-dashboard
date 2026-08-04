@@ -46,8 +46,6 @@ const emptyAccountProductForm: AccountProductFormData = {
   annual_fee_on_month: "",
   annual_fee_on_day: "",
   withhold_tax: true,
-  is_lien_allowed: false,
-  max_allowed_lien_limit: "",
   savingsControlGLId: "",
   interestOnSavingsGLId: "",
   incomeFromFeeGLId: "",
@@ -82,7 +80,6 @@ const CHECKBOX_FIELDS = [
   "enforce_min_required_balance",
   "allow_overdraft",
   "withhold_tax",
-  "is_lien_allowed",
 ];
 
 // Every text/number/select field is marked `required` in the form, so all
@@ -525,25 +522,6 @@ export default function AccountProductFormDrawer({
                 name="withhold_tax"
                 checked={formData.withhold_tax}
                 onChange={handleInputChange}
-              />
-            </Section>
-
-            <Section title="Lien">
-              <Checkbox
-                label="Allow lien"
-                name="is_lien_allowed"
-                checked={formData.is_lien_allowed}
-                onChange={handleInputChange}
-              />
-
-              <Input
-                label="Max Allowed Lien Limit"
-                name="max_allowed_lien_limit"
-                type="number"
-                step="0.01"
-                value={formData.max_allowed_lien_limit}
-                onChange={handleInputChange}
-                placeholder="e.g. 100000"
               />
             </Section>
 
