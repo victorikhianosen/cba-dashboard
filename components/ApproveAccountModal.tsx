@@ -15,25 +15,21 @@ interface ApproveAccountModalProps {
   onConfirm: (payload: { account_product_id: string; account_tier_id: string }) => void;
 }
 
-// Mirrors CustomerType::businessLike() on the API — individual/minor open a
-// savings product, business/government/corporate open a current product.
-function expectedProductType(customerType: string) {
-  const isBusinessLike =
-    customerType === "business" || customerType === "government" || customerType === "corporate";
-
-  return isBusinessLike ? "current" : "savings";
+// Turns a product's raw slug-like name (e.g. "basic_savings_account") into a
+// human label ("Basic Savings Account") for display only — the value
+// submitted is still the product id.
+function titleCase(value: string) {
+  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 // Lets the admin pick which account product and tier to open for a customer
 // at approval time, instead of the system auto-detecting one. Both fields
-// are required — the backend rejects the request otherwise. Only products
-// matching the customer's expected type (savings for individual/minor,
-// current for business-like) are offered, since the backend rejects a
-// mismatch anyway.
+// are required — the backend rejects the request otherwise. Every active
+// product is offered regardless of customer type, since the admin — not the
+// customer's type — decides which product to open.
 export default function ApproveAccountModal({
   isOpen,
   customerName,
-  customerType,
   accountProducts,
   accountTiers,
   pending = false,
@@ -45,10 +41,7 @@ export default function ApproveAccountModal({
 
   if (!isOpen || typeof document === "undefined") return null;
 
-  const requiredType = expectedProductType(customerType);
-  const activeProducts = accountProducts.filter(
-    (product) => product.status === "active" && product.product_type === requiredType
-  );
+  const activeProducts = accountProducts.filter((product) => product.status === "active");
   const activeTiers = accountTiers.filter((tier) => tier.status === "active");
 
   function handleCancel() {
@@ -80,8 +73,7 @@ export default function ApproveAccountModal({
           <div>
             <h2 className="text-lg font-bold text-slate-900">Approve {customerName}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              This customer requires a <span className="font-semibold">{requiredType}</span>{" "}
-              account product — select which one to open on approval.
+              Select which account product to open on approval.
             </p>
           </div>
           <button
@@ -108,13 +100,13 @@ export default function ApproveAccountModal({
               </option>
               {activeProducts.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} — {product.product_type} ({product.currency_code})
+                  {titleCase(product.name)} — {product.product_type} ({product.currency_code})
                 </option>
               ))}
             </select>
             {activeProducts.length === 0 && (
               <p className="mt-1.5 text-xs text-amber-600">
-                No active '{requiredType}' account products found — activate one first.
+                No active account products found — activate one first.
               </p>
             )}
           </label>

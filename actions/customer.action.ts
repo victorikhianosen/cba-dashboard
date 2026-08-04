@@ -49,6 +49,21 @@ export async function lookupCustomerByCifAction(cifNumber: string) {
   }
 }
 
+// Resolves a customer's personal details from their BVN — used to prefill the
+// Personal Information section during onboarding.
+export async function lookupBvnAction(bvn: string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/bvn/lookup?bvn=${encodeURIComponent(bvn)}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
 // Takes a FormData built on the client so uploaded files (profile picture,
 // utility bill, director/signatory photos and signatures) travel through the
 // Server Action untouched — authApiClient sends it as multipart/form-data.

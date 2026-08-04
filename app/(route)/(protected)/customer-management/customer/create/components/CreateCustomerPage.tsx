@@ -11,9 +11,13 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
-import { createCustomerAction, uploadCustomerDocumentsAction } from "@/actions/customer.action";
+import {
+  createCustomerAction,
+  lookupBvnAction,
+  uploadCustomerDocumentsAction,
+} from "@/actions/customer.action";
 import { lookupAccountByNumberAction } from "@/actions/account.action";
 import { handleApiError } from "@/lib/errors";
 
@@ -305,6 +309,81 @@ export default function CreateCustomerPage({
   // undefined = not looked up yet, null = looked up but no match found.
   const [guardianPreview, setGuardianPreview] = useState<FieldMap | null | undefined>(undefined);
   const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
+
+  // Fires once the BVN reaches 11 digits — prefills Personal Information (and
+  // address) from the third-party lookup so the officer doesn't retype it.
+  const [bvnLookupLoading, setBvnLookupLoading] = useState(false);
+  const [bvnLookupStatus, setBvnLookupStatus] = useState<"idle" | "success" | "failed">("idle");
+
+  useEffect(() => {
+    const bvn: string = individual.bvn;
+
+    if (customerType !== "individual" || bvn.length !== 11) {
+      setBvnLookupStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setBvnLookupLoading(true);
+      try {
+        const result: any = await lookupBvnAction(bvn);
+        if (cancelled) return;
+
+        if (result?.status === "success" && result.data) {
+          const d = result.data;
+
+          setPerson((current) => ({
+            ...current,
+            title: d.title ?? current.title,
+            first_name: d.first_name ?? current.first_name,
+            middle_name: d.middle_name ?? current.middle_name,
+            last_name: d.last_name ?? current.last_name,
+          }));
+
+          setIndividual((current) => ({
+            ...current,
+            gender: d.gender ?? current.gender,
+            marital_status: d.marital_status ?? current.marital_status,
+            dob: d.dob ?? current.dob,
+            occupation: d.occupation ?? current.occupation,
+            mother_maiden_name: d.mother_maiden_name ?? current.mother_maiden_name,
+          }));
+
+          setCommon((current) => ({
+            ...current,
+            phone: d.phone ?? current.phone,
+            email: d.email ?? current.email,
+          }));
+
+          if (d.address) {
+            setAddress((current) => ({
+              ...current,
+              address: d.address.address_line_1 ?? current.address,
+              city: d.address.city ?? current.city,
+              state: d.address.state ?? current.state,
+              country: d.address.country ?? current.country,
+            }));
+          }
+
+          setBvnLookupStatus("success");
+        } else {
+          setBvnLookupStatus("failed");
+        }
+      } catch (error) {
+        console.error("Failed to look up BVN:", error);
+        if (!cancelled) setBvnLookupStatus("failed");
+      } finally {
+        if (!cancelled) setBvnLookupLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [individual.bvn, customerType]);
 
   const businessLikeType = isBusinessLike(customerType);
 
@@ -701,6 +780,57 @@ export default function CreateCustomerPage({
             </Select>
           </div>
 
+          <p className="text-xs font-medium text-slate-500">
+            Username, PIN and password are generated automatically — username from the
+            customer's name, PIN defaults to 0000, password defaults to the BVN.
+          </p>
+        </Section>
+
+        {/* CONTACT PERSON — shared by every customer type */}
+        <Section title={businessLikeType ? "Contact Person" : "Personal Information"}>
+          {customerType === "individual" && (
+            <label className="block">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-bold text-sm text-slate-800">BVN</span>
+
+                {bvnLookupLoading && (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                    <Loader2 size={12} className="animate-spin" />
+                    Looking up BVN…
+                  </span>
+                )}
+                {!bvnLookupLoading && bvnLookupStatus === "failed" && (
+                  <span className="text-xs font-semibold text-red-600">
+                    No record found for that BVN.
+                  </span>
+                )}
+                {!bvnLookupLoading && bvnLookupStatus === "success" && (
+                  <span className="text-xs font-semibold text-emerald-700">
+                    Personal information prefilled from BVN.
+                  </span>
+                )}
+              </span>
+              <div className="relative mt-2">
+                <input
+                  required
+                  value={individual.bvn}
+                  onChange={(e) =>
+                    updateField(setIndividual, "bvn", onlyDigits(e.target.value, 11))
+                  }
+                  placeholder="Enter 11-digit BVN"
+                  maxLength={11}
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 pr-10 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
+                />
+                {bvnLookupLoading && (
+                  <Loader2
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                  />
+                )}
+              </div>
+            </label>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Phone"
@@ -720,41 +850,14 @@ export default function CreateCustomerPage({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Username"
-              required={false}
-              value={common.username}
-              onChange={(e) => updateField(setCommon, "username", e.target.value)}
-              placeholder="e.g. victor123"
+          {!businessLikeType && (
+            <Checkbox
+              label="This customer is a staff member"
+              checked={common.is_staff}
+              onChange={(e) => updateField(setCommon, "is_staff", e.target.checked)}
             />
-            <PasswordInput
-              label="Password"
-              required={false}
-              value={common.password}
-              onChange={(e) => updateField(setCommon, "password", e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
+          )}
 
-          <Input
-            label="Transaction PIN"
-            required={false}
-            value={common.pin}
-            onChange={(e) => updateField(setCommon, "pin", onlyDigits(e.target.value, 4))}
-            placeholder="e.g. 1234"
-            maxLength={4}
-          />
-
-          <Checkbox
-            label="This customer is a staff member"
-            checked={common.is_staff}
-            onChange={(e) => updateField(setCommon, "is_staff", e.target.checked)}
-          />
-        </Section>
-
-        {/* CONTACT PERSON — shared by every customer type */}
-        <Section title={businessLikeType ? "Contact Person" : "Personal Information"}>
           <div className="grid grid-cols-4 gap-4">
             <Select
               label="Title"
@@ -849,13 +952,7 @@ export default function CreateCustomerPage({
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <Input
-                  label="BVN"
-                  value={individual.bvn}
-                  onChange={(e) => updateField(setIndividual, "bvn", onlyDigits(e.target.value, 11))}
-                  maxLength={11}
-                />
+              <div className="grid grid-cols-2 gap-4">
                 <Input
                   label="NIN"
                   value={individual.nin_number}
@@ -934,7 +1031,7 @@ export default function CreateCustomerPage({
           )}
 
           {businessLikeType && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Select
                 label="Legal Form"
                 value={businessLike.legal_form}
@@ -948,6 +1045,11 @@ export default function CreateCustomerPage({
                 ))}
               </Select>
               <Input
+                label="Business Name"
+                value={business.business_name}
+                onChange={(e) => updateField(setBusiness, "business_name", e.target.value)}
+              />
+              <Input
                 label="RC Number"
                 required={false}
                 value={businessLike.rc_number}
@@ -957,23 +1059,95 @@ export default function CreateCustomerPage({
           )}
         </Section>
 
-        {businessLikeType && (
-          <Section title="Business Details">
+        {/* CUSTOM FIELDS — arbitrary key/label/value entries the user defines,
+            stored as-is in the customer's `metadata` JSON column. */}
+        <RepeatingSection
+          title="Custom Fields"
+          rows={metadata}
+          onAdd={() => setMetadata((current) => [...current, newMetadataField()])}
+          onRemove={(key) => setMetadata((current) => current.filter((row) => row.key !== key))}
+          minRows={0}
+          renderRow={(field) => (
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Business Name"
-                value={business.business_name}
-                onChange={(e) => updateField(setBusiness, "business_name", e.target.value)}
+                label="Label"
+                value={field.label}
+                onChange={(e) => updateRow(setMetadata, field.key, "label", e.target.value)}
+                placeholder="e.g. Referral Source"
               />
+              <Input
+                label="Value"
+                required={false}
+                value={field.value}
+                onChange={(e) => updateRow(setMetadata, field.key, "value", e.target.value)}
+              />
+            </div>
+          )}
+        />
+
+        {/* ADDRESS — single object, shared by every customer type */}
+        <Section title="Address">
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Address Type"
+              value={address.type}
+              onChange={(e) => updateField(setAddress, "type", e.target.value)}
+            >
+              <option value="residential">Residential</option>
+              <option value="business">Business</option>
+              <option value="office">Office</option>
+              <option value="mailing">Mailing</option>
+            </Select>
+            <Input
+              label="Street Address"
+              value={address.address}
+              onChange={(e) => updateField(setAddress, "address", e.target.value)}
+              onBlur={detectCoordinates}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="LGA"
+              required={false}
+              value={address.lgs}
+              onChange={(e) => updateField(setAddress, "lgs", e.target.value)}
+            />
+            <Input
+              label="City"
+              value={address.city}
+              onChange={(e) => updateField(setAddress, "city", e.target.value)}
+              onBlur={detectCoordinates}
+            />
+            <Input
+              label="State"
+              value={address.state}
+              onChange={(e) => updateField(setAddress, "state", e.target.value)}
+              onBlur={detectCoordinates}
+            />
+          </div>
+
+          <Input
+            label="Country"
+            value={address.country}
+            onChange={(e) => updateField(setAddress, "country", e.target.value)}
+            onBlur={detectCoordinates}
+          />
+
+          {geocoding && (
+            <p className="text-xs font-medium text-slate-500">Detecting coordinates from address…</p>
+          )}
+        </Section>
+
+        {businessLikeType && (
+          <Section title="Business Details">
+            <div className="grid grid-cols-3 gap-4">
               <Input
                 label="Trading Name"
                 required={false}
                 value={business.trading_name}
                 onChange={(e) => updateField(setBusiness, "trading_name", e.target.value)}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <Select
                 label="Business Type"
                 value={business.business_type}
@@ -1115,145 +1289,6 @@ export default function CreateCustomerPage({
             </div>
           )}
         />
-
-        {/* CUSTOM FIELDS — arbitrary key/label/value entries the user defines,
-            stored as-is in the customer's `metadata` JSON column. */}
-        <RepeatingSection
-          title="Custom Fields"
-          rows={metadata}
-          onAdd={() => setMetadata((current) => [...current, newMetadataField()])}
-          onRemove={(key) => setMetadata((current) => current.filter((row) => row.key !== key))}
-          minRows={0}
-          renderRow={(field) => (
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Label"
-                value={field.label}
-                onChange={(e) => updateRow(setMetadata, field.key, "label", e.target.value)}
-                placeholder="e.g. Referral Source"
-              />
-              <Input
-                label="Value"
-                required={false}
-                value={field.value}
-                onChange={(e) => updateRow(setMetadata, field.key, "value", e.target.value)}
-              />
-            </div>
-          )}
-        />
-
-        {customerType === "individual" && (
-          <RepeatingSection
-            title="Next of Kin"
-            rows={nextOfKin}
-            onAdd={() => setNextOfKin((current) => [...current, newNextOfKin()])}
-            onRemove={(key) =>
-              setNextOfKin((current) => current.filter((row) => row.key !== key))
-            }
-            minRows={1}
-            renderRow={(kin) => (
-              <>
-                <div className="grid grid-cols-4 gap-4">
-                  <Select
-                    label="Title"
-                    required={false}
-                    value={kin.title}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "title", e.target.value)}
-                  >
-                    <option value="">—</option>
-                    {["Mr", "Mrs", "Miss", "Dr"].map((title) => (
-                      <option key={title} value={title}>
-                        {title}
-                      </option>
-                    ))}
-                  </Select>
-                  <Input
-                    label="First Name"
-                    value={kin.first_name}
-                    onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "first_name", onlyLetters(e.target.value))
-                    }
-                  />
-                  <Input
-                    label="Middle Name"
-                    required={false}
-                    value={kin.middle_name}
-                    onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "middle_name", onlyLetters(e.target.value))
-                    }
-                  />
-                  <Input
-                    label="Last Name"
-                    value={kin.last_name}
-                    onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "last_name", onlyLetters(e.target.value))
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <Input
-                    label="Relationship"
-                    value={kin.relationship}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "relationship", e.target.value)}
-                    placeholder="e.g. Sister"
-                  />
-                  <Select
-                    label="Gender"
-                    required={false}
-                    value={kin.gender}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "gender", e.target.value)}
-                  >
-                    <option value="">—</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </Select>
-                  <Input
-                    label="Date of Birth"
-                    type="date"
-                    required={false}
-                    value={kin.dob}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "dob", e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Phone"
-                    value={kin.phone}
-                    onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "phone", onlyDigits(e.target.value, 15))
-                    }
-                    maxLength={15}
-                  />
-                  <Input
-                    label="Email"
-                    type="email"
-                    pattern={EMAIL_PATTERN}
-                    required={false}
-                    value={kin.email}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "email", e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Occupation"
-                    required={false}
-                    value={kin.occupation}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "occupation", e.target.value)}
-                  />
-                  <Input
-                    label="Address"
-                    required={false}
-                    value={kin.address}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "address", e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-          />
-        )}
 
         {businessLikeType && !isNotRegisteredBusiness && (
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -1468,59 +1503,118 @@ export default function CreateCustomerPage({
           />
         )}
 
-        {/* ADDRESS — single object, shared by every customer type */}
-        <Section title="Address">
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Address Type"
-              value={address.type}
-              onChange={(e) => updateField(setAddress, "type", e.target.value)}
-            >
-              <option value="residential">Residential</option>
-              <option value="business">Business</option>
-              <option value="office">Office</option>
-              <option value="mailing">Mailing</option>
-            </Select>
-            <Input
-              label="Street Address"
-              value={address.address}
-              onChange={(e) => updateField(setAddress, "address", e.target.value)}
-              onBlur={detectCoordinates}
-            />
-          </div>
+        {customerType === "individual" && (
+          <RepeatingSection
+            title="Next of Kin"
+            rows={nextOfKin}
+            onAdd={() => setNextOfKin((current) => [...current, newNextOfKin()])}
+            onRemove={(key) =>
+              setNextOfKin((current) => current.filter((row) => row.key !== key))
+            }
+            minRows={1}
+            renderRow={(kin) => (
+              <>
+                <div className="grid grid-cols-4 gap-4">
+                  <Select
+                    label="Title"
+                    required={false}
+                    value={kin.title}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "title", e.target.value)}
+                  >
+                    <option value="">—</option>
+                    {["Mr", "Mrs", "Miss", "Dr"].map((title) => (
+                      <option key={title} value={title}>
+                        {title}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    label="First Name"
+                    value={kin.first_name}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "first_name", onlyLetters(e.target.value))
+                    }
+                  />
+                  <Input
+                    label="Middle Name"
+                    required={false}
+                    value={kin.middle_name}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "middle_name", onlyLetters(e.target.value))
+                    }
+                  />
+                  <Input
+                    label="Last Name"
+                    value={kin.last_name}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "last_name", onlyLetters(e.target.value))
+                    }
+                  />
+                </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              label="LGA"
-              required={false}
-              value={address.lgs}
-              onChange={(e) => updateField(setAddress, "lgs", e.target.value)}
-            />
-            <Input
-              label="City"
-              value={address.city}
-              onChange={(e) => updateField(setAddress, "city", e.target.value)}
-              onBlur={detectCoordinates}
-            />
-            <Input
-              label="State"
-              value={address.state}
-              onChange={(e) => updateField(setAddress, "state", e.target.value)}
-              onBlur={detectCoordinates}
-            />
-          </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <Input
+                    label="Relationship"
+                    value={kin.relationship}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "relationship", e.target.value)}
+                    placeholder="e.g. Sister"
+                  />
+                  <Select
+                    label="Gender"
+                    required={false}
+                    value={kin.gender}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "gender", e.target.value)}
+                  >
+                    <option value="">—</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </Select>
+                  <Input
+                    label="Date of Birth"
+                    type="date"
+                    required={false}
+                    value={kin.dob}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "dob", e.target.value)}
+                  />
+                </div>
 
-          <Input
-            label="Country"
-            value={address.country}
-            onChange={(e) => updateField(setAddress, "country", e.target.value)}
-            onBlur={detectCoordinates}
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Phone"
+                    value={kin.phone}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "phone", onlyDigits(e.target.value, 15))
+                    }
+                    maxLength={15}
+                  />
+                  <Input
+                    label="Email"
+                    type="email"
+                    pattern={EMAIL_PATTERN}
+                    required={false}
+                    value={kin.email}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "email", e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Occupation"
+                    required={false}
+                    value={kin.occupation}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "occupation", e.target.value)}
+                  />
+                  <Input
+                    label="Address"
+                    required={false}
+                    value={kin.address}
+                    onChange={(e) => updateRow(setNextOfKin, kin.key, "address", e.target.value)}
+                  />
+                </div>
+              </>
+            )}
           />
-
-          {geocoding && (
-            <p className="text-xs font-medium text-slate-500">Detecting coordinates from address…</p>
-          )}
-        </Section>
+        )}
 
         <div className="flex justify-end gap-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <Link
@@ -1624,35 +1718,6 @@ function Input({
         {...rest}
         className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
       />
-    </label>
-  );
-}
-
-function PasswordInput({
-  label,
-  required = true,
-  ...rest
-}: { label: string } & InputHTMLAttributes<HTMLInputElement>) {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <label className="block">
-      <span className="block font-bold text-sm text-slate-800">{label}</span>
-      <div className="relative mt-2">
-        <input
-          type={visible ? "text" : "password"}
-          required={required}
-          {...rest}
-          className="w-full rounded-xl border border-slate-300 bg-white p-3 pr-11 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
-        />
-        <button
-          type="button"
-          onClick={() => setVisible((current) => !current)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
-        >
-          {visible ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </div>
     </label>
   );
 }
