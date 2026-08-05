@@ -2,13 +2,18 @@
 
 import { authApiClient } from "@/lib/api-client";
 
-export async function getCustomersAction(page: number = 1, search: string = "") {
+export async function getCustomersAction(
+  page: number = 1,
+  search: string = "",
+  status: string = "",
+  customerType: string = ""
+) {
   try {
-    const params = new URLSearchParams({ page: String(page) });
+    const params = new URLSearchParams({ page: String(page), per_page: "20" });
 
-    if (search.trim()) {
-      params.set("search", search.trim());
-    }
+    if (search.trim()) params.set("search", search.trim());
+    if (status.trim()) params.set("status", status.trim());
+    if (customerType.trim()) params.set("customer_type", customerType.trim());
 
     const result: any = await authApiClient({
       endpoint: `/admin/customers?${params.toString()}`,
@@ -230,6 +235,28 @@ export async function closeCustomerAction(id: number | string, reason: string) {
     });
 
     return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function resetCustomerPasswordAction(id: number | string) {
+  try {
+    return await authApiClient({
+      endpoint: `/admin/customers/${id}/reset-password`,
+      method: "POST",
+    });
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function resetCustomerPinAction(id: number | string) {
+  try {
+    return await authApiClient({
+      endpoint: `/admin/customers/${id}/reset-pin`,
+      method: "POST",
+    });
   } catch {
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }

@@ -8,8 +8,8 @@ import {
   getCashierSessionsAction,
   rejectCashierVarianceAction,
 } from "@/actions/cashier-session.action";
-import ConfirmModal from "@/components/ConfirmModal";
 import ReasonModal from "@/components/ReasonModal";
+import TotpConfirmModal from "@/components/TotpConfirmModal";
 import { handleApiError } from "@/lib/errors";
 import { usePermissions } from "@/lib/permissions";
 
@@ -38,11 +38,11 @@ export default function ReconciliationQueue({ initialSessions }: ReconciliationQ
     }
   }
 
-  async function handleApprove() {
+  async function handleApprove(totpCode: string) {
     if (!approveTarget) return;
     setSubmitting(true);
     try {
-      const result: any = await approveCashierVarianceAction(approveTarget.id);
+      const result: any = await approveCashierVarianceAction(approveTarget.id, totpCode);
       if (result?.status !== "success") {
         handleApiError(result, "Failed to approve variance.");
         return;
@@ -161,7 +161,7 @@ export default function ReconciliationQueue({ initialSessions }: ReconciliationQ
         )}
       </section>
 
-      <ConfirmModal
+      <TotpConfirmModal
         isOpen={!!approveTarget}
         title="Approve Variance"
         description={`Approve the variance of ₦${formatCurrency(approveTarget?.variance_amount)} for teller '${approveTarget?.teller_name}'? This reconciles the session and sweeps the counted cash back to the vault.`}

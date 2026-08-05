@@ -13,9 +13,21 @@ import {
   UserRound,
 } from "lucide-react";
 import { logoutAction } from "@/actions/auth.action";
+import { useNotifications } from "@/lib/notifications";
+import { resolveNotificationUrl } from "@/lib/notificationRouter";
 import { usePermissions } from "@/lib/permissions";
 import { getPageTitle } from "@/lib/pageTitle";
 import { menuItems } from "./Sidebar";
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return date.toLocaleDateString();
+}
 
 interface NavbarProps {
   onOpenSidebar: () => void;
@@ -36,8 +48,19 @@ export default function Navbar({
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser, roles } = usePermissions();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleNotificationClick(notification: (typeof notifications)[number]) {
+    setNotificationsOpen(false);
+    if (!notification.read_at) {
+      await markAsRead(notification.id);
+    }
+    const url = resolveNotificationUrl(notification.data.module, notification.data.subject_id);
+    if (url) router.push(url);
+  }
 
   const pageTitle = getPageTitle(pathname, menuItems);
 
@@ -84,15 +107,76 @@ export default function Navbar({
       {/* RIGHT SECTION */}
       <div className="flex items-center gap-3 md:gap-5">
         {/* NOTIFICATIONS */}
-        <button
-          type="button"
-          aria-label="View notifications"
-          className="relative rounded-lg p-2 text-slate-700 transition hover:bg-slate-100"
-        >
-          <Bell size={21} />
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="View notifications"
+            onClick={() => setNotificationsOpen((open) => !open)}
+            className="relative rounded-lg p-2 text-slate-700 transition hover:bg-slate-100"
+          >
+            <Bell size={21} />
 
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </button>
+            {unreadCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+            )}
+          </button>
+
+          {notificationsOpen && (
+            <>
+              <button
+                type="button"
+                aria-label="Close notifications"
+                onClick={() => setNotificationsOpen(false)}
+                className="fixed inset-0 z-30 cursor-default"
+              />
+
+              <div className="absolute right-0 top-[calc(100%+8px)] z-40 max-h-[42rem] w-[34rem] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                  <p className="text-base font-bold text-slate-900">Notifications</p>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllAsRead()}
+                      className="text-sm font-semibold text-[#29478f] hover:underline"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <p className="px-5 py-12 text-center text-sm font-medium text-slate-400">
+                    No notifications yet.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`flex w-full flex-col items-start gap-1 px-5 py-4 text-left transition hover:bg-slate-50 ${
+                          !notification.read_at ? "bg-blue-50/60" : ""
+                        }`}
+                      >
+                        <span className="flex w-full items-center justify-between gap-2">
+                          <span className="text-sm font-bold text-slate-900">{notification.data.title}</span>
+                          {!notification.read_at && (
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#29478f]" />
+                          )}
+                        </span>
+                        <span className="text-sm text-slate-600">{notification.data.body}</span>
+                        <span className="mt-1 text-xs font-medium text-slate-400">
+                          {formatRelativeTime(notification.created_at)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* USER PROFILE */}
         <div className="relative">

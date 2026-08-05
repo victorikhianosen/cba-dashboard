@@ -65,9 +65,7 @@ export async function createUserAction(data: {
   staff_code: string;
   first_name: string;
   last_name: string;
-  username: string;
   email: string;
-  password: string;
   gender: string;
   phone: string;
   address: string;
@@ -113,6 +111,17 @@ export async function updateUserAction(
     });
 
     return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function resetUserPasswordAction(id: number | string) {
+  try {
+    return await authApiClient({
+      endpoint: `/admin/users/${id}/reset-password`,
+      method: "POST",
+    });
   } catch {
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }

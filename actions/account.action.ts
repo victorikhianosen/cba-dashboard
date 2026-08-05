@@ -104,3 +104,20 @@ export async function toggleAccountPncAction(id: number | string) {
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }
 }
+
+export async function emailAccountStatementAction(
+  id: number | string,
+  params: { from?: string; to?: string } = {}
+) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/accounts/${id}/statement/email`,
+      method: "POST",
+      body: params,
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}

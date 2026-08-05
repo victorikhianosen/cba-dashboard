@@ -2,7 +2,6 @@
 
 import { useRef, useState, type FormEvent, type InputHTMLAttributes, type SelectHTMLAttributes } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { getAccountsAction } from "@/actions/account.action";
@@ -79,8 +78,6 @@ function parseAmountInput(value: string) {
 }
 
 export default function CreatePostingPage() {
-  const router = useRouter();
-
   const [postingType, setPostingType] = useState<PostingTypeKey>("customer_to_customer");
   const [submitting, setSubmitting] = useState(false);
 
@@ -184,9 +181,6 @@ export default function CreatePostingPage() {
       setTransactionType("");
       setRemarks("");
       setPostingType("customer_to_customer");
-
-      router.push("/postings");
-      router.refresh();
     } catch (error) {
       console.error("Failed to create posting:", error);
       toast.error("A network error occurred. Please try again.");

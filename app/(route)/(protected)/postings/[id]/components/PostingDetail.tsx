@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { approvePostingAction, getPostingAction, rejectPostingAction } from "@/actions/posting.action";
-import ConfirmModal from "@/components/ConfirmModal";
+import TotpConfirmModal from "@/components/TotpConfirmModal";
 import ReasonModal from "@/components/ReasonModal";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
@@ -80,14 +80,17 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
   const isOwnPosting = !!currentUser?.id && String(currentUser.id) === String(posting.created_by);
   const isPending = posting.status === "pending";
 
-  async function runAction(key: string, action: () => Promise<any>, successMessage: string) {
+  // Returns whether the action succeeded, so callers can decide whether to close their
+  // modal — a failed attempt (e.g. wrong TOTP code) should leave the modal open instead
+  // of silently closing and only showing a toast.
+  async function runAction(key: string, action: () => Promise<any>, successMessage: string): Promise<boolean> {
     setActionPending(key);
     try {
       const result: any = await action();
 
       if (result?.status !== "success") {
         handleApiError(result, "That action failed.");
-        return;
+        return false;
       }
 
       toast.success(result.message || successMessage);
@@ -98,22 +101,28 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
       }
 
       router.refresh();
+      return true;
     } catch (error) {
       console.error("Posting action failed:", error);
       toast.error("A network error occurred. Please try again.");
+      return false;
     } finally {
       setActionPending(null);
     }
   }
 
-  function handleApprove() {
-    setApproveModalOpen(false);
-    runAction("approve", () => approvePostingAction(posting.id), "Posting approved and posted.");
+  async function handleApprove(totpCode: string) {
+    const succeeded = await runAction(
+      "approve",
+      () => approvePostingAction(posting.id, totpCode),
+      "Posting approved and posted."
+    );
+    if (succeeded) setApproveModalOpen(false);
   }
 
-  function handleReject(reason: string) {
-    setRejectModalOpen(false);
-    runAction("reject", () => rejectPostingAction(posting.id, reason), "Posting rejected.");
+  async function handleReject(reason: string) {
+    const succeeded = await runAction("reject", () => rejectPostingAction(posting.id, reason), "Posting rejected.");
+    if (succeeded) setRejectModalOpen(false);
   }
 
   return (
@@ -172,7 +181,7 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
         </div>
       </div>
 
-      <ConfirmModal
+      <TotpConfirmModal
         isOpen={approveModalOpen}
         title="Approve Posting"
         description={`Are you sure you have reviewed this transaction? Approving '${posting.reference}' will post it to the ledger immediately and can't be undone.`}
@@ -311,7 +320,9 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
                       {posting.financial_transaction.journal_entries.map((entry: Record<string, any>) => (
                         <tr key={entry.id}>
                           <td className="px-3 py-2 text-sm text-slate-800">
-                            {entry.general_ledger_id ?? "—"}
+                            {entry.general_ledger
+                              ? `${entry.general_ledger.gl_code} — ${toDisplayLabel(entry.general_ledger.name)}`
+                              : (entry.general_ledger_id ?? "—")}
                           </td>
                           <td className="px-3 py-2 text-sm">
                             <span

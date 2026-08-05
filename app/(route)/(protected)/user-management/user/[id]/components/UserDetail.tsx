@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Check,
   CheckCheck,
+  Mail,
   Save,
   ShieldQuestion,
   UserRound,
@@ -15,6 +16,7 @@ import {
 import { toast } from "react-toastify";
 import {
   assignUserRolesAction,
+  resetUserPasswordAction,
   unassignUserRolesAction,
   updateUserAction,
 } from "@/actions/user.action";
@@ -59,6 +61,7 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
     country: user.country ?? "Nigeria",
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [sendingCredentials, setSendingCredentials] = useState(false);
 
   const roleNames = useMemo(
     () => allRoles.map((role) => role.name).filter(Boolean),
@@ -110,12 +113,31 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
       }
 
       toast.success(result.message || "User updated successfully.");
-      router.refresh();
+  router.push("/user-management/user");
     } catch (error) {
       console.error("Failed to update user:", error);
       toast.error("A network error occurred. Please try again.");
     } finally {
       setSavingProfile(false);
+    }
+  }
+
+  async function handleSendCredentials() {
+    setSendingCredentials(true);
+    try {
+      const result: any = await resetUserPasswordAction(user.id);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to send login email.");
+        return;
+      }
+
+      toast.success(result.message || "Login email sent to the user.");
+    } catch (error) {
+      console.error("Failed to send login email:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setSendingCredentials(false);
     }
   }
 
@@ -220,19 +242,35 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleProfileSave}
-            disabled={savingProfile}
-            className="flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
-          >
-            {savingProfile ? (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            ) : (
-              <Save size={17} />
-            )}
-            {savingProfile ? "Saving..." : "Save Profile"}
-          </button>
+          <div className="flex shrink-0 gap-3">
+            <button
+              type="button"
+              onClick={handleSendCredentials}
+              disabled={sendingCredentials}
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {sendingCredentials ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400/40 border-t-slate-600" />
+              ) : (
+                <Mail size={17} />
+              )}
+              {sendingCredentials ? "Sending..." : "Send Login Email"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleProfileSave}
+              disabled={savingProfile}
+              className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+            >
+              {savingProfile ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Save size={17} />
+              )}
+              {savingProfile ? "Saving..." : "Save Profile"}
+            </button>
+          </div>
         </div>
 
         <div className="mt-6">

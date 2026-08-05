@@ -59,11 +59,12 @@ export async function createPostingAction(data: Record<string, any>) {
   }
 }
 
-export async function approvePostingAction(id: number | string) {
+export async function approvePostingAction(id: number | string, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/postings/${id}/approve`,
       method: "POST",
+      body: { totp_code: totpCode },
     });
 
     return result;
@@ -72,12 +73,12 @@ export async function approvePostingAction(id: number | string) {
   }
 }
 
-export async function bulkApprovePostingsAction(ids: Array<number | string>) {
+export async function bulkApprovePostingsAction(ids: Array<number | string>, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: "/admin/postings/bulk-approve",
       method: "POST",
-      body: { ids },
+      body: { ids, totp_code: totpCode },
     });
 
     return result;

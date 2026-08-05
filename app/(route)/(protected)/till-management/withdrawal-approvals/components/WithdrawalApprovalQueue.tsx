@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, CheckCircle2, X, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, ShieldCheck, X, XCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import {
   approveWithdrawalAction,
@@ -67,6 +67,7 @@ export default function WithdrawalApprovalQueue({ initialWithdrawals }: Withdraw
   const [approveTarget, setApproveTarget] = useState<Withdrawal | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Withdrawal | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
 
   async function refresh() {
     const result: any = await getPendingWithdrawalsAction(1, "all");
@@ -76,16 +77,17 @@ export default function WithdrawalApprovalQueue({ initialWithdrawals }: Withdraw
   }
 
   async function handleApprove() {
-    if (!approveTarget) return;
+    if (!approveTarget || totpCode.length !== 6) return;
     setSubmitting(true);
     try {
-      const result: any = await approveWithdrawalAction(approveTarget.id);
+      const result: any = await approveWithdrawalAction(approveTarget.id, totpCode);
       if (result?.status !== "success") {
         handleApiError(result, "Failed to approve withdrawal.");
         return;
       }
       toast.success("Withdrawal approved — cash may now be handed out.");
       setApproveTarget(null);
+      setTotpCode("");
       refresh();
     } catch (error) {
       console.error("Failed to approve withdrawal:", error);
@@ -212,7 +214,10 @@ export default function WithdrawalApprovalQueue({ initialWithdrawals }: Withdraw
             <button
               type="button"
               aria-label="Close dialog"
-              onClick={() => setApproveTarget(null)}
+              onClick={() => {
+                setApproveTarget(null);
+                setTotpCode("");
+              }}
               className="fixed inset-0 bg-black/40"
             />
 
@@ -229,7 +234,10 @@ export default function WithdrawalApprovalQueue({ initialWithdrawals }: Withdraw
                 <button
                   type="button"
                   aria-label="Close dialog"
-                  onClick={() => setApproveTarget(null)}
+                  onClick={() => {
+                    setApproveTarget(null);
+                    setTotpCode("");
+                  }}
                   className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                 >
                   <X size={22} />
@@ -242,10 +250,29 @@ export default function WithdrawalApprovalQueue({ initialWithdrawals }: Withdraw
                 <PartyCard label="Credit (Destination)" party={approveTarget.destination} />
               </div>
 
+              <label className="mt-6 block max-w-xs">
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                  <ShieldCheck size={15} className="text-slate-400" />
+                  Google Authenticator Code
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="6-digit code"
+                  className="mt-2 w-40 rounded-xl border border-slate-300 bg-white p-2.5 text-center text-base tracking-[0.4em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+                />
+              </label>
+
               <div className="mt-8 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setApproveTarget(null)}
+                  onClick={() => {
+                    setApproveTarget(null);
+                    setTotpCode("");
+                  }}
                   disabled={submitting}
                   className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
                 >
@@ -254,7 +281,7 @@ export default function WithdrawalApprovalQueue({ initialWithdrawals }: Withdraw
                 <button
                   type="button"
                   onClick={handleApprove}
-                  disabled={submitting}
+                  disabled={submitting || totpCode.length !== 6}
                   className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {submitting ? "Please wait..." : "Yes, Approve"}

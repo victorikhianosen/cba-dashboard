@@ -203,9 +203,9 @@ export default function AccountManagement({
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <Heading>Account</Heading>
-                <Heading>Customer</Heading>
                 <Heading>Product / Tier</Heading>
                 <Heading>Available Balance</Heading>
+                <Heading>Account Balance</Heading>
                 <Heading>Status</Heading>
                 <Heading>Opened</Heading>
                 <Heading>Actions</Heading>
@@ -236,15 +236,6 @@ export default function AccountManagement({
                     </div>
                   </td>
 
-                  <td className="px-5 py-5">
-                    <p className="text-sm font-bold text-slate-900">
-                      {account.customer?.full_name || "—"}
-                    </p>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      {account.customer?.cif_number} • {account.customer?.email}
-                    </p>
-                  </td>
-
                   <td className="px-5 text-sm font-medium text-slate-800">
                     <p className="capitalize">{account.account_product?.product_type || "—"}</p>
                     {account.account_tier?.level && (
@@ -256,6 +247,10 @@ export default function AccountManagement({
 
                   <td className="px-5 text-sm font-bold text-slate-900">
                     ₦{formatCurrency(account.available_balance)}
+                  </td>
+
+                  <td className="px-5 text-sm font-bold text-slate-900">
+                    ₦{formatCurrency(account.account_balance)}
                   </td>
 
                   <td className="px-5">

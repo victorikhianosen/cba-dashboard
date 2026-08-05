@@ -85,11 +85,12 @@ export async function previewInvestmentApprovalAction(id: number | string) {
   }
 }
 
-export async function approveInvestmentAction(id: number | string) {
+export async function approveInvestmentAction(id: number | string, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/investments/${id}/approve`,
       method: "POST",
+      body: { totp_code: totpCode },
     });
 
     return result;
@@ -161,11 +162,12 @@ export async function previewPendingTopUpAction(id: number | string) {
 
 // Approving IS the authorization to move the money (same single-step model as investment
 // approval) — no separate Postings-screen detour.
-export async function approveTopUpAction(id: number | string) {
+export async function approveTopUpAction(id: number | string, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/investments/${id}/topup/approve`,
       method: "POST",
+      body: { totp_code: totpCode },
     });
 
     return result;
@@ -196,6 +198,23 @@ export async function terminateInvestmentAction(id: number | string, reason: str
       endpoint: `/admin/investments/${id}/terminate`,
       method: "POST",
       body: { reason },
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+// Emails the same letter that {id}/letter would download, to the customer's address on
+// file. Printing the letter itself is a plain authenticated download, not a Server Action
+// — see the "Print Letter" link in InvestmentDetail.tsx, which routes through
+// /api/export (the generic authenticated-download proxy) instead.
+export async function emailInvestmentLetterAction(id: number | string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investments/${id}/letter/email`,
+      method: "POST",
     });
 
     return result;

@@ -18,7 +18,7 @@ import {
 import { toast } from "react-toastify";
 import { bulkApprovePostingsAction, getPostingsAction } from "@/actions/posting.action";
 import ActionMenu from "@/components/ActionMenu";
-import ConfirmModal from "@/components/ConfirmModal";
+import TotpConfirmModal from "@/components/TotpConfirmModal";
 import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
@@ -100,6 +100,7 @@ export default function PostingManagement({
 
   const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
   const [bulkApproveModalOpen, setBulkApproveModalOpen] = useState(false);
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const totalPostings = meta?.total ?? postings.length;
@@ -216,29 +217,31 @@ export default function PostingManagement({
     });
   }
 
-  function handleBulkApprove() {
+  async function handleBulkApprove(totpCode: string) {
     const ids = Array.from(selectedIds);
 
-    // Fire-and-forget: the backend just queues the batch, so the UI doesn't wait
-    // on it — close the modal and clear the selection right away.
-    setBulkApproveModalOpen(false);
-    setSelectedIds(new Set());
-    toast.success(`${ids.length} posting(s) queued for approval — they will update shortly.`);
+    setBulkApproving(true);
+    try {
+      const result: any = await bulkApprovePostingsAction(ids, totpCode);
 
-    bulkApprovePostingsAction(ids)
-      .then((result: any) => {
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to queue postings for approval.");
-          return;
-        }
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to queue postings for approval.");
+        return;
+      }
 
-        // Give the queue a moment to work through the batch, then refresh this page.
-        setTimeout(() => fetchPage(currentPage), 3000);
-      })
-      .catch((error) => {
-        console.error("Failed to bulk-approve postings:", error);
-        toast.error("A network error occurred. Please try again.");
-      });
+      // The backend just queues the batch — close the modal and clear the
+      // selection now that the code was actually accepted, then give the
+      // queue a moment to work through it before refreshing this page.
+      setBulkApproveModalOpen(false);
+      setSelectedIds(new Set());
+      toast.success(`${ids.length} posting(s) queued for approval — they will update shortly.`);
+      setTimeout(() => fetchPage(currentPage), 3000);
+    } catch (error) {
+      console.error("Failed to bulk-approve postings:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setBulkApproving(false);
+    }
   }
 
   return (
@@ -406,13 +409,13 @@ export default function PostingManagement({
         </section>
       )}
 
-      <ConfirmModal
+      <TotpConfirmModal
         isOpen={bulkApproveModalOpen}
         title="Approve Selected Postings"
         description={`Approve ${selectedIds.size} selected posting(s)? They'll be queued and posted to the ledger in the background — you don't need to wait, they'll update shortly.`}
         confirmLabel="Yes, Approve"
         confirmTone="primary"
-        pending={false}
+        pending={bulkApproving}
         onCancel={() => setBulkApproveModalOpen(false)}
         onConfirm={handleBulkApprove}
       />

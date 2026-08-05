@@ -5,6 +5,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { NotificationsProvider } from "@/lib/notifications";
 import Navbar from "./Navbar";
 import SessionGuard from "./SessionGuard";
 import Sidebar from "./Sidebar";
@@ -22,6 +23,7 @@ export default function ClientShell({
   ] = useState(false);
 
   return (
+    <NotificationsProvider>
     <div className="min-h-screen bg-[#f7f9fc]">
       <SessionGuard />
 
@@ -47,5 +49,6 @@ export default function ClientShell({
         </main>
       </div>
     </div>
+    </NotificationsProvider>
   );
 }

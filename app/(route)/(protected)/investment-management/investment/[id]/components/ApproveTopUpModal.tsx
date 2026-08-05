@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, ShieldCheck, X } from "lucide-react";
 import { previewPendingTopUpAction } from "@/actions/investment.action";
 
 interface ApproveTopUpModalProps {
@@ -12,7 +12,7 @@ interface ApproveTopUpModalProps {
   amount: string | number;
   pending?: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (totpCode: string) => void;
 }
 
 function formatCurrency(value: string | number | null | undefined) {
@@ -44,9 +44,11 @@ export default function ApproveTopUpModal({
   const [preview, setPreview] = useState<Record<string, any> | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
+      setTotpCode("");
       setPreview(null);
       setPreviewError(null);
       return;
@@ -155,7 +157,24 @@ export default function ApproveTopUpModal({
           ) : null}
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-200 p-6">
+          <label className="block">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+              <ShieldCheck size={15} className="text-slate-400" />
+              Google Authenticator Code
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={totpCode}
+              onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="6-digit code"
+              className="mt-2 w-40 rounded-xl border border-slate-300 bg-white p-2.5 text-center text-base tracking-[0.4em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+            />
+          </label>
+
+          <div className="flex gap-3">
           <button
             type="button"
             onClick={onCancel}
@@ -166,12 +185,13 @@ export default function ApproveTopUpModal({
           </button>
           <button
             type="button"
-            onClick={onConfirm}
-            disabled={pending}
+            onClick={() => onConfirm(totpCode)}
+            disabled={pending || totpCode.length !== 6}
             className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? "Please wait..." : "Approve Top-Up"}
           </button>
+          </div>
         </div>
       </div>
     </div>,

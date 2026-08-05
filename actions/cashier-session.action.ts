@@ -151,11 +151,12 @@ export async function getPendingWithdrawalsAction(page: number = 1, status: stri
   }
 }
 
-export async function approveWithdrawalAction(transactionId: number | string) {
+export async function approveWithdrawalAction(transactionId: number | string, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/cashier-sessions/withdrawals/${transactionId}/approve`,
       method: "POST",
+      body: { totp_code: totpCode },
     });
 
     return result;
@@ -205,12 +206,16 @@ export async function reconcileCashierSessionAction(sessionId: number | string) 
   }
 }
 
-export async function approveCashierVarianceAction(sessionId: number | string, remarks?: string) {
+export async function approveCashierVarianceAction(
+  sessionId: number | string,
+  totpCode: string,
+  remarks?: string
+) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/cashier-sessions/${sessionId}/approve-variance`,
       method: "POST",
-      body: { remarks },
+      body: { remarks, totp_code: totpCode },
     });
 
     return result;

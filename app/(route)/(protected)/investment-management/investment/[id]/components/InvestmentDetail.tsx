@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,11 +11,14 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  FileText,
   Mail,
   OctagonX,
   Phone,
   PlusCircle,
+  Printer,
   Receipt,
+  Send,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -23,6 +26,7 @@ import { toast } from "react-toastify";
 import {
   approveInvestmentAction,
   approveTopUpAction,
+  emailInvestmentLetterAction,
   rejectInvestmentAction,
   rejectTopUpAction,
   requestTopUpAction,
@@ -110,6 +114,8 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
         : "details"
   );
   const [actionPending, setActionPending] = useState(false);
+  const [emailingLetter, setEmailingLetter] = useState(false);
+  const [letterMenuOpen, setLetterMenuOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
@@ -226,10 +232,30 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
     }
   }
 
-  async function handleApprove() {
+  async function handleEmailLetter() {
+    setEmailingLetter(true);
+    try {
+      const result: any = await emailInvestmentLetterAction(investment.id);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to email investment letter.");
+        return;
+      }
+
+      toast.success(result.message || "Investment letter is being sent to the customer.");
+    } catch (error) {
+      console.error("Failed to email investment letter:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setEmailingLetter(false);
+      setLetterMenuOpen(false);
+    }
+  }
+
+  async function handleApprove(totpCode: string) {
     setActionPending(true);
     try {
-      const result: any = await approveInvestmentAction(investment.id);
+      const result: any = await approveInvestmentAction(investment.id, totpCode);
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to approve investment.");
@@ -292,10 +318,10 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
     }
   }
 
-  async function handleApproveTopUp() {
+  async function handleApproveTopUp(totpCode: string) {
     setActionPending(true);
     try {
-      const result: any = await approveTopUpAction(investment.id);
+      const result: any = await approveTopUpAction(investment.id, totpCode);
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to approve top-up.");
@@ -479,6 +505,17 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                   className="border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
                 />
               </>
+            )}
+
+            {investment.status !== "pending" && (
+              <InvestmentLetterMenu
+                investmentId={investment.id}
+                isOpen={letterMenuOpen}
+                onToggle={() => setLetterMenuOpen((open) => !open)}
+                onClose={() => setLetterMenuOpen(false)}
+                onEmail={handleEmailLetter}
+                emailing={emailingLetter}
+              />
             )}
           </div>
         </div>
@@ -1020,6 +1057,74 @@ function ScheduleTable({ rows }: { rows: Record<string, any>[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function InvestmentLetterMenu({
+  investmentId,
+  isOpen,
+  onToggle,
+  onClose,
+  onEmail,
+  emailing,
+}: {
+  investmentId: number | string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEmail: () => void;
+  emailing: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (containerRef.current?.contains(event.target as Node)) return;
+      onClose();
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isOpen, onClose]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 ${
+          emailing ? "pointer-events-none opacity-50" : ""
+        }`}
+      >
+        <FileText size={14} />
+        Investment Letter
+        <ChevronDown size={14} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          <a
+            href={`/api/export?endpoint=${encodeURIComponent(`/admin/investments/${investmentId}/letter`)}`}
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+          >
+            <Printer size={14} />
+            Print
+          </a>
+          <button
+            type="button"
+            onClick={onEmail}
+            disabled={emailing}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+          >
+            <Send size={14} />
+            {emailing ? "Sending..." : "Email"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

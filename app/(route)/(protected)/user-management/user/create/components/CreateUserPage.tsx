@@ -2,12 +2,12 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { toast } from "react-toastify";
 import { createUserAction } from "@/actions/user.action";
 import { handleApiError } from "@/lib/errors";
 import UserForm from "../../components/UserForm";
+import { useRouter } from "next/navigation";
 
 type Branch = Record<string, any>;
 type UserFormData = Record<string, any>;
@@ -21,9 +21,7 @@ const emptyUserForm: UserFormData = {
   staff_code: "",
   first_name: "",
   last_name: "",
-  username: "",
   email: "",
-  password: "",
   gender: "male",
   phone: "",
   address: "",
@@ -33,8 +31,9 @@ const emptyUserForm: UserFormData = {
 };
 
 export default function CreateUserPage({ branches = [] }: CreateUserPageProps) {
-  const router = useRouter();
 
+    const router = useRouter();
+  
   const [formData, setFormData] = useState<UserFormData>(emptyUserForm);
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,9 +54,7 @@ export default function CreateUserPage({ branches = [] }: CreateUserPageProps) {
         staff_code: formData.staff_code,
         first_name: formData.first_name,
         last_name: formData.last_name,
-        username: formData.username,
         email: formData.email,
-        password: formData.password,
         gender: formData.gender,
         phone: formData.phone,
         address: formData.address,
@@ -66,18 +63,19 @@ export default function CreateUserPage({ branches = [] }: CreateUserPageProps) {
         country: formData.country,
       });
 
-      if (result?.status !== "success") {
+      console.log("createUserAction result:", result);
+
+      if (!result || result.status !== "success") {
         handleApiError(result, "Failed to create user.");
+        setSubmitting(false);
         return;
       }
-
+      
       toast.success(result.message || "User created successfully.");
       router.push("/user-management/user");
-      router.refresh();
     } catch (error) {
       console.error("Failed to create user:", error);
       toast.error("A network error occurred. Please try again.");
-    } finally {
       setSubmitting(false);
     }
   }

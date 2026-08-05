@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ShieldCheck, X } from "lucide-react";
 import { previewInvestmentApprovalAction } from "@/actions/investment.action";
 
 interface ApproveInvestmentScheduleModalProps {
@@ -11,7 +11,7 @@ interface ApproveInvestmentScheduleModalProps {
   accountNumber: string;
   pending?: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (totpCode: string) => void;
 }
 
 function formatCurrency(value: string | number | null | undefined) {
@@ -41,11 +41,13 @@ export default function ApproveInvestmentScheduleModal({
   const [preview, setPreview] = useState<Record<string, any> | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
 
   useEffect(() => {
     if (!isOpen) {
       setPreview(null);
       setPreviewError(null);
+      setTotpCode("");
       return;
     }
 
@@ -161,23 +163,41 @@ export default function ApproveInvestmentScheduleModal({
           ) : null}
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={pending}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={pending}
-            className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? "Please wait..." : "Approve Investment"}
-          </button>
+        <div className="flex flex-wrap items-end justify-between gap-4 border-t border-slate-200 p-6">
+          <label className="block">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+              <ShieldCheck size={15} className="text-slate-400" />
+              Google Authenticator Code
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={totpCode}
+              onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="6-digit code"
+              className="mt-2 w-40 rounded-xl border border-slate-300 bg-white p-2.5 text-center text-base tracking-[0.4em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+            />
+          </label>
+
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={pending}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirm(totpCode)}
+              disabled={pending || totpCode.length !== 6}
+              className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? "Please wait..." : "Approve Investment"}
+            </button>
+          </div>
         </div>
       </div>
     </div>,

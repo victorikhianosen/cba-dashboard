@@ -259,7 +259,7 @@ export default function UserManagement({
                 <Heading>Staff</Heading>
                 <Heading>Contact</Heading>
                 <Heading>Branch</Heading>
-                <Heading>Location</Heading>
+                <Heading>Role</Heading>
                 <Heading>Status</Heading>
                 <Heading>Actions</Heading>
               </tr>
@@ -307,7 +307,9 @@ export default function UserManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {user.city}, {user.state}
+                    {Array.isArray(user.roles) && user.roles.length > 0
+                      ? user.roles.join(", ")
+                      : "—"}
                   </td>
 
                   <td className="px-5">

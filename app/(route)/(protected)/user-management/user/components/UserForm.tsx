@@ -38,13 +38,15 @@ export default function UserForm({
         />
       </div>
 
-      <Input
-        label="Username"
-        name="username"
-        value={formData.username}
-        onChange={onChange}
-        placeholder="e.g. grace.igbinovia"
-      />
+      {mode === "edit" && (
+        <Input
+          label="Username"
+          name="username"
+          value={formData.username}
+          onChange={onChange}
+          placeholder="e.g. grace.igbinovia"
+        />
+      )}
 
       <Input
         label="Email Address"
@@ -56,15 +58,10 @@ export default function UserForm({
       />
 
       {mode === "create" && (
-        <Input
-          label="Password"
-          name="password"
-          type="password"
-          required
-          value={formData.password}
-          onChange={onChange}
-          placeholder="••••••••"
-        />
+        <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+          A username and temporary password will be generated automatically and emailed to this
+          address once the account is created.
+        </p>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

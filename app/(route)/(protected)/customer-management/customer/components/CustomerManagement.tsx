@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   Briefcase,
@@ -79,6 +79,8 @@ export default function CustomerManagement({
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
+  const isFirstRender = useRef(true);
+
   const stats = meta?.statistics;
 
   const totalCustomers = stats?.total_customers ?? meta?.total ?? customers.length;
@@ -97,7 +99,12 @@ export default function CustomerManagement({
   async function fetchPage(page: number) {
     setPageLoading(true);
     try {
-      const result: any = await getCustomersAction(page, search);
+      const result: any = await getCustomersAction(
+        page,
+        search,
+        statusFilter === "all" ? "" : statusFilter,
+        typeFilter === "all" ? "" : typeFilter
+      );
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to load customers.");
@@ -122,28 +129,18 @@ export default function CustomerManagement({
     await fetchPage(page);
   }
 
-  const filteredCustomers = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
+  // Debounced re-fetch whenever a filter changes — searches/filters the full dataset on
+  // the server, not just whatever page happens to already be loaded client-side.
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
 
-    return customers.filter((customer) => {
-      const searchableData = [
-        customerDisplayName(customer),
-        customer.email,
-        customer.phone,
-        customer.username,
-        customer.code,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      const matchesSearch = searchableData.includes(keyword);
-      const matchesStatus = statusFilter === "all" || customer.status === statusFilter;
-      const matchesType = typeFilter === "all" || customer.customer_type === typeFilter;
-
-      return matchesSearch && matchesStatus && matchesType;
-    });
-  }, [customers, search, statusFilter, typeFilter]);
+    const timeout = setTimeout(() => fetchPage(1), 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter, typeFilter]);
 
   return (
     <>
@@ -289,7 +286,7 @@ export default function CustomerManagement({
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredCustomers.map((customer) => (
+              {customers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-5 py-5">
                     <div className="flex items-center gap-3">
@@ -373,7 +370,7 @@ export default function CustomerManagement({
           </table>
         </div>
 
-        {!pageLoading && filteredCustomers.length === 0 && (
+        {!pageLoading && customers.length === 0 && (
           <div className="py-16 text-center text-sm font-medium text-slate-500">
             No customers found.
           </div>
@@ -384,7 +381,7 @@ export default function CustomerManagement({
           <p className="text-sm font-medium text-slate-600">
             {meta
               ? `Showing ${meta.from ?? 0}-${meta.to ?? 0} of ${meta.total ?? totalCustomers} customers`
-              : `Showing ${filteredCustomers.length} customers`}
+              : `Showing ${customers.length} customers`}
           </p>
           <div className="flex items-center gap-2">
             <button

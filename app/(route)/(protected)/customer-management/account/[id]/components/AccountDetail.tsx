@@ -6,9 +6,12 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
+  FileText,
   Landmark,
   Lock,
   Mail,
@@ -17,6 +20,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Send,
   ShieldAlert,
   Wallet,
   X,
@@ -24,6 +28,7 @@ import {
 import { toast } from "react-toastify";
 import { getAccountLiensAction, releaseLienAction } from "@/actions/account-lien.action";
 import {
+  emailAccountStatementAction,
   placeLienAction,
   toggleAccountPncAction,
   toggleAccountPndAction,
@@ -33,7 +38,7 @@ import { getTransactionsAction } from "@/actions/transaction.action";
 import ActionMenu from "@/components/ActionMenu";
 import AmountInput from "@/components/AmountInput";
 import ExportDropdown from "@/components/ExportDropdown";
-import ReasonModal from "@/components/ReasonModal";
+import ReasonTotpConfirmModal from "@/components/ReasonTotpConfirmModal";
 import { usePermissions } from "@/lib/permissions";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
@@ -111,6 +116,8 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     return tab === "transactions" || tab === "liens" ? tab : "details";
   });
   const [actionPending, setActionPending] = useState<string | null>(null);
+  const [statementMenuOpen, setStatementMenuOpen] = useState(false);
+  const [emailingStatement, setEmailingStatement] = useState(false);
   const [statusChoice, setStatusChoice] = useState(initialAccount.status ?? "");
   const [statusModalOpen, setStatusModalOpen] = useState(false);
 
@@ -179,14 +186,14 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     }
   }
 
-  async function handleReleaseLien(reason: string) {
+  async function handleReleaseLien(reason: string, totpCode: string) {
     if (!releaseTarget) return;
     const target = releaseTarget;
     setReleaseTarget(null);
 
     setActionPending("release-lien");
     try {
-      const result: any = await releaseLienAction(target.id, reason.trim() || undefined);
+      const result: any = await releaseLienAction(target.id, reason.trim(), totpCode);
 
       if (result?.status !== "success") {
         handleApiError(result, "Failed to release lien.");
@@ -202,6 +209,29 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
       toast.error("A network error occurred. Please try again.");
     } finally {
       setActionPending(null);
+    }
+  }
+
+  async function handleEmailStatement() {
+    setEmailingStatement(true);
+    try {
+      const result: any = await emailAccountStatementAction(account.id, {
+        from: txnFrom || undefined,
+        to: txnTo || undefined,
+      });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to email statement of account.");
+        return;
+      }
+
+      toast.success(result.message || "Statement of account is being sent to the customer.");
+    } catch (error) {
+      console.error("Failed to email statement of account:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setEmailingStatement(false);
+      setStatementMenuOpen(false);
     }
   }
 
@@ -516,7 +546,11 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                       currentUser?.id != null && String(lien.created_by) === String(currentUser.id);
 
                     return (
-                      <tr key={lien.id}>
+                      <tr
+                        key={lien.id}
+                        className="cursor-pointer hover:bg-slate-50/80 transition-colors"
+                        onClick={() => router.push(`/customer-management/liens/${lien.id}`)}
+                      >
                         <td className="px-3 py-3 text-sm font-semibold text-slate-800">
                           {lien.reference}
                         </td>
@@ -533,7 +567,7 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                         <td className="px-3 py-3 text-sm text-slate-700">
                           {formatDateTime(lien.created_at)}
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
                           {lien.status === "active" && !isOwnRequest && (
                             <button
                               type="button"
@@ -560,10 +594,10 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
         </Section>
       )}
 
-      <ReasonModal
+      <ReasonTotpConfirmModal
         isOpen={!!releaseTarget}
         title="Release Lien"
-        description={`Provide a reason for releasing lien '${releaseTarget?.reference ?? ""}'.`}
+        description={`Provide a reason for releasing lien '${releaseTarget?.reference ?? ""}'. This will free the held funds immediately.`}
         confirmLabel="Release Lien"
         confirmTone="primary"
         pending={actionPending === "release-lien"}
@@ -638,6 +672,17 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                 to: txnTo,
               }}
             />
+
+            <StatementMenu
+              accountId={account.id}
+              from={txnFrom}
+              to={txnTo}
+              isOpen={statementMenuOpen}
+              onToggle={() => setStatementMenuOpen((open) => !open)}
+              onClose={() => setStatementMenuOpen(false)}
+              onEmail={handleEmailStatement}
+              emailing={emailingStatement}
+            />
           </div>
 
           {transactionsLoading && transactions.length === 0 ? (
@@ -674,7 +719,11 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                       const isDebit = typeLabel?.toLowerCase() === "debit";
 
                       return (
-                        <tr key={txn.id}>
+                        <tr
+                          key={txn.id}
+                          className="cursor-pointer hover:bg-slate-50/80 transition-colors"
+                          onClick={() => router.push(`/chat-of-account/transactions/${txn.id}`)}
+                        >
                           <td className="px-3 py-3 text-sm text-slate-800">
                             <p className="font-semibold">{txn.reference ?? "—"}</p>
                             {txn.transaction_reference && (
@@ -709,7 +758,7 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                           <td className="px-3 py-3 text-sm text-slate-700">
                             {formatDateTime(txn.date)}
                           </td>
-                          <td className="px-3 py-3">
+                          <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
                             <ActionMenu
                               isOpen={txnActionMenuId === txn.id}
                               onToggle={() =>
@@ -862,6 +911,82 @@ function ActionButton({
       {icon}
       {pending ? "Please wait..." : label}
     </button>
+  );
+}
+
+function StatementMenu({
+  accountId,
+  from,
+  to,
+  isOpen,
+  onToggle,
+  onClose,
+  onEmail,
+  emailing,
+}: {
+  accountId: number | string;
+  from?: string;
+  to?: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onEmail: () => void;
+  emailing: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (containerRef.current?.contains(event.target as Node)) return;
+      onClose();
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isOpen, onClose]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={emailing}
+        className="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <FileText size={14} />
+        Statement of Account
+        <ChevronDown size={14} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+          <a
+            href={`/api/export?endpoint=${encodeURIComponent(
+              `/admin/accounts/${accountId}/statement?${new URLSearchParams({
+                ...(from ? { from } : {}),
+                ...(to ? { to } : {}),
+              }).toString()}`
+            )}`}
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+          >
+            <Download size={14} />
+            Download (PDF)
+          </a>
+          <button
+            type="button"
+            onClick={onEmail}
+            disabled={emailing}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100 transition disabled:opacity-50"
+          >
+            <Send size={14} />
+            {emailing ? "Sending..." : "Email to Customer"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
