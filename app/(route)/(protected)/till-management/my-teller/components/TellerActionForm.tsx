@@ -41,6 +41,18 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
     resolvedAccount?.currencyCode && tellerCurrencyCode && resolvedAccount.currencyCode !== tellerCurrencyCode
   );
 
+  const exceedsBalance = Boolean(
+    action === "withdraw" && resolvedAccount && amount && Number(amount) > resolvedAccount.balance
+  );
+
+  const isFormValid = Boolean(
+    amount &&
+    Number(amount) > 0 &&
+    (!meta.needsAccount || (accountNumber && resolvedAccount)) &&
+    !currencyMismatch &&
+    !exceedsBalance
+  );
+
   async function handleSubmit() {
     if (!amount) {
       toast.error("Enter an amount.");
@@ -115,7 +127,7 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
         </div>
       </div>
 
-      <div className="mt-6 space-y-4">
+      <div className="mt-8 space-y-6">
         {meta.needsAccount && (
           <AccountLookupField
             value={accountNumber}
@@ -136,16 +148,19 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
             </p>
           )}
         </div>
-        <input
-          type="text"
-          placeholder="Narration (optional)"
-          value={narration}
-          onChange={(e) => setNarration(e.target.value)}
-          className={inputClassName}
-        />
+        <div>
+          <label className="mb-1.5 block text-sm font-bold text-slate-800">Narration (optional)</label>
+          <input
+            type="text"
+            placeholder="Narration (optional)"
+            value={narration}
+            onChange={(e) => setNarration(e.target.value)}
+            className={inputClassName}
+          />
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-end gap-3">
+      <div className="mt-8 flex justify-end gap-3">
         <button
           type="button"
           onClick={onCancel}
@@ -156,7 +171,7 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
         </button>
         <button
           type="button"
-          disabled={submitting || currencyMismatch}
+          disabled={submitting || !isFormValid}
           onClick={handleSubmit}
           className={`rounded-xl px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 ${toneButtonClass}`}
         >

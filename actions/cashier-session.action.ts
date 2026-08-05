@@ -2,10 +2,11 @@
 
 import { authApiClient } from "@/lib/api-client";
 
-export async function getCashierSessionsAction(page: number = 1, status?: string) {
+export async function getCashierSessionsAction(page: number = 1, status?: string, tellerId?: number | string) {
   try {
     const params = new URLSearchParams({ page: String(page) });
     if (status) params.set("status", status);
+    if (tellerId) params.set("teller_id", String(tellerId));
 
     const result: any = await authApiClient({
       endpoint: `/admin/cashier-sessions?${params.toString()}`,

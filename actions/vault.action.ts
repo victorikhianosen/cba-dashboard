@@ -55,11 +55,12 @@ export async function createVaultAction(data: Record<string, any>) {
   }
 }
 
-export async function approveVaultAction(id: number | string) {
+export async function approveVaultAction(id: number | string, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/vaults/${id}/approve`,
       method: "POST",
+      body: { totp_code: totpCode },
     });
 
     return result;

@@ -4,8 +4,9 @@ import { useState } from "react";
 import { CheckCircle2, Plus, Vault as VaultIcon } from "lucide-react";
 import { toast } from "react-toastify";
 import { approveVaultAction, createVaultAction, getVaultsAction } from "@/actions/vault.action";
-import ConfirmModal from "@/components/ConfirmModal";
 import SearchableSelect from "@/components/SearchableSelect";
+import SideDrawer from "@/components/SideDrawer";
+import TotpConfirmModal from "@/components/TotpConfirmModal";
 import { handleApiError } from "@/lib/errors";
 import { usePermissions } from "@/lib/permissions";
 
@@ -72,11 +73,11 @@ export default function VaultManagement({
     }
   }
 
-  async function handleApprove() {
+  async function handleApprove(totpCode: string) {
     if (!approveTarget) return;
     setSubmitting(true);
     try {
-      const result: any = await approveVaultAction(approveTarget.id);
+      const result: any = await approveVaultAction(approveTarget.id, totpCode);
       if (result?.status !== "success") {
         handleApiError(result, "Failed to approve vault.");
         return;
@@ -175,58 +176,57 @@ export default function VaultManagement({
         )}
       </section>
 
-      {createOpen && (
-        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <div className="border-b border-slate-200 p-6">
-              <h2 className="text-lg font-bold text-slate-900">New Vault</h2>
-            </div>
-            <div className="space-y-4 p-6">
-              <SearchableSelect
-                label="Branch"
-                name="branch_id"
-                value={form.branch_id}
-                onChange={(e) => setForm((f) => ({ ...f, branch_id: e.target.value }))}
-                options={branches.map((b) => ({ value: String(b.id), label: b.name }))}
-              />
-              <div>
-                <label className="mb-1.5 block text-sm font-bold text-slate-800">Name</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
-                />
-              </div>
-              <SearchableSelect
-                label="Currency"
-                name="currency_id"
-                value={form.currency_id}
-                onChange={(e) => setForm((f) => ({ ...f, currency_id: e.target.value }))}
-                options={currencies.map((c) => ({ value: String(c.id), label: `${c.code} - ${c.name}`, sublabel: c.name }))}
+      <SideDrawer isOpen={createOpen} onClose={() => setCreateOpen(false)} widthClassName="max-w-2xl">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">New Vault</h2>
+          <p className="mt-1 text-sm text-slate-600">Branch cash reserve that supplies float to tills.</p>
+
+          <div className="mt-6 space-y-6">
+            <SearchableSelect
+              label="Branch"
+              name="branch_id"
+              value={form.branch_id}
+              onChange={(e) => setForm((f) => ({ ...f, branch_id: e.target.value }))}
+              options={branches.map((b) => ({ value: String(b.id), label: b.name }))}
+            />
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-800">Name</label>
+              <input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
               />
             </div>
-            <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
-              <button
-                type="button"
-                onClick={() => setCreateOpen(false)}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleCreate}
-                className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:opacity-50"
-              >
-                {submitting ? "Creating..." : "Create"}
-              </button>
-            </div>
+            <SearchableSelect
+              label="Currency"
+              name="currency_id"
+              value={form.currency_id}
+              onChange={(e) => setForm((f) => ({ ...f, currency_id: e.target.value }))}
+              options={currencies.map((c) => ({ value: String(c.id), label: `${c.code} - ${c.name}`, sublabel: c.name }))}
+            />
+          </div>
+
+          <div className="mt-8 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setCreateOpen(false)}
+              className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleCreate}
+              className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:opacity-50"
+            >
+              {submitting ? "Creating..." : "Create"}
+            </button>
           </div>
         </div>
-      )}
+      </SideDrawer>
 
-      <ConfirmModal
+      <TotpConfirmModal
         isOpen={!!approveTarget}
         title="Approve Vault"
         description={`Approve vault '${approveTarget?.name}'? This activates its cash GL.`}

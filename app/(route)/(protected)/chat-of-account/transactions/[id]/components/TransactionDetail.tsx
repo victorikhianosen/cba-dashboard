@@ -164,6 +164,15 @@ export default function TransactionDetail({ transaction }: TransactionDetailProp
           <Field label="Value Date" value={formatDateTime(transaction.value_date)} />
           <Field label="Posting Date" value={formatDateTime(transaction.posting_date)} />
           <Field label="Created At" value={formatDateTime(transaction.created_at)} />
+          <Field
+            label="Created By"
+            value={
+              transaction.creator
+                ? `${transaction.creator.first_name ?? ""} ${transaction.creator.last_name ?? ""}`.trim() ||
+                  transaction.creator.username
+                : "—"
+            }
+          />
         </div>
         {transaction.narration && (
           <div>

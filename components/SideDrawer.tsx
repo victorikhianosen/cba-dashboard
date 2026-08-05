@@ -7,11 +7,12 @@ interface SideDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  widthClassName?: string;
 }
 
 // Slide-in panel from the right, backdrop dims the page behind it — used for quick
 // in-context actions where a full page navigation would lose the surrounding screen.
-export default function SideDrawer({ isOpen, onClose, children }: SideDrawerProps) {
+export default function SideDrawer({ isOpen, onClose, children, widthClassName = "max-w-md" }: SideDrawerProps) {
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -27,7 +28,7 @@ export default function SideDrawer({ isOpen, onClose, children }: SideDrawerProp
       />
 
       <div
-        className={`absolute right-0 top-0 h-full w-full max-w-md overflow-y-auto bg-slate-50 shadow-2xl transition-transform duration-200 ${
+        className={`absolute right-0 top-0 h-full w-full overflow-y-auto bg-slate-50 shadow-2xl transition-transform duration-200 ${widthClassName} ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >

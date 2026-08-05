@@ -14,6 +14,11 @@ type Meta = Record<string, any> | null;
 
 const STATUS_OPTIONS = ["pending", "posted", "completed", "failed", "reversed"];
 
+function humanize(value: string | null | undefined): string {
+  if (!value) return "—";
+  return value.replace(/_/g, " ");
+}
+
 export default function FinancialTransactionsManagement() {
   const router = useRouter();
 
@@ -155,10 +160,10 @@ export default function FinancialTransactionsManagement() {
                     {txn.customer?.full_name ?? "—"}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800 capitalize">
-                    {txn.module ?? "—"}
+                    {humanize(txn.module)}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800 capitalize">
-                    {txn.transaction_type ?? "—"}
+                    {humanize(txn.transaction_type)}
                   </td>
                   <td className="px-5 text-sm font-semibold text-slate-900">
                     {txn.currency_code} {txn.amount}

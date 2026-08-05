@@ -209,9 +209,10 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
                     : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100";
 
                 return (
-                  <Link
+                  <button
                     key={key}
-                    href={`/till-management/my-teller/${key}`}
+                    type="button"
+                    onClick={() => setActiveAction(key)}
                     className={`flex flex-col items-center gap-2 rounded-xl border p-5 text-sm font-bold transition ${toneClass}`}
                   >
                     <Icon size={22} />
@@ -219,7 +220,7 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
                     {key === "sell" && "Sell"}
                     {key === "deposit" && "Deposit"}
                     {key === "withdraw" && "Withdraw"}
-                  </Link>
+                  </button>
                 );
               })}
             </section>
@@ -286,6 +287,21 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
           )}
         </>
       )}
+
+      <SideDrawer isOpen={activeAction !== null} onClose={() => setActiveAction(null)} widthClassName="max-w-4xl">
+        {activeAction && session && (
+          <TellerActionForm
+            action={activeAction}
+            session={session}
+            myTeller={myTeller}
+            onCancel={() => setActiveAction(null)}
+            onSuccess={() => {
+              setActiveAction(null);
+              refresh();
+            }}
+          />
+        )}
+      </SideDrawer>
     </>
   );
 }

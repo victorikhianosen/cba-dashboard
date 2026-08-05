@@ -42,11 +42,12 @@ export async function createTellerAction(data: Record<string, any>) {
   }
 }
 
-export async function approveTellerAction(id: number | string) {
+export async function approveTellerAction(id: number | string, totpCode: string) {
   try {
     const result: any = await authApiClient({
       endpoint: `/admin/tellers/${id}/approve`,
       method: "POST",
+      body: { totp_code: totpCode },
     });
 
     return result;

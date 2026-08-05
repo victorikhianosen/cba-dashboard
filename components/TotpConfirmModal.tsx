@@ -53,7 +53,7 @@ export default function TotpConfirmModal({
         className="fixed inset-0 bg-black/40"
       />
 
-      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="relative w-full max-w-xl rounded-2xl bg-white p-8 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">{title}</h2>
@@ -82,7 +82,7 @@ export default function TotpConfirmModal({
             value={code}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
             placeholder="6-digit code"
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-center text-lg tracking-[0.5em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+            className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-4 text-center text-2xl tracking-[0.5em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
           />
         </label>
 

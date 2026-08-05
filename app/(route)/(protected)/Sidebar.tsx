@@ -185,10 +185,22 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "Postings",
-    href: "/postings",
+    name: "Posting Management",
     icon: ArrowLeftRight,
-    permission: "view_postings",
+    children: [
+      {
+        name: "Posting",
+        href: "/postings",
+        icon: ArrowLeftRight,
+        permission: "view_postings",
+      },
+      {
+        name: "Fund GL",
+        href: "/postings/fund-gl",
+        icon: BookOpen,
+        permission: "view_fund_gls",
+      },
+    ],
   },
   {
     name: "Chart of Accounts",

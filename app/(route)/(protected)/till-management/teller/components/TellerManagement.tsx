@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Box, CheckCircle2, Plus, UserPlus, UserMinus } from "lucide-react";
+import Link from "next/link";
+import { Box, CheckCircle2, Eye, Plus, UserPlus, UserMinus } from "lucide-react";
 import { toast } from "react-toastify";
 import {
   approveTellerAction,
@@ -12,7 +13,9 @@ import {
 } from "@/actions/teller.action";
 import AmountInput from "@/components/AmountInput";
 import ConfirmModal from "@/components/ConfirmModal";
+import TotpConfirmModal from "@/components/TotpConfirmModal";
 import SearchableSelect from "@/components/SearchableSelect";
+import SideDrawer from "@/components/SideDrawer";
 import { handleApiError } from "@/lib/errors";
 import { usePermissions } from "@/lib/permissions";
 
@@ -30,6 +33,11 @@ interface TellerManagementProps {
 
 function userLabel(user: LookupOption) {
   return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username;
+}
+
+function formatCurrency(value: string | number | null | undefined) {
+  const amount = Number(value ?? 0);
+  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function TellerManagement({
@@ -93,11 +101,11 @@ export default function TellerManagement({
     }
   }
 
-  async function handleApprove() {
+  async function handleApprove(totpCode: string) {
     if (!approveTarget) return;
     setSubmitting(true);
     try {
-      const result: any = await approveTellerAction(approveTarget.id);
+      const result: any = await approveTellerAction(approveTarget.id, totpCode);
       if (result?.status !== "success") {
         handleApiError(result, "Failed to approve teller.");
         return;
@@ -185,6 +193,7 @@ export default function TellerManagement({
                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Teller</th>
                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Branch / Vault</th>
                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Assigned Cashier</th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Balance</th>
                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Session</th>
                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Status</th>
                 <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Actions</th>
@@ -212,6 +221,9 @@ export default function TellerManagement({
                   <td className="px-5 py-4 text-sm text-slate-700">
                     {teller.current_assignment?.user_name || "Unassigned"}
                   </td>
+                  <td className="px-5 py-4 text-sm font-bold text-slate-900">
+                    {teller.currency_code ?? ""} {formatCurrency(teller.balance)}
+                  </td>
                   <td className="px-5 py-4 text-sm text-slate-700">
                     {teller.current_session ? (
                       <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800">
@@ -236,6 +248,13 @@ export default function TellerManagement({
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/till-management/teller/${teller.id}`}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                      >
+                        <Eye size={14} />
+                        View
+                      </Link>
                       {teller.status === "pending" && String(teller.created_by) !== String(currentUser?.id) && (
                         <button
                           type="button"
@@ -279,18 +298,18 @@ export default function TellerManagement({
         )}
       </section>
 
-      {createOpen && (
-        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl">
-            <div className="border-b border-slate-200 p-6">
-              <h2 className="text-lg font-bold text-slate-900">New Teller</h2>
-            </div>
-            <div className="space-y-4 overflow-y-auto p-6">
+      <SideDrawer isOpen={createOpen} onClose={() => setCreateOpen(false)} widthClassName="max-w-2xl">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">New Teller</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Cash drawer — needs its own GL, branch, and linked vault.
+          </p>
+          <div className="mt-6 space-y-6">
               <SearchableSelect
                 label="Branch"
                 name="branch_id"
                 value={form.branch_id}
-                onChange={(e) => setForm((f) => ({ ...f, branch_id: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, branch_id: e.target.value, vault_id: "" }))}
                 options={branches.map((b) => ({ value: String(b.id), label: b.name }))}
               />
               <SearchableSelect
@@ -298,7 +317,9 @@ export default function TellerManagement({
                 name="vault_id"
                 value={form.vault_id}
                 onChange={(e) => setForm((f) => ({ ...f, vault_id: e.target.value }))}
-                options={vaults.map((v) => ({ value: String(v.id), label: `${v.name} (${v.code})` }))}
+                options={vaults
+                  .filter((v) => !form.branch_id || String(v.branch_id) === String(form.branch_id))
+                  .map((v) => ({ value: String(v.id), label: `${v.name} (${v.code})` }))}
               />
               <div>
                 <label className="mb-1.5 block text-sm font-bold text-slate-800">Name</label>
@@ -351,27 +372,27 @@ export default function TellerManagement({
                 />
                 Allow direct teller-to-teller cash transfers
               </label>
-            </div>
-            <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
-              <button
-                type="button"
-                onClick={() => setCreateOpen(false)}
-                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={handleCreate}
-                className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:opacity-50"
-              >
-                {submitting ? "Creating..." : "Create"}
-              </button>
-            </div>
+          </div>
+
+          <div className="mt-8 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setCreateOpen(false)}
+              className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={handleCreate}
+              className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:opacity-50"
+            >
+              {submitting ? "Creating..." : "Create"}
+            </button>
           </div>
         </div>
-      )}
+      </SideDrawer>
 
       {assignTarget && (
         <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
@@ -415,7 +436,7 @@ export default function TellerManagement({
         </div>
       )}
 
-      <ConfirmModal
+      <TotpConfirmModal
         isOpen={!!approveTarget}
         title="Approve Teller"
         description={`Approve teller '${approveTarget?.name}'? This activates its cash GL.`}
