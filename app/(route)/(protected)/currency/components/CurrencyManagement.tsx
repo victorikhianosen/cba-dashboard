@@ -15,6 +15,7 @@ import { toast } from "react-toastify";
 import { getCurrenciesAction, updateCurrencyAction } from "@/actions/currency.action";
 import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
+import { formatAmount } from "@/lib/format";
 import CurrencyFormDrawer from "./CurrencyFormDrawer";
 
 type Currency = Record<string, any>;
@@ -253,15 +254,15 @@ export default function CurrencyManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {currency.buy_rate}
+                    {formatAmount(currency.buy_rate)}
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {currency.sell_rate}
+                    {formatAmount(currency.sell_rate)}
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {currency.exchange_rate}
+                    {formatAmount(currency.exchange_rate)}
                   </td>
 
                   <td className="px-5">

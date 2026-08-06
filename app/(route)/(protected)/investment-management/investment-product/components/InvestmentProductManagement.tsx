@@ -51,6 +51,7 @@ const NUMERIC_FIELDS = [
   "early_liquidation_lock_days",
   "early_liquidation_penalty_rate",
   "withholding_tax_rate",
+  "minimum_retention_percentage",
   "investmentLiabilityAccountId",
   "investmentFundingAccountId",
   "interestExpenseAccountId",

@@ -19,6 +19,14 @@ function labelize(value?: string | null) {
     .join(" ");
 }
 
+function formatAmount(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return Number.isNaN(num)
+    ? String(value)
+    : num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
@@ -87,17 +95,25 @@ export default function FinancialTransactionDetail({ transaction }: FinancialTra
             label="Amount"
             value={
               transaction.amount != null
-                ? `${transaction.currency_code ?? ""} ${transaction.amount}`
+                ? `${transaction.currency_code ?? ""} ${formatAmount(transaction.amount)}`
                 : "—"
             }
           />
           <Field
             label="Fee"
-            value={transaction.fee != null ? `${transaction.currency_code ?? ""} ${transaction.fee}` : "—"}
+            value={
+              transaction.fee != null
+                ? `${transaction.currency_code ?? ""} ${formatAmount(transaction.fee)}`
+                : "—"
+            }
           />
           <Field
             label="VAT"
-            value={transaction.vat != null ? `${transaction.currency_code ?? ""} ${transaction.vat}` : "—"}
+            value={
+              transaction.vat != null
+                ? `${transaction.currency_code ?? ""} ${formatAmount(transaction.vat)}`
+                : "—"
+            }
           />
           <Field label="Exchange Rate" value={transaction.exchange_rate} />
         </div>
@@ -143,7 +159,7 @@ export default function FinancialTransactionDetail({ transaction }: FinancialTra
                   <tr key={entry.id}>
                     <td className="px-3 py-2 text-sm text-slate-800">
                       {entry.general_ledger
-                        ? `${entry.general_ledger.gl_code} — ${entry.general_ledger.name}`
+                        ? `${entry.general_ledger.gl_code} — ${labelize(entry.general_ledger.name)}`
                         : (entry.general_ledger_id ?? "—")}
                     </td>
                     <td className="px-3 py-2 text-sm">
@@ -158,13 +174,13 @@ export default function FinancialTransactionDetail({ transaction }: FinancialTra
                       </span>
                     </td>
                     <td className="px-3 py-2 text-sm font-bold text-slate-900">
-                      {entry.currency_code} {entry.amount}
+                      {entry.currency_code} {formatAmount(entry.amount)}
                     </td>
                     <td className="px-3 py-2 text-sm text-slate-800">
-                      {entry.currency_code} {entry.balance_before}
+                      {entry.currency_code} {formatAmount(entry.balance_before)}
                     </td>
                     <td className="px-3 py-2 text-sm text-slate-800">
-                      {entry.currency_code} {entry.balance_after}
+                      {entry.currency_code} {formatAmount(entry.balance_after)}
                     </td>
                     <td className="px-3 py-2 text-sm text-slate-800">
                       {formatDateTime(entry.posting_date)}
@@ -217,7 +233,7 @@ export default function FinancialTransactionDetail({ transaction }: FinancialTra
                       {leg.counterparty?.name ?? "—"}
                     </td>
                     <td className="px-3 py-2 text-sm font-bold text-slate-900">
-                      {leg.currency_code} {leg.amount}
+                      {leg.currency_code} {formatAmount(leg.amount)}
                     </td>
                     <td className="px-3 py-2 text-sm">
                       <StatusBadge status={leg.status} />

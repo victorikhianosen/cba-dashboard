@@ -19,6 +19,7 @@ import {
   Printer,
   Receipt,
   Send,
+  Split,
   TrendingUp,
   XCircle,
 } from "lucide-react";
@@ -29,6 +30,7 @@ import {
   emailInvestmentLetterAction,
   rejectInvestmentAction,
   rejectTopUpAction,
+  requestPartialLiquidationAction,
   requestTopUpAction,
   terminateInvestmentAction,
 } from "@/actions/investment.action";
@@ -40,6 +42,7 @@ import {
 import ApproveInvestmentModal from "@/components/ApproveInvestmentModal";
 import ApproveInvestmentScheduleModal from "./ApproveInvestmentScheduleModal";
 import ApproveTopUpModal from "./ApproveTopUpModal";
+import RequestPartialLiquidationModal from "./RequestPartialLiquidationModal";
 import RequestTopUpModal from "./RequestTopUpModal";
 import TerminateInvestmentModal from "./TerminateInvestmentModal";
 import { handleApiError } from "@/lib/errors";
@@ -123,6 +126,7 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
   const [approveTopUpModalOpen, setApproveTopUpModalOpen] = useState(false);
   const [rejectTopUpModalOpen, setRejectTopUpModalOpen] = useState(false);
   const [terminateModalOpen, setTerminateModalOpen] = useState(false);
+  const [partialLiquidationModalOpen, setPartialLiquidationModalOpen] = useState(false);
 
   const [transactions, setTransactions] = useState<Record<string, any>[]>([]);
   const [transactionsMeta, setTransactionsMeta] = useState<Record<string, any> | null>(null);
@@ -365,6 +369,27 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
     }
   }
 
+  async function handleRequestPartialLiquidation(amount: string, reason: string) {
+    setActionPending(true);
+    try {
+      const result: any = await requestPartialLiquidationAction(investment.id, amount, reason);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to request partial liquidation.");
+        return;
+      }
+
+      toast.success(result.message || "Partial liquidation requested; awaiting approval.");
+      setPartialLiquidationModalOpen(false);
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to request partial liquidation:", error);
+      toast.error("A network error occurred. Please try again.");
+    } finally {
+      setActionPending(false);
+    }
+  }
+
   async function handleTerminate(reason: string) {
     setActionPending(true);
     try {
@@ -396,6 +421,12 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
   // Only an active investment can be terminated — enforced server-side too.
   const canTerminate =
     investment.status === "active" && investment.investment_product?.allow_early_liquidation;
+
+  // Product-level allow_partial_withdrawal flag and "no pending request already open" are
+  // enforced server-side (the show endpoint doesn't necessarily expose the product flag
+  // client-side) — gate here just on status active, matching canTopUp, and surface the
+  // backend's validation error on submit if the product/pending-request guard fails.
+  const canPartialLiquidate = investment.status === "active";
 
   // Same maker-checker rule the backend enforces (and would 403 on otherwise) — hidden
   // here rather than shown-then-erroring, matching PostingManagement's isOwnPosting pattern.
@@ -478,6 +509,15 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                 icon={<PlusCircle size={14} />}
                 onClick={() => setTopUpModalOpen(true)}
                 className="border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+              />
+            )}
+
+            {canPartialLiquidate && (
+              <ActionButton
+                label="Partial Liquidation"
+                icon={<Split size={14} />}
+                onClick={() => setPartialLiquidationModalOpen(true)}
+                className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
               />
             )}
 
@@ -577,6 +617,17 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
         description={`This will discard the pending top-up request for investment ${investment.account_number}.`}
       />
 
+      <RequestPartialLiquidationModal
+        isOpen={partialLiquidationModalOpen}
+        investmentId={investment.id}
+        accountNumber={investment.account_number}
+        currentPrincipal={investment.current_principal}
+        minimumRetentionPercentage={investment.minimum_retention_percentage}
+        pending={actionPending}
+        onCancel={() => setPartialLiquidationModalOpen(false)}
+        onConfirm={handleRequestPartialLiquidation}
+      />
+
       <TerminateInvestmentModal
         isOpen={terminateModalOpen}
         accountNumber={investment.account_number}
@@ -629,6 +680,10 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="Principal Amount" value={`₦${formatCurrency(investment.principal_amount)}`} />
               <Field label="Current Principal" value={`₦${formatCurrency(investment.current_principal)}`} />
+              <Field
+                label="Total Liquidated"
+                value={`₦${formatCurrency(investment.total_withdrawal_amount)}`}
+              />
               <Field label="Maturity Value" value={`₦${formatCurrency(investment.maturity_value)}`} />
               <Field label="Net Interest Paid" value={`₦${formatCurrency(investment.net_interest_paid)}`} />
               <Field

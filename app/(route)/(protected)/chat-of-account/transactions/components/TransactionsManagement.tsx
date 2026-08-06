@@ -8,6 +8,7 @@ import { getTransactionsAction, getTransactionTypesAction } from "@/actions/tran
 import ActionMenu from "@/components/ActionMenu";
 import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
+import { formatAmount } from "@/lib/format";
 
 type Txn = Record<string, any>;
 type Meta = Record<string, any> | null;
@@ -246,7 +247,7 @@ export default function TransactionsManagement() {
                     })()}
                   </td>
                   <td className="px-5 text-sm font-semibold text-slate-900">
-                    {txn.currency_code} {txn.amount}
+                    {txn.currency_code} {formatAmount(txn.amount)}
                   </td>
 
                   <td className="px-5">

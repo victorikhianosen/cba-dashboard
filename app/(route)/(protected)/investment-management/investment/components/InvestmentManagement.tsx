@@ -239,10 +239,10 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
           <table className="w-full min-w-150">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <Heading>Account No.</Heading>
-                <Heading>Customer</Heading>
+                <Heading>Account No. / Customer</Heading>
                 <Heading>Product</Heading>
                 <Heading>Principal</Heading>
+                <Heading>Current Principal</Heading>
                 <Heading>Tenure</Heading>
                 <Heading>Maturity Date</Heading>
                 <Heading>Status</Heading>
@@ -257,22 +257,15 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
                         <TrendingUp size={20} />
                       </div>
-                      <p className="font-bold text-sm text-slate-900">
-                        {investment.account_number}
-                      </p>
+                      <div>
+                        <p className="font-bold text-sm text-slate-900">
+                          {investment.account_number}
+                        </p>
+                        <p className="text-xs font-medium text-slate-500">
+                          {investment.customer?.full_name ?? "—"}
+                        </p>
+                      </div>
                     </div>
-                  </td>
-                  <td className="px-5 text-sm font-medium text-slate-800">
-                    {investment.customer ? (
-                      <>
-                        <span className="block">{investment.customer.full_name}</span>
-                        <span className="block text-xs font-medium text-slate-500">
-                          {investment.customer.cif_number}
-                        </span>
-                      </>
-                    ) : (
-                      "—"
-                    )}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {investment.investment_product?.name
@@ -281,6 +274,9 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800">
                     ₦{formatCurrency(investment.principal_amount)}
+                  </td>
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    ₦{formatCurrency(investment.current_principal)}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {investment.tenure ? `${investment.tenure} days` : "—"}

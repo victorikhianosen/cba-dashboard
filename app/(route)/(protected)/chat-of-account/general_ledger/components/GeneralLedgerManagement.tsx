@@ -23,6 +23,7 @@ import {
 import ActionMenu from "@/components/ActionMenu";
 import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
+import { formatAmount } from "@/lib/format";
 import GeneralLedgerFormDrawer from "./GeneralLedgerFormDrawer";
 
 type Ledger = Record<string, any>;
@@ -412,7 +413,7 @@ export default function GeneralLedgerManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {ledger.currency_code} {ledger.balance}
+                    {ledger.currency_code} {formatAmount(ledger.balance)}
                   </td>
 
                   <td className="px-5">

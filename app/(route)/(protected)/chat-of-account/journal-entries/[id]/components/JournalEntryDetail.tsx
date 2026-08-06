@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpen } from "lucide-react";
+import { formatAmount } from "@/lib/format";
 
 type JournalEntry = Record<string, any>;
 
@@ -75,15 +76,23 @@ export default function JournalEntryDetail({ entry }: JournalEntryDetailProps) {
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
           <Field
             label="Amount"
-            value={entry.amount != null ? `${entry.currency_code ?? ""} ${entry.amount}` : "—"}
+            value={entry.amount != null ? `${entry.currency_code ?? ""} ${formatAmount(entry.amount)}` : "—"}
           />
           <Field
             label="Balance Before"
-            value={entry.balance_before != null ? `${entry.currency_code ?? ""} ${entry.balance_before}` : "—"}
+            value={
+              entry.balance_before != null
+                ? `${entry.currency_code ?? ""} ${formatAmount(entry.balance_before)}`
+                : "—"
+            }
           />
           <Field
             label="Balance After"
-            value={entry.balance_after != null ? `${entry.currency_code ?? ""} ${entry.balance_after}` : "—"}
+            value={
+              entry.balance_after != null
+                ? `${entry.currency_code ?? ""} ${formatAmount(entry.balance_after)}`
+                : "—"
+            }
           />
         </div>
       </Section>

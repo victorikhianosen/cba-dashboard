@@ -27,6 +27,7 @@ import {
   PiggyBank,
   Settings,
   ShieldQuestion,
+  Split,
   Vault as VaultIcon,
   Wallet,
   UserCog,
@@ -125,7 +126,7 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "Investment Mgt",
+    name: "Investment Management",
     icon: LineChart,
     children: [
       {
@@ -141,6 +142,12 @@ export const menuItems: MenuItem[] = [
         permission: "view_investment_products",
       },
       {
+        name: "Partial Liquidations",
+        href: "/investment-management/partial-liquidations",
+        icon: Split,
+        permission: "view_investments",
+      },
+      {
         name: "Letter Templates",
         href: "/settings/investment-letter-templates",
         icon: FileText,
@@ -149,7 +156,7 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "Till Mgt",
+    name: "Till Management",
     icon: Wallet,
     children: [
       {
@@ -354,7 +361,7 @@ export default function Sidebar({
 
       {/* SIDEBAR */}
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-screen w-[250px] flex-col bg-[#101f42] text-white transition-transform duration-300 ${
+        className={`fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col bg-[#101f42] text-white transition-transform duration-300 ${
           isOpen
             ? "translate-x-0"
             : "-translate-x-full"

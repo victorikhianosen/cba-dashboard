@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Receipt } from "lucide-react";
+import { formatAmount } from "@/lib/format";
 
 type Transaction = Record<string, any>;
 
@@ -126,7 +127,7 @@ export default function TransactionDetail({ transaction }: TransactionDetailProp
             label="Amount"
             value={
               transaction.amount != null
-                ? `${transaction.currency_code ?? ""} ${transaction.amount}`
+                ? `${transaction.currency_code ?? ""} ${formatAmount(transaction.amount)}`
                 : "—"
             }
           />
@@ -134,7 +135,7 @@ export default function TransactionDetail({ transaction }: TransactionDetailProp
             label="Balance Before"
             value={
               transaction.balance_before != null
-                ? `${transaction.currency_code ?? ""} ${transaction.balance_before}`
+                ? `${transaction.currency_code ?? ""} ${formatAmount(transaction.balance_before)}`
                 : "—"
             }
           />
@@ -142,7 +143,7 @@ export default function TransactionDetail({ transaction }: TransactionDetailProp
             label="Balance After"
             value={
               transaction.balance_after != null
-                ? `${transaction.currency_code ?? ""} ${transaction.balance_after}`
+                ? `${transaction.currency_code ?? ""} ${formatAmount(transaction.balance_after)}`
                 : "—"
             }
           />

@@ -222,3 +222,131 @@ export async function emailInvestmentLetterAction(id: number | string) {
     return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
   }
 }
+
+// Read-only, side-effect-free — lets the maker see current-vs-projected schedule for a
+// not-yet-submitted amount before they request it. Mirrors previewPartialLiquidationScheduleAction
+// but takes a raw investment id + amount instead of an already-created liquidation id.
+export async function previewPartialLiquidationForInvestmentAction(
+  investmentId: number | string,
+  amount: string
+) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investments/${investmentId}/partial-liquidation/preview?amount=${encodeURIComponent(
+        amount
+      )}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+// Stages a partial liquidation request — no money moves yet. A different admin must
+// approve it (with TOTP) before the payout is made and current_principal decremented.
+export async function requestPartialLiquidationAction(
+  id: number | string,
+  amount: string,
+  reason: string
+) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investments/${id}/partial-liquidation`,
+      method: "POST",
+      body: { amount, reason },
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function listPartialLiquidationsAction(
+  page: number = 1,
+  filters: {
+    from?: string;
+    to?: string;
+    search?: string;
+    status?: string;
+  } = {}
+) {
+  try {
+    const params = new URLSearchParams({ page: String(page) });
+
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    if (filters.search) params.set("search", filters.search);
+    if (filters.status) params.set("status", filters.status);
+
+    const result: any = await authApiClient({
+      endpoint: `/admin/investment-partial-liquidations?${params.toString()}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function getPartialLiquidationAction(id: number | string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investment-partial-liquidations/${id}`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+// Read-only, side-effect-free — safe to call repeatedly as the approver reviews. Shows the
+// current schedule alongside the projected schedule that would be generated (via
+// InvestmentScheduleService::regenerateRemaining()) if this pending liquidation is approved.
+export async function previewPartialLiquidationScheduleAction(id: number | string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investment-partial-liquidations/${id}/preview-schedule`,
+      method: "GET",
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+// Approving IS the authorization to move the money — TOTP-gated, same single-step model
+// as top-up approval.
+export async function approvePartialLiquidationAction(id: number | string, totpCode: string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investment-partial-liquidations/${id}/approve`,
+      method: "POST",
+      body: { totp_code: totpCode },
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}
+
+export async function rejectPartialLiquidationAction(id: number | string, reason: string) {
+  try {
+    const result: any = await authApiClient({
+      endpoint: `/admin/investment-partial-liquidations/${id}/reject`,
+      method: "POST",
+      body: { reason },
+    });
+
+    return result;
+  } catch {
+    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  }
+}

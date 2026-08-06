@@ -8,6 +8,7 @@ import { getJournalEntriesAction } from "@/actions/journal-entry.action";
 import ActionMenu from "@/components/ActionMenu";
 import ExportDropdown from "@/components/ExportDropdown";
 import { handleApiError } from "@/lib/errors";
+import { formatAmount } from "@/lib/format";
 
 type Entry = Record<string, any>;
 type Meta = Record<string, any> | null;
@@ -164,13 +165,13 @@ export default function JournalEntriesManagement() {
                     </span>
                   </td>
                   <td className="px-5 text-sm font-semibold text-slate-900">
-                    {entry.currency_code} {entry.amount}
+                    {entry.currency_code} {formatAmount(entry.amount)}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {entry.currency_code} {entry.balance_before}
+                    {entry.currency_code} {formatAmount(entry.balance_before)}
                   </td>
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {entry.currency_code} {entry.balance_after}
+                    {entry.currency_code} {formatAmount(entry.balance_after)}
                   </td>
 
                <td className="px-5 py-4 text-sm font-medium text-slate-800">

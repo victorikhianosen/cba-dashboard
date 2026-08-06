@@ -36,7 +36,7 @@ export default function ClientShell({
       />
 
       {/* NAVBAR AND PAGE */}
-      <div className="min-h-screen lg:pl-[250px]">
+      <div className="min-h-screen lg:pl-[280px]">
         <Navbar
           onOpenSidebar={() =>
             setSidebarOpen(true)

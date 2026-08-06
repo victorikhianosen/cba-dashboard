@@ -46,6 +46,7 @@ const emptyInvestmentProductForm: InvestmentProductFormData = {
   auto_renew: false,
   allow_top_up: false,
   allow_partial_withdrawal: false,
+  minimum_retention_percentage: "",
   allow_early_liquidation: false,
   early_liquidation_lock_days: "",
   early_liquidation_penalty_rate: "",
@@ -80,7 +81,7 @@ const CHECKBOX_FIELDS = [
   "is_default",
 ];
 
-const OPTIONAL_FIELDS = ["withholding_tax_rate"];
+const OPTIONAL_FIELDS = ["withholding_tax_rate", "minimum_retention_percentage"];
 
 // Every text/number/select field is marked `required` unless it's a checkbox
 // or explicitly optional — all remaining ones must be filled before submit.
@@ -161,7 +162,10 @@ export default function InvestmentProductFormDrawer({
     // Backend rejects more than 2 decimal places and anything over 100% — round/clamp as
     // the admin types instead of letting them submit a value that only fails after the fact.
     if (
-      (name === "interest_rate" || name === "early_liquidation_penalty_rate" || name === "withholding_tax_rate") &&
+      (name === "interest_rate" ||
+        name === "early_liquidation_penalty_rate" ||
+        name === "withholding_tax_rate" ||
+        name === "minimum_retention_percentage") &&
       value !== ""
     ) {
       const parts = value.split(".");
@@ -481,6 +485,23 @@ export default function InvestmentProductFormDrawer({
                   onChange={handleInputChange}
                 />
               </div>
+
+              {formData.allow_partial_withdrawal && (
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Minimum Retention (%)"
+                    name="minimum_retention_percentage"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={100}
+                    required={false}
+                    value={formData.minimum_retention_percentage}
+                    onChange={handleInputChange}
+                    placeholder="e.g. 10"
+                  />
+                </div>
+              )}
 
               {formData.auto_renew && (
                 <p className="text-xs font-medium text-slate-500">
