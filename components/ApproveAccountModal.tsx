@@ -10,12 +10,24 @@ interface ApproveAccountModalProps {
   customerType: string;
   accountProducts: Record<string, any>[];
   accountTiers: Record<string, any>[];
+  // Virtual products are only offered (and the parent-account/beneficiary fields only
+  // shown) when this is true — the customer-approval usage of this same modal never
+  // passes it, since a virtual account needs an existing parent account to sweep into,
+  // which doesn't exist yet at approval time.
+  allowVirtual?: boolean;
+  parentAccounts?: Record<string, any>[];
   pending?: boolean;
   title?: string;
   description?: string;
   confirmLabel?: string;
   onCancel: () => void;
-  onConfirm: (payload: { account_product_id: string; account_tier_id: string }) => void;
+  onConfirm: (payload: {
+    account_product_id: string;
+    account_tier_id?: string;
+    parent_account_id?: string;
+    beneficiary_name?: string;
+    purpose?: string;
+  }) => void;
 }
 
 // Turns a product's raw slug-like name (e.g. "basic_savings_account") into a
@@ -35,6 +47,8 @@ export default function ApproveAccountModal({
   customerName,
   accountProducts,
   accountTiers,
+  allowVirtual = false,
+  parentAccounts = [],
   pending = false,
   title,
   description = "Select which account product to open.",
@@ -44,25 +58,75 @@ export default function ApproveAccountModal({
 }: ApproveAccountModalProps) {
   const [accountProductId, setAccountProductId] = useState("");
   const [accountTierId, setAccountTierId] = useState("");
+  const [parentAccountId, setParentAccountId] = useState("");
+  const [beneficiaryName, setBeneficiaryName] = useState("");
+  const [purpose, setPurpose] = useState("");
 
   if (!isOpen || typeof document === "undefined") return null;
 
-  const activeProducts = accountProducts.filter((product) => product.status === "active");
+  // Only offer virtual products where the caller explicitly allows it — a virtual
+  // account needs a parent to sweep into, which the backend also rejects everywhere
+  // except the dedicated create-virtual-account endpoint.
+  const activeProducts = accountProducts.filter(
+    (product) => product.status === "active" && (allowVirtual || product.product_type !== "virtual"),
+  );
   const activeTiers = accountTiers.filter((tier) => tier.status === "active");
 
-  function handleCancel() {
+  const selectedProduct = activeProducts.find((product) => String(product.id) === accountProductId);
+  const isVirtual = Boolean(selectedProduct && selectedProduct.product_type === "virtual");
+
+  // A virtual account must share its parent's currency — narrow the parent options to
+  // the selected product's currency so a mismatched pair can't be selected at all.
+  const visibleParentAccounts = selectedProduct
+    ? parentAccounts.filter(
+        (account) =>
+          account.status === "active" &&
+          account.account_product?.product_type !== "virtual" &&
+          account.currency_id === selectedProduct.currency_id,
+      )
+    : [];
+
+  function reset() {
     setAccountProductId("");
     setAccountTierId("");
+    setParentAccountId("");
+    setBeneficiaryName("");
+    setPurpose("");
+  }
+
+  function handleCancel() {
+    reset();
     onCancel();
   }
 
-  function handleConfirm() {
-    if (!accountProductId || !accountTierId) return;
+  function handleProductChange(nextId: string) {
+    setAccountProductId(nextId);
+    setAccountTierId("");
+    setParentAccountId("");
+  }
 
-    onConfirm({
-      account_product_id: accountProductId,
-      account_tier_id: accountTierId,
-    });
+  function handleConfirm() {
+    if (!accountProductId) return;
+
+    if (isVirtual) {
+      if (!parentAccountId || !beneficiaryName.trim()) return;
+
+      onConfirm({
+        account_product_id: accountProductId,
+        parent_account_id: parentAccountId,
+        beneficiary_name: beneficiaryName.trim(),
+        purpose: purpose.trim() || undefined,
+      });
+    } else {
+      if (!accountTierId) return;
+
+      onConfirm({
+        account_product_id: accountProductId,
+        account_tier_id: accountTierId,
+      });
+    }
+
+    reset();
   }
 
   return createPortal(
@@ -96,7 +160,7 @@ export default function ApproveAccountModal({
             <select
               required
               value={accountProductId}
-              onChange={(event) => setAccountProductId(event.target.value)}
+              onChange={(event) => handleProductChange(event.target.value)}
               className="mt-2 w-full cursor-pointer rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
             >
               <option value="" disabled>
@@ -115,7 +179,7 @@ export default function ApproveAccountModal({
             )}
           </label>
 
-          {accountProductId && (
+          {accountProductId && !isVirtual && (
             <label className="block">
               <span className="block text-sm font-semibold text-slate-800">Account Tier</span>
               <select
@@ -141,6 +205,63 @@ export default function ApproveAccountModal({
               )}
             </label>
           )}
+
+          {isVirtual && (
+            <>
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-800">Parent Account</span>
+                <select
+                  required
+                  value={parentAccountId}
+                  onChange={(event) => setParentAccountId(event.target.value)}
+                  className="mt-2 w-full cursor-pointer rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+                >
+                  <option value="" disabled>
+                    Select a parent account...
+                  </option>
+                  {visibleParentAccounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.account_number} — {account.account_product?.name?.replace(/_/g, " ") ?? ""} ({account.currency_code})
+                    </option>
+                  ))}
+                </select>
+                {visibleParentAccounts.length === 0 ? (
+                  <p className="mt-1.5 text-xs text-amber-600">
+                    This customer has no eligible active {selectedProduct?.currency_code} account to receive settlements.
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    The virtual account sweeps every credit straight through to this account — it must share the
+                    virtual product&apos;s currency.
+                  </p>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-800">Beneficiary Name</span>
+                <input
+                  type="text"
+                  value={beneficiaryName}
+                  onChange={(event) => setBeneficiaryName(event.target.value)}
+                  placeholder="e.g. Jane's Store — Till 2"
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+                />
+              </label>
+
+              <label className="block">
+                <span className="block text-sm font-semibold text-slate-800">
+                  Purpose <span className="font-normal text-slate-400">(optional)</span>
+                </span>
+                <input
+                  type="text"
+                  value={purpose}
+                  onChange={(event) => setPurpose(event.target.value)}
+                  placeholder="e.g. Till collections"
+                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
+                />
+              </label>
+            </>
+          )}
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
@@ -155,10 +276,14 @@ export default function ApproveAccountModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={pending || !accountProductId || !accountTierId}
+            disabled={
+              pending ||
+              !accountProductId ||
+              (isVirtual ? !parentAccountId || !beneficiaryName.trim() : !accountTierId)
+            }
             className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {pending ? "Please wait..." : confirmLabel}
+            {pending ? "Please wait..." : isVirtual ? "Open Virtual Account" : confirmLabel}
           </button>
         </div>
       </div>

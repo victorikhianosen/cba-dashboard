@@ -122,6 +122,12 @@ export const menuItems: MenuItem[] = [
         permission: "view_liens",
       },
       {
+        name: "Virtual Accounts",
+        href: "/customer-management/virtual-accounts",
+        icon: Wallet,
+        permission: "view_virtual_accounts",
+      },
+      {
         name: "Statement Templates",
         href: "/settings/account-statement-templates",
         icon: FileText,

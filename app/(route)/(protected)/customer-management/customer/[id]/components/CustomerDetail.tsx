@@ -14,6 +14,7 @@ import {
   PlusCircle,
   RefreshCw,
   User,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -30,11 +31,13 @@ import {
   updateCustomerDocumentAction,
   updateCustomerStatusAction,
 } from "@/actions/customer.action";
+import { createVirtualAccountAction } from "@/actions/virtual-account.action";
 import ApproveAccountModal from "@/components/ApproveAccountModal";
 import ReasonModal from "@/components/ReasonModal";
 import UpdateStatusModal from "@/components/UpdateStatusModal";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
+import { usePermissions } from "@/lib/permissions";
 
 type Customer = Record<string, any>;
 
@@ -43,6 +46,7 @@ interface CustomerDetailProps {
   accountProducts?: Record<string, any>[];
   accountTiers?: Record<string, any>[];
   statuses?: Record<string, any>[];
+  virtualAccounts?: Record<string, any>[];
 }
 
 const STORAGE_URL = process.env.NEXT_PUBLIC_STORAGE_URL ?? "";
@@ -88,6 +92,7 @@ function customerDisplayName(customer: Customer) {
 const TABS = [
   { key: "customer", label: "Customer", icon: User },
   { key: "accounts", label: "Accounts", icon: Landmark },
+  { key: "virtual-accounts", label: "Virtual Accounts", icon: Wallet },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -97,8 +102,10 @@ export default function CustomerDetail({
   accountProducts = [],
   accountTiers = [],
   statuses = [],
+  virtualAccounts = [],
 }: CustomerDetailProps) {
   const router = useRouter();
+  const { hasPermission } = usePermissions();
   const isBusiness = isBusinessLike(customer.customer_type);
   const hasDirectors =
     Array.isArray(customer.directors) && customer.directors.length > 0;
@@ -111,8 +118,20 @@ export default function CustomerDetail({
     number | null
   >(null);
   const [openModal, setOpenModal] = useState<
-    "reject" | "close" | "approve" | "status" | "add-account" | null
+    | "reject"
+    | "close"
+    | "approve"
+    | "status"
+    | "add-account"
+    | null
   >(null);
+
+  const virtualAccountParentAccounts = Array.isArray(customer.accounts)
+    ? customer.accounts.filter(
+        (account: Record<string, any>) =>
+          account.status === "active" && account.account_product?.product_type !== "virtual",
+      )
+    : [];
 
   async function runAction(
     key: string,
@@ -136,25 +155,48 @@ export default function CustomerDetail({
 
   function handleApprove(payload: {
     account_product_id: string;
-    account_tier_id: string;
+    account_tier_id?: string;
   }) {
     setOpenModal(null);
     runAction(
       "approve",
-      () => approveCustomerAction(customer.id, payload),
+      // This modal instance never passes allowVirtual, so the tier field is always
+      // required and filled in before onConfirm can fire — safe to assert non-null here.
+      () => approveCustomerAction(customer.id, payload as { account_product_id: string; account_tier_id: string }),
       "Customer approved.",
     );
   }
 
   function handleAddAccount(payload: {
     account_product_id: string;
-    account_tier_id: string;
+    account_tier_id?: string;
+    parent_account_id?: string;
+    beneficiary_name?: string;
+    purpose?: string;
   }) {
     setOpenModal(null);
 
     const product = accountProducts.find(
       (item) => String(item.id) === String(payload.account_product_id),
     );
+
+    // Same modal, two different backend endpoints — a virtual product needs a parent
+    // settlement account and has no tier concept, so it goes through the dedicated
+    // create-virtual-account action instead of the generic open-account one.
+    if (product?.product_type === "virtual") {
+      runAction(
+        "add-account",
+        () =>
+          createVirtualAccountAction(customer.id, {
+            account_product_id: payload.account_product_id,
+            parent_account_id: payload.parent_account_id!,
+            beneficiary_name: payload.beneficiary_name!,
+            purpose: payload.purpose,
+          }),
+        "Virtual account opened successfully.",
+      );
+      return;
+    }
 
     runAction(
       "add-account",
@@ -350,9 +392,11 @@ export default function CustomerDetail({
         customerType={customer.customer_type}
         accountProducts={accountProducts}
         accountTiers={accountTiers}
+        allowVirtual={hasPermission("create_virtual_accounts")}
+        parentAccounts={virtualAccountParentAccounts}
         pending={actionPending === "add-account"}
         title={`Add Account — ${customerDisplayName(customer)}`}
-        description="Select which account product and tier to open for this customer."
+        description="Select which account product to open — picking a virtual account product will ask for a parent settlement account and beneficiary details instead of a tier."
         confirmLabel="Open Account"
         onCancel={() => setOpenModal(null)}
         onConfirm={handleAddAccount}
@@ -408,6 +452,17 @@ export default function CustomerDetail({
                   {customer.accounts.length}
                 </span>
               )}
+            {key === "virtual-accounts" && virtualAccounts.length > 0 && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                  activeTab === key
+                    ? "bg-white/20"
+                    : "bg-slate-200 text-slate-600"
+                }`}
+              >
+                {virtualAccounts.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -433,6 +488,26 @@ export default function CustomerDetail({
               icon={<Landmark size={28} />}
               title="No accounts yet"
               description="This customer has not had an account opened for them."
+            />
+          )}
+        </>
+      )}
+
+      {activeTab === "virtual-accounts" && (
+        <>
+          {virtualAccounts.length > 0 ? (
+            <Section title={`Virtual Accounts (${virtualAccounts.length})`}>
+              <div className="space-y-3">
+                {virtualAccounts.map((va: Record<string, any>) => (
+                  <VirtualAccountRow key={va.id} virtualAccount={va} />
+                ))}
+              </div>
+            </Section>
+          ) : (
+            <EmptyTabState
+              icon={<Wallet size={28} />}
+              title="No virtual accounts yet"
+              description="This customer has no dedicated virtual accounts issued to them."
             />
           )}
         </>
@@ -1002,6 +1077,34 @@ function AccountRow({ account }: { account: Record<string, any> }) {
               .join(", ") || "None"
           }
         />
+      </div>
+    </Link>
+  );
+}
+
+function VirtualAccountRow({ virtualAccount }: { virtualAccount: Record<string, any> }) {
+  return (
+    <Link
+      href={`/customer-management/virtual-accounts/${virtualAccount.id}`}
+      className="block rounded-xl border border-slate-200 p-4 transition hover:border-[#29478f] hover:shadow-sm"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-bold text-slate-900">{virtualAccount.account_number}</p>
+          <p className="mt-0.5 text-xs font-semibold text-slate-500">
+            {virtualAccount.account_name}
+          </p>
+        </div>
+        <StatusBadge status={virtualAccount.status} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+        <Field
+          label="Parent Account"
+          value={virtualAccount.parent_account?.account_number}
+        />
+        <Field label="Currency" value={virtualAccount.currency_code} />
+        <Field label="Purpose" value={virtualAccount.purpose} />
       </div>
     </Link>
   );

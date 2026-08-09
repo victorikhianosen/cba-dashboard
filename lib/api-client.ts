@@ -133,12 +133,21 @@ export async function authApiClient(config: RequestConfig) {
 }
 
 async function clearToken() {
-  const cookieStore = await cookies();
-  cookieStore.delete("banq_token");
-  cookieStore.delete("banq_token_expires_at");
-  // Otherwise a stale lock flag from this session could rewrite the very next login
-  // (a different user, on a shared machine) straight to the session-locked screen.
-  cookieStore.delete(SESSION_LOCK_COOKIE_NAME);
+  // authApiClient() is also called from plain Server Component renders (e.g. the
+  // session-locked page reading the current user), where Next.js disallows mutating
+  // cookies — only a real Server Action invocation or Route Handler can. Swallow that
+  // specific failure: worst case a stale cookie survives until the next real mutation
+  // (login/logout), which is harmless, versus crashing the render entirely.
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete("banq_token");
+    cookieStore.delete("banq_token_expires_at");
+    // Otherwise a stale lock flag from this session could rewrite the very next login
+    // (a different user, on a shared machine) straight to the session-locked screen.
+    cookieStore.delete(SESSION_LOCK_COOKIE_NAME);
+  } catch {
+    // Not in a mutation context — nothing to do here.
+  }
 }
 
 export async function saveOnboardingStatus(completed: boolean) {

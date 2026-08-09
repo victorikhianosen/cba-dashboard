@@ -3,6 +3,7 @@ import { getAllAccountProductsAction } from "@/actions/account-product.action";
 import { getAllAccountTiersAction } from "@/actions/account-tier.action";
 import { getCustomerAction } from "@/actions/customer.action";
 import { getAllStatusesAction } from "@/actions/status.action";
+import { getCustomerVirtualAccountsAction } from "@/actions/virtual-account.action";
 import { flattenCustomer } from "@/lib/customer";
 import { requirePermission } from "@/lib/requirePermission";
 import CustomerDetail from "./components/CustomerDetail";
@@ -16,16 +17,18 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
 
   const { id } = await params;
 
-  const [customerResult, accountProductsResult, accountTiersResult, statusesResult]: [
-    any,
-    any,
-    any,
-    any,
-  ] = await Promise.all([
+  const [
+    customerResult,
+    accountProductsResult,
+    accountTiersResult,
+    statusesResult,
+    virtualAccountsResult,
+  ]: [any, any, any, any, any] = await Promise.all([
     getCustomerAction(id),
     getAllAccountProductsAction(),
     getAllAccountTiersAction(),
     getAllStatusesAction(),
+    getCustomerVirtualAccountsAction(id),
   ]);
 
   if (customerResult?.status !== "success" || !customerResult?.data) {
@@ -37,6 +40,9 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
     : [];
   const accountTiers = Array.isArray(accountTiersResult?.data) ? accountTiersResult.data : [];
   const statuses = Array.isArray(statusesResult?.data) ? statusesResult.data : [];
+  const virtualAccounts = Array.isArray(virtualAccountsResult?.data)
+    ? virtualAccountsResult.data
+    : [];
 
   return (
     <CustomerDetail
@@ -44,6 +50,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
       accountProducts={accountProducts}
       accountTiers={accountTiers}
       statuses={statuses}
+      virtualAccounts={virtualAccounts}
     />
   );
 }
