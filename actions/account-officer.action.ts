@@ -2,68 +2,61 @@
 
 import { authApiClient } from "@/lib/api-client";
 
-export async function getAccountOfficersAction(page: number = 1, search: string = "") {
-  try {
-    const params = new URLSearchParams({ page: String(page) });
+export async function getAccountOfficersAction(
+  page: number = 1,
+  search: string = "",
+) {
+  const params = new URLSearchParams({ page: String(page) });
 
-    if (search.trim()) {
-      params.set("search", search.trim());
-    }
-
-    const result: any = await authApiClient({
-      endpoint: `/admin/account-officers?${params.toString()}`,
-      method: "GET",
-    });
-
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
+  if (search.trim()) {
+    params.set("search", search.trim());
   }
+
+  const result: any = await authApiClient({
+    endpoint: `/admin/account-officers?${params.toString()}`,
+    method: "GET",
+  });
+
+  return result;
 }
 
 // Fetches every account officer across all pages, useful for populating dropdowns.
 export async function getAllAccountOfficersAction() {
-  try {
-    const allOfficers: any[] = [];
-    let page = 1;
-    let lastPage = 1;
+  const allOfficers: any[] = [];
+  let page = 1;
+  let lastPage = 1;
 
-    do {
-      const result: any = await authApiClient({
-        endpoint: `/admin/account-officers?page=${page}`,
-        method: "GET",
-      });
-
-      if (result?.status !== "success") {
-        return result;
-      }
-
-      allOfficers.push(...(Array.isArray(result.data) ? result.data : []));
-      lastPage = result?.meta?.last_page ?? 1;
-      page += 1;
-    } while (page <= lastPage);
-
-    // Pages can shift while paginating (a record created/edited between
-    // fetches), so the same id may show up on two pages — dedupe it.
-    const uniqueOfficers = Array.from(new Map(allOfficers.map((item) => [item.id, item])).values());
-
-    return { status: "success", data: uniqueOfficers };
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
-}
-
-export async function getAccountOfficerAction(id: number | string) {
-  try {
+  do {
     const result: any = await authApiClient({
-      endpoint: `/admin/account-officers/${id}`,
+      endpoint: `/admin/account-officers?page=${page}`,
       method: "GET",
     });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+    if (result?.status !== "success") {
+      return result;
+    }
+
+    allOfficers.push(...(Array.isArray(result.data) ? result.data : []));
+    lastPage = result?.meta?.last_page ?? 1;
+    page += 1;
+  } while (page <= lastPage);
+
+  // Pages can shift while paginating (a record created/edited between
+  // fetches), so the same id may show up on two pages — dedupe it.
+  const uniqueOfficers = Array.from(
+    new Map(allOfficers.map((item) => [item.id, item])).values(),
+  );
+
+  return { status: "success", data: uniqueOfficers };
+}
+
+export async function getAccountOfficerAction(id: number | string) {
+  const result: any = await authApiClient({
+    endpoint: `/admin/account-officers/${id}`,
+    method: "GET",
+  });
+
+  return result;
 }
 
 export async function createAccountOfficerAction(data: {
@@ -79,17 +72,13 @@ export async function createAccountOfficerAction(data: {
   state: string;
   country: string;
 }) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: "/admin/account-officers",
-      method: "POST",
-      body: { ...data, user_id: data.user_id ?? null },
-    });
+  const result: any = await authApiClient({
+    endpoint: "/admin/account-officers",
+    method: "POST",
+    body: { ...data, user_id: data.user_id ?? null },
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
 export async function updateAccountOfficerAction(
@@ -104,30 +93,22 @@ export async function updateAccountOfficerAction(
     city: string;
     state: string;
     country: string;
-  }
+  },
 ) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/account-officers/${id}`,
-      method: "PUT",
-      body: data,
-    });
+  const result: any = await authApiClient({
+    endpoint: `/admin/account-officers/${id}`,
+    method: "PUT",
+    body: data,
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
 export async function deleteAccountOfficerAction(id: number | string) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/account-officers/${id}`,
-      method: "DELETE",
-    });
+  const result: any = await authApiClient({
+    endpoint: `/admin/account-officers/${id}`,
+    method: "DELETE",
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }

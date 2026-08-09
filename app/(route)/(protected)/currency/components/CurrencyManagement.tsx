@@ -12,7 +12,10 @@ import {
   Star,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getCurrenciesAction, updateCurrencyAction } from "@/actions/currency.action";
+import {
+  getCurrenciesAction,
+  updateCurrencyAction,
+} from "@/actions/currency.action";
 import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import { formatAmount } from "@/lib/format";
@@ -38,7 +41,9 @@ export default function CurrencyManagement({
   const [search, setSearch] = useState("");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
+  const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(
+    null,
+  );
   const [actionMenuId, setActionMenuId] = useState<any>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -47,9 +52,14 @@ export default function CurrencyManagement({
 
   // Counted across every currency by the backend, not just the current page —
   // filtering `currencies` here would only ever reflect whatever page is loaded.
-  const totalCurrencies = stats?.total_currencies ?? meta?.total ?? currencies.length;
-  const activeCurrencies = stats?.total_active ?? currencies.filter((c) => c.status === "active").length;
-  const baseCurrency = stats?.base_currency ?? currencies.find((currency) => currency.is_base_currency);
+  const totalCurrencies =
+    stats?.total_currencies ?? meta?.total ?? currencies.length;
+  const activeCurrencies =
+    stats?.total_active ??
+    currencies.filter((c) => c.status === "active").length;
+  const baseCurrency =
+    stats?.base_currency ??
+    currencies.find((currency) => currency.is_base_currency);
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -60,22 +70,18 @@ export default function CurrencyManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getCurrenciesAction(page, searchTerm);
+    const result: any = await getCurrenciesAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load currencies.");
-        return;
-      }
-
-      setCurrencies(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load currencies:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load currencies.");
       setPageLoading(false);
+      return;
     }
+
+    setCurrencies(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -121,35 +127,34 @@ export default function CurrencyManagement({
     if (!selectedCurrency) return;
 
     setSubmitting(true);
-    try {
-      const payload = {
-        code: formData.code,
-        name: formData.name,
-        symbol: formData.symbol,
-        buy_rate: Number(formData.buy_rate),
-        sell_rate: Number(formData.sell_rate),
-        exchange_rate: Number(formData.exchange_rate),
-        is_base_currency: Boolean(formData.is_base_currency),
-      };
+    const payload = {
+      code: formData.code,
+      name: formData.name,
+      symbol: formData.symbol,
+      buy_rate: Number(formData.buy_rate),
+      sell_rate: Number(formData.sell_rate),
+      exchange_rate: Number(formData.exchange_rate),
+      is_base_currency: Boolean(formData.is_base_currency),
+    };
 
-      const result: any = await updateCurrencyAction(selectedCurrency.id, payload);
+    const result: any = await updateCurrencyAction(
+      selectedCurrency.id,
+      payload,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update currency.");
-        return;
-      }
-
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Currency updated successfully.");
-      setDrawerOpen(false);
-      setSelectedCurrency(null);
-    } catch (error) {
-      console.error("Failed to save currency:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update currency.");
       setSubmitting(false);
+      return;
     }
+
+    await fetchPage(currentPage);
+
+    toast.success(result.message || "Currency updated successfully.");
+    setDrawerOpen(false);
+    setSelectedCurrency(null);
+
+    setSubmitting(false);
   }
 
   return (
@@ -274,7 +279,7 @@ export default function CurrencyManagement({
                       isOpen={actionMenuId === currency.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === currency.id ? null : currency.id
+                          actionMenuId === currency.id ? null : currency.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -330,7 +335,7 @@ export default function CurrencyManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -361,12 +366,18 @@ export default function CurrencyManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

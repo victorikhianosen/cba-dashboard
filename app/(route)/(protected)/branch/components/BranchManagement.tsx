@@ -63,9 +63,11 @@ export default function BranchManagement({
   const activeBranches =
     stats?.total_active ?? branches.filter((b) => b.status === "active").length;
   const pendingBranches =
-    stats?.total_pending ?? branches.filter((b) => b.status === "pending").length;
+    stats?.total_pending ??
+    branches.filter((b) => b.status === "pending").length;
   const inactiveBranches =
-    stats?.total_inactive ?? branches.filter((b) => b.status === "inactive").length;
+    stats?.total_inactive ??
+    branches.filter((b) => b.status === "inactive").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -76,22 +78,18 @@ export default function BranchManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getBranchesAction(page, searchTerm);
+    const result: any = await getBranchesAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load branches.");
-        return;
-      }
-
-      setBranches(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load branches:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load branches.");
       setPageLoading(false);
+      return;
     }
+
+    setBranches(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -146,92 +144,80 @@ export default function BranchManagement({
 
   async function handleFormSubmit(formData: BranchFormData) {
     setSubmitting(true);
-    try {
-      if (selectedBranch) {
-        const result: any = await updateBranchAction(selectedBranch.id, {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          country: formData.country,
-          status: formData.status,
-        });
+    if (selectedBranch) {
+      const result: any = await updateBranchAction(selectedBranch.id, {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
+        status: formData.status,
+      });
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update branch.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Branch updated successfully.");
-      } else {
-        const result: any = await createBranchAction({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          country: formData.country,
-        });
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create branch.");
-          return;
-        }
-
-        await fetchPage(1);
-
-        toast.success(result.message || "Branch created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update branch.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedBranch(null);
-    } catch (error) {
-      console.error("Failed to save branch:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Branch updated successfully.");
+    } else {
+      const result: any = await createBranchAction({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
+      });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create branch.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchPage(1);
+
+      toast.success(result.message || "Branch created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedBranch(null);
+
+    setSubmitting(false);
   }
 
   async function handleStatusChange(branch: Branch) {
     const newStatus = branch.status === "active" ? "inactive" : "active";
     setActionMenuId(null);
 
-    try {
-      const result: any = await updateBranchStatusAction(branch.id, newStatus);
+    const result: any = await updateBranchStatusAction(branch.id, newStatus);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update branch status.");
-        return;
-      }
-
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Branch status updated successfully.");
-    } catch (error) {
-      console.error("Failed to update branch status:", error);
-      toast.error("A network error occurred. Please try again.");
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update branch status.");
+      return;
     }
+
+    await fetchPage(currentPage);
+
+    toast.success(result.message || "Branch status updated successfully.");
   }
 
   async function handleDelete() {
     if (!branchToDelete) return;
     setDeleting(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setBranches((current) =>
-        current.filter((branch) => branch.id !== branchToDelete.id)
-      );
-      setBranchToDelete(null);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setDeleting(false);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    setBranches((current) =>
+      current.filter((branch) => branch.id !== branchToDelete.id),
+    );
+    setBranchToDelete(null);
+
+    setDeleting(false);
   }
 
   return (
@@ -346,8 +332,12 @@ export default function BranchManagement({
                         <Building2 size={21} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-slate-900">{branch.name}</p>
-                        <p className="text-xs font-semibold text-slate-500 mt-0.5">ID: BR-{branch.id}</p>
+                        <p className="font-bold text-sm text-slate-900">
+                          {branch.name}
+                        </p>
+                        <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                          ID: BR-{branch.id}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -373,7 +363,9 @@ export default function BranchManagement({
                     </p>
                   </td>
 
-                  <td className="px-5 text-sm font-medium text-slate-800">{branch.country}</td>
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {branch.country}
+                  </td>
 
                   <td className="px-5">
                     <StatusBadge status={branch.status} />
@@ -384,7 +376,7 @@ export default function BranchManagement({
                       isOpen={actionMenuId === branch.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === branch.id ? null : branch.id
+                          actionMenuId === branch.id ? null : branch.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -459,7 +451,7 @@ export default function BranchManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -495,7 +487,8 @@ export default function BranchManagement({
               Delete Branch?
             </h2>
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Are you sure you want to delete <b>{branchToDelete.name}</b>? This action cannot be undone.
+              Are you sure you want to delete <b>{branchToDelete.name}</b>? This
+              action cannot be undone.
             </p>
 
             <div className="mt-7 flex justify-end gap-3">
@@ -524,12 +517,18 @@ export default function BranchManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

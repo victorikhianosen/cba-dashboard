@@ -26,7 +26,10 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { getAccountLiensAction, releaseLienAction } from "@/actions/account-lien.action";
+import {
+  getAccountLiensAction,
+  releaseLienAction,
+} from "@/actions/account-lien.action";
 import {
   emailAccountStatementAction,
   placeLienAction,
@@ -68,7 +71,10 @@ const ACCOUNT_STATUSES = [
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -94,9 +100,13 @@ const LIEN_STATUS_STYLES: Record<string, string> = {
 };
 
 function LienStatusBadge({ status }: { status: string }) {
-  const style = LIEN_STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600 border-slate-200";
+  const style =
+    LIEN_STATUS_STYLES[status] ??
+    "bg-slate-100 text-slate-600 border-slate-200";
   return (
-    <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}>
+    <span
+      className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}
+    >
       {status}
     </span>
   );
@@ -104,7 +114,9 @@ function LienStatusBadge({ status }: { status: string }) {
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export default function AccountDetail({ account: initialAccount }: AccountDetailProps) {
+export default function AccountDetail({
+  account: initialAccount,
+}: AccountDetailProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -130,13 +142,21 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
   const [liens, setLiens] = useState<Record<string, any>[]>([]);
   const [liensLoading, setLiensLoading] = useState(false);
   const [liensLoaded, setLiensLoaded] = useState(false);
-  const [releaseTarget, setReleaseTarget] = useState<Record<string, any> | null>(null);
+  const [releaseTarget, setReleaseTarget] = useState<Record<
+    string,
+    any
+  > | null>(null);
 
   const [transactions, setTransactions] = useState<Record<string, any>[]>([]);
-  const [transactionsMeta, setTransactionsMeta] = useState<Record<string, any> | null>(null);
+  const [transactionsMeta, setTransactionsMeta] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsLoaded, setTransactionsLoaded] = useState(false);
-  const [txnActionMenuId, setTxnActionMenuId] = useState<number | string | null>(null);
+  const [txnActionMenuId, setTxnActionMenuId] = useState<
+    number | string | null
+  >(null);
 
   const [txnSearch, setTxnSearch] = useState("");
   const [txnFrom, setTxnFrom] = useState("");
@@ -153,7 +173,9 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
       params.set("tab", tab);
     }
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
   }
 
   useEffect(() => {
@@ -168,22 +190,18 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
 
   async function fetchLiens() {
     setLiensLoading(true);
-    try {
-      const result: any = await getAccountLiensAction(account.id);
+    const result: any = await getAccountLiensAction(account.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load liens.");
-        return;
-      }
-
-      setLiens(Array.isArray(result.data) ? result.data : []);
-      setLiensLoaded(true);
-    } catch (error) {
-      console.error("Failed to load liens:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load liens.");
       setLiensLoading(false);
+      return;
     }
+
+    setLiens(Array.isArray(result.data) ? result.data : []);
+    setLiensLoaded(true);
+
+    setLiensLoading(false);
   }
 
   async function handleReleaseLien(reason: string, totpCode: string) {
@@ -192,47 +210,45 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     setReleaseTarget(null);
 
     setActionPending("release-lien");
-    try {
-      const result: any = await releaseLienAction(target.id, reason.trim(), totpCode);
+    const result: any = await releaseLienAction(
+      target.id,
+      reason.trim(),
+      totpCode,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to release lien.");
-        return;
-      }
-
-      toast.success(result.message || "Lien released successfully.");
-      setLiensLoaded(false);
-      fetchLiens();
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to release lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to release lien.");
       setActionPending(null);
+      return;
     }
+
+    toast.success(result.message || "Lien released successfully.");
+    setLiensLoaded(false);
+    fetchLiens();
+    router.refresh();
+
+    setActionPending(null);
   }
 
   async function handleEmailStatement() {
     setEmailingStatement(true);
-    try {
-      const result: any = await emailAccountStatementAction(account.id, {
-        from: txnFrom || undefined,
-        to: txnTo || undefined,
-      });
+    const result: any = await emailAccountStatementAction(account.id, {
+      from: txnFrom || undefined,
+      to: txnTo || undefined,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to email statement of account.");
-        return;
-      }
-
-      toast.success(result.message || "Statement of account is being sent to the customer.");
-    } catch (error) {
-      console.error("Failed to email statement of account:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to email statement of account.");
       setEmailingStatement(false);
-      setStatementMenuOpen(false);
+      return;
     }
+
+    toast.success(
+      result.message || "Statement of account is being sent to the customer.",
+    );
+
+    setEmailingStatement(false);
+    setStatementMenuOpen(false);
   }
 
   // Debounced re-fetch whenever a transaction filter changes, same pattern as the
@@ -251,50 +267,46 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
 
   async function fetchTransactions(page: number) {
     setTransactionsLoading(true);
-    try {
-      const result: any = await getTransactionsAction(page, {
-        account_id: String(account.id),
-        search: txnSearch,
-        from: txnFrom,
-        to: txnTo,
-        status: txnStatus,
-      });
+    const result: any = await getTransactionsAction(page, {
+      account_id: String(account.id),
+      search: txnSearch,
+      from: txnFrom,
+      to: txnTo,
+      status: txnStatus,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load transactions.");
-        return;
-      }
-
-      setTransactions(Array.isArray(result.data) ? result.data : []);
-      setTransactionsMeta(result.meta ?? null);
-      setTransactionsLoaded(true);
-    } catch (error) {
-      console.error("Failed to load transactions:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load transactions.");
       setTransactionsLoading(false);
+      return;
     }
+
+    setTransactions(Array.isArray(result.data) ? result.data : []);
+    setTransactionsMeta(result.meta ?? null);
+    setTransactionsLoaded(true);
+
+    setTransactionsLoading(false);
   }
 
-  async function runAction(key: string, action: () => Promise<any>, successMessage: string) {
+  async function runAction(
+    key: string,
+    action: () => Promise<any>,
+    successMessage: string,
+  ) {
     setActionPending(key);
-    try {
-      const result: any = await action();
+    const result: any = await action();
 
-      if (result?.status !== "success") {
-        handleApiError(result, "That action failed.");
-        return;
-      }
-
-      toast.success(result.message || successMessage);
-      setAccount(result.data ?? account);
-      router.refresh();
-    } catch (error) {
-      console.error("Account action failed:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "That action failed.");
       setActionPending(null);
+      return;
     }
+
+    toast.success(result.message || successMessage);
+    setAccount(result.data ?? account);
+    router.refresh();
+
+    setActionPending(null);
   }
 
   function handleUpdateStatus() {
@@ -303,7 +315,7 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     runAction(
       "status",
       () => updateAccountStatusAction(account.id, statusChoice),
-      "Account status updated."
+      "Account status updated.",
     );
   }
 
@@ -312,25 +324,25 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
     setLienModalOpen(false);
 
     setActionPending("lien");
-    try {
-      const result: any = await placeLienAction(account.id, lienAmount, lienReason.trim() || undefined);
+    const result: any = await placeLienAction(
+      account.id,
+      lienAmount,
+      lienReason.trim() || undefined,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to submit lien request.");
-        return;
-      }
-
-      toast.success(result.message || "Lien request submitted for approval.");
-      setLiensLoaded(false);
-      if (activeTab === "liens") fetchLiens();
-    } catch (error) {
-      console.error("Failed to place lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to submit lien request.");
       setActionPending(null);
-      setLienAmount("");
-      setLienReason("");
+      return;
     }
+
+    toast.success(result.message || "Lien request submitted for approval.");
+    setLiensLoaded(false);
+    if (activeTab === "liens") fetchLiens();
+
+    setActionPending(null);
+    setLienAmount("");
+    setLienReason("");
   }
 
   return (
@@ -386,7 +398,11 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
               icon={<ShieldAlert size={14} />}
               pending={actionPending === "pnd"}
               onClick={() =>
-                runAction("pnd", () => toggleAccountPndAction(account.id), "PND flag updated.")
+                runAction(
+                  "pnd",
+                  () => toggleAccountPndAction(account.id),
+                  "PND flag updated.",
+                )
               }
               className={
                 account.pnd
@@ -399,7 +415,11 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
               icon={<ShieldAlert size={14} />}
               pending={actionPending === "pnc"}
               onClick={() =>
-                runAction("pnc", () => toggleAccountPncAction(account.id), "PNC flag updated.")
+                runAction(
+                  "pnc",
+                  () => toggleAccountPncAction(account.id),
+                  "PNC flag updated.",
+                )
               }
               className={
                 account.pnc
@@ -420,7 +440,9 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
               pending={actionPending === "status"}
               onClick={() => {
                 setStatusChoice(
-                  ACCOUNT_STATUSES.includes(account.status) ? account.status : ACCOUNT_STATUSES[0]
+                  ACCOUNT_STATUSES.includes(account.status)
+                    ? account.status
+                    : ACCOUNT_STATUSES[0],
                 );
                 setStatusModalOpen(true);
               }}
@@ -493,23 +515,45 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
           {/* BALANCES */}
           <Section title="Balances">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
-              <Field label="Available Balance" value={`₦${formatCurrency(account.available_balance)}`} />
-              <Field label="Ledger Balance" value={`₦${formatCurrency(account.account_balance)}`} />
-              <Field label="Lien Balance" value={`₦${formatCurrency(account.lien_balance)}`} />
+              <Field
+                label="Available Balance"
+                value={`₦${formatCurrency(account.available_balance)}`}
+              />
+              <Field
+                label="Ledger Balance"
+                value={`₦${formatCurrency(account.account_balance)}`}
+              />
+              <Field
+                label="Lien Balance"
+                value={`₦${formatCurrency(account.lien_balance)}`}
+              />
             </div>
           </Section>
 
           {/* ACCOUNT INFO */}
           <Section title="Account Information">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Account Product" value={account.account_product?.name} />
+              <Field
+                label="Account Product"
+                value={account.account_product?.name}
+              />
               <Field
                 label="Tier"
-                value={account.account_tier?.level ? `Tier ${account.account_tier.level}` : undefined}
+                value={
+                  account.account_tier?.level
+                    ? `Tier ${account.account_tier.level}`
+                    : undefined
+                }
               />
               <Field label="Channel" value={account.channel} />
-              <Field label="Last Transaction" value={formatDateTime(account.last_transaction_at)} />
-              <Field label="Opened" value={formatDateTime(account.created_at)} />
+              <Field
+                label="Last Transaction"
+                value={formatDateTime(account.last_transaction_at)}
+              />
+              <Field
+                label="Opened"
+                value={formatDateTime(account.created_at)}
+              />
             </div>
           </Section>
         </>
@@ -518,7 +562,9 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
       {activeTab === "liens" && (
         <Section title="Liens">
           {liensLoading && liens.length === 0 ? (
-            <p className="py-8 text-center text-sm font-medium text-slate-500">Loading liens...</p>
+            <p className="py-8 text-center text-sm font-medium text-slate-500">
+              Loading liens...
+            </p>
           ) : liens.length === 0 ? (
             <div className="py-12 text-center">
               <Lock size={28} className="mx-auto text-slate-300" />
@@ -543,13 +589,16 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                 <tbody className="divide-y divide-slate-100">
                   {liens.map((lien) => {
                     const isOwnRequest =
-                      currentUser?.id != null && String(lien.created_by) === String(currentUser.id);
+                      currentUser?.id != null &&
+                      String(lien.created_by) === String(currentUser.id);
 
                     return (
                       <tr
                         key={lien.id}
                         className="cursor-pointer hover:bg-slate-50/80 transition-colors"
-                        onClick={() => router.push(`/customer-management/liens/${lien.id}`)}
+                        onClick={() =>
+                          router.push(`/customer-management/liens/${lien.id}`)
+                        }
                       >
                         <td className="px-3 py-3 text-sm font-semibold text-slate-800">
                           {lien.reference}
@@ -557,7 +606,9 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                         <td className="px-3 py-3 text-sm font-bold text-slate-900">
                           ₦{formatCurrency(lien.amount)}
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-700">{lien.reason ?? "—"}</td>
+                        <td className="px-3 py-3 text-sm text-slate-700">
+                          {lien.reason ?? "—"}
+                        </td>
                         <td className="px-3 py-3 text-sm">
                           <LienStatusBadge status={lien.status} />
                         </td>
@@ -567,7 +618,10 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                         <td className="px-3 py-3 text-sm text-slate-700">
                           {formatDateTime(lien.created_at)}
                         </td>
-                        <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
+                        <td
+                          className="px-3 py-3"
+                          onClick={(event) => event.stopPropagation()}
+                        >
                           {lien.status === "active" && !isOwnRequest && (
                             <button
                               type="button"
@@ -610,7 +664,10 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
           {/* FILTERS */}
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:flex-wrap">
             <div className="relative flex-1 md:min-w-50">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+              />
               <input
                 type="search"
                 value={txnSearch}
@@ -722,10 +779,16 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                         <tr
                           key={txn.id}
                           className="cursor-pointer hover:bg-slate-50/80 transition-colors"
-                          onClick={() => router.push(`/chat-of-account/transactions/${txn.id}`)}
+                          onClick={() =>
+                            router.push(
+                              `/chat-of-account/transactions/${txn.id}`,
+                            )
+                          }
                         >
                           <td className="px-3 py-3 text-sm text-slate-800">
-                            <p className="font-semibold">{txn.reference ?? "—"}</p>
+                            <p className="font-semibold">
+                              {txn.reference ?? "—"}
+                            </p>
                             {txn.transaction_reference && (
                               <p className="mt-0.5 text-xs font-medium text-slate-400">
                                 {txn.transaction_reference}
@@ -758,18 +821,25 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                           <td className="px-3 py-3 text-sm text-slate-700">
                             {formatDateTime(txn.date)}
                           </td>
-                          <td className="px-3 py-3" onClick={(event) => event.stopPropagation()}>
+                          <td
+                            className="px-3 py-3"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <ActionMenu
                               isOpen={txnActionMenuId === txn.id}
                               onToggle={() =>
-                                setTxnActionMenuId(txnActionMenuId === txn.id ? null : txn.id)
+                                setTxnActionMenuId(
+                                  txnActionMenuId === txn.id ? null : txn.id,
+                                )
                               }
                               onClose={() => setTxnActionMenuId(null)}
                             >
                               <TxnActionButton
                                 onClick={() => {
                                   setTxnActionMenuId(null);
-                                  router.push(`/chat-of-account/transactions/${txn.id}`);
+                                  router.push(
+                                    `/chat-of-account/transactions/${txn.id}`,
+                                  );
                                 }}
                               >
                                 <Eye size={16} />
@@ -787,7 +857,8 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
               {transactionsMeta && (
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm font-medium text-slate-600">
-                    Showing {transactionsMeta.from ?? 0}-{transactionsMeta.to ?? 0} of{" "}
+                    Showing {transactionsMeta.from ?? 0}-
+                    {transactionsMeta.to ?? 0} of{" "}
                     {transactionsMeta.total ?? transactions.length} transactions
                   </p>
 
@@ -795,45 +866,55 @@ export default function AccountDetail({ account: initialAccount }: AccountDetail
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => fetchTransactions(transactionsMeta.current_page - 1)}
-                        disabled={transactionsLoading || transactionsMeta.current_page <= 1}
+                        onClick={() =>
+                          fetchTransactions(transactionsMeta.current_page - 1)
+                        }
+                        disabled={
+                          transactionsLoading ||
+                          transactionsMeta.current_page <= 1
+                        }
                         className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
                       >
                         <ChevronLeft size={16} />
                       </button>
 
-                      {getPageNumbers(transactionsMeta.current_page, transactionsMeta.last_page).map(
-                        (page, index) =>
-                          page === "..." ? (
-                            <span
-                              key={`ellipsis-${index}`}
-                              className="px-2 text-sm font-semibold text-slate-400 select-none"
-                            >
-                              …
-                            </span>
-                          ) : (
-                            <button
-                              key={page}
-                              type="button"
-                              onClick={() => fetchTransactions(page)}
-                              disabled={transactionsLoading}
-                              className={`min-w-9.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${
-                                page === transactionsMeta.current_page
-                                  ? "bg-[#173673] text-white shadow-sm"
-                                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          )
+                      {getPageNumbers(
+                        transactionsMeta.current_page,
+                        transactionsMeta.last_page,
+                      ).map((page, index) =>
+                        page === "..." ? (
+                          <span
+                            key={`ellipsis-${index}`}
+                            className="px-2 text-sm font-semibold text-slate-400 select-none"
+                          >
+                            …
+                          </span>
+                        ) : (
+                          <button
+                            key={page}
+                            type="button"
+                            onClick={() => fetchTransactions(page)}
+                            disabled={transactionsLoading}
+                            className={`min-w-9.5 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${
+                              page === transactionsMeta.current_page
+                                ? "bg-[#173673] text-white shadow-sm"
+                                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ),
                       )}
 
                       <button
                         type="button"
-                        onClick={() => fetchTransactions(transactionsMeta.current_page + 1)}
+                        onClick={() =>
+                          fetchTransactions(transactionsMeta.current_page + 1)
+                        }
                         disabled={
                           transactionsLoading ||
-                          transactionsMeta.current_page >= transactionsMeta.last_page
+                          transactionsMeta.current_page >=
+                            transactionsMeta.last_page
                         }
                         className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
                       >
@@ -871,7 +952,9 @@ function Field({
 }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-800">
         {icon}
         {value || "—"}
@@ -967,7 +1050,7 @@ function StatementMenu({
               `/admin/accounts/${accountId}/statement?${new URLSearchParams({
                 ...(from ? { from } : {}),
                 ...(to ? { to } : {}),
-              }).toString()}`
+              }).toString()}`,
             )}`}
             onClick={onClose}
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
@@ -1037,7 +1120,8 @@ function PlaceLienModal({
           <div>
             <h2 className="text-lg font-bold text-slate-900">Request Lien</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Submits a lien request for approval — funds are only set aside once approved.
+              Submits a lien request for approval — funds are only set aside
+              once approved.
             </p>
           </div>
           <button
@@ -1051,7 +1135,9 @@ function PlaceLienModal({
         </div>
 
         <label className="mt-5 block">
-          <span className="block text-sm font-semibold text-slate-800">Amount</span>
+          <span className="block text-sm font-semibold text-slate-800">
+            Amount
+          </span>
           <AmountInput
             value={amount}
             onChange={onAmountChange}
@@ -1063,7 +1149,8 @@ function PlaceLienModal({
 
         <label className="mt-4 block">
           <span className="block text-sm font-semibold text-slate-800">
-            Reason <span className="font-normal text-slate-400">(optional)</span>
+            Reason{" "}
+            <span className="font-normal text-slate-400">(optional)</span>
           </span>
           <input
             type="text"
@@ -1094,7 +1181,7 @@ function PlaceLienModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -1129,9 +1216,14 @@ function UpdateAccountStatusModal({
       <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Update Account Status</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Update Account Status
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Current status: <span className="font-semibold">{toDisplayLabel(currentStatus)}</span>
+              Current status:{" "}
+              <span className="font-semibold">
+                {toDisplayLabel(currentStatus)}
+              </span>
             </p>
           </div>
           <button
@@ -1145,7 +1237,9 @@ function UpdateAccountStatusModal({
         </div>
 
         <label className="mt-5 block">
-          <span className="block text-sm font-semibold text-slate-800">New Status</span>
+          <span className="block text-sm font-semibold text-slate-800">
+            New Status
+          </span>
           <select
             value={status}
             onChange={(event) => onStatusChange(event.target.value)}
@@ -1179,7 +1273,7 @@ function UpdateAccountStatusModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 

@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type InputHTMLAttributes, type SelectHTMLAttributes } from "react";
+import {
+  useRef,
+  useState,
+  type FormEvent,
+  type InputHTMLAttributes,
+  type SelectHTMLAttributes,
+} from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowLeftRight, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -11,7 +17,8 @@ import { handleApiError } from "@/lib/errors";
 
 type LookupOption = Record<string, any>;
 
-type PostingTypeKey = "gl_to_gl" | "customer_to_gl" | "gl_to_customer" | "customer_to_customer";
+type PostingTypeKey =
+  "gl_to_gl" | "customer_to_gl" | "gl_to_customer" | "customer_to_customer";
 
 const POSTING_TYPES: {
   key: PostingTypeKey;
@@ -19,9 +26,24 @@ const POSTING_TYPES: {
   source: "account" | "general_ledger";
   destination: "account" | "general_ledger";
 }[] = [
-  { key: "gl_to_gl", label: "GL to GL", source: "general_ledger", destination: "general_ledger" },
-  { key: "customer_to_gl", label: "Customer to GL", source: "account", destination: "general_ledger" },
-  { key: "gl_to_customer", label: "GL to Customer", source: "general_ledger", destination: "account" },
+  {
+    key: "gl_to_gl",
+    label: "GL to GL",
+    source: "general_ledger",
+    destination: "general_ledger",
+  },
+  {
+    key: "customer_to_gl",
+    label: "Customer to GL",
+    source: "account",
+    destination: "general_ledger",
+  },
+  {
+    key: "gl_to_customer",
+    label: "GL to Customer",
+    source: "general_ledger",
+    destination: "account",
+  },
   {
     key: "customer_to_customer",
     label: "Customer to Customer",
@@ -57,7 +79,9 @@ function sanitizeRemark(value: string) {
 }
 
 function formatBalance(value: string | number | null | undefined) {
-  return Number(value ?? 0).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+  return Number(value ?? 0).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+  });
 }
 
 // Renders a raw "5000.5" amount as "5,000.5" for display — the underlying
@@ -66,7 +90,9 @@ function formatAmountDisplay(raw: string) {
   if (!raw) return "";
   const [intPart, decimalPart] = raw.split(".");
   const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return decimalPart !== undefined ? `${formattedInt}.${decimalPart}` : formattedInt;
+  return decimalPart !== undefined
+    ? `${formattedInt}.${decimalPart}`
+    : formattedInt;
 }
 
 // Strips whatever the user typed (commas included) back down to a plain
@@ -78,13 +104,16 @@ function parseAmountInput(value: string) {
 }
 
 export default function CreatePostingPage() {
-  const [postingType, setPostingType] = useState<PostingTypeKey>("customer_to_customer");
+  const [postingType, setPostingType] = useState<PostingTypeKey>(
+    "customer_to_customer",
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const [sourceGl, setSourceGl] = useState<LookupOption | null>(null);
   const [destinationGl, setDestinationGl] = useState<LookupOption | null>(null);
   const [sourceAccount, setSourceAccount] = useState<LookupOption | null>(null);
-  const [destinationAccount, setDestinationAccount] = useState<LookupOption | null>(null);
+  const [destinationAccount, setDestinationAccount] =
+    useState<LookupOption | null>(null);
 
   const [amount, setAmount] = useState("");
   const [transactionType, setTransactionType] = useState("");
@@ -93,19 +122,30 @@ export default function CreatePostingPage() {
   const type = POSTING_TYPES.find((t) => t.key === postingType)!;
 
   const source = type.source === "account" ? sourceAccount : sourceGl;
-  const destination = type.destination === "account" ? destinationAccount : destinationGl;
+  const destination =
+    type.destination === "account" ? destinationAccount : destinationGl;
 
   const sourceCurrency = source?.currency_code;
   const destinationCurrency = destination?.currency_code;
-  const currencyMismatch = !!sourceCurrency && !!destinationCurrency && sourceCurrency !== destinationCurrency;
+  const currencyMismatch =
+    !!sourceCurrency &&
+    !!destinationCurrency &&
+    sourceCurrency !== destinationCurrency;
 
-  const sourceBalance = Number(type.source === "account" ? source?.available_balance : source?.balance);
-  const insufficientBalance = !!source && !!amount && Number(amount) > sourceBalance;
+  const sourceBalance = Number(
+    type.source === "account" ? source?.available_balance : source?.balance,
+  );
+  const insufficientBalance =
+    !!source && !!amount && Number(amount) > sourceBalance;
 
   // Only possible when source and destination are the same kind of party
   // (GL to GL or Customer to Customer) — the other two combos can never
   // collide since the types themselves differ.
-  const selfPosting = type.source === type.destination && !!source && !!destination && source.id === destination.id;
+  const selfPosting =
+    type.source === type.destination &&
+    !!source &&
+    !!destination &&
+    source.id === destination.id;
 
   // The submit button only appears once every requirement is actually met —
   // no disabled button to stare at, no guessing what's still missing.
@@ -155,38 +195,34 @@ export default function CreatePostingPage() {
     }
 
     setSubmitting(true);
-    try {
-      const payload: Record<string, any> = {
-        source_type: type.source,
-        source_id: source.id,
-        destination_type: type.destination,
-        destination_id: destination.id,
-        amount,
-        remarks: sanitizeRemark(remarks),
-      };
+    const payload: Record<string, any> = {
+      source_type: type.source,
+      source_id: source.id,
+      destination_type: type.destination,
+      destination_id: destination.id,
+      amount,
+      remarks: sanitizeRemark(remarks),
+    };
 
-      if (transactionType) payload.transaction_type = transactionType;
+    if (transactionType) payload.transaction_type = transactionType;
 
-      const result: any = await createPostingAction(payload);
+    const result: any = await createPostingAction(payload);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to create posting.");
-        return;
-      }
-
-      toast.success(result.message || "Posting created successfully.");
-
-      resetParties();
-      setAmount("");
-      setTransactionType("");
-      setRemarks("");
-      setPostingType("customer_to_customer");
-    } catch (error) {
-      console.error("Failed to create posting:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to create posting.");
       setSubmitting(false);
+      return;
     }
+
+    toast.success(result.message || "Posting created successfully.");
+
+    resetParties();
+    setAmount("");
+    setTransactionType("");
+    setRemarks("");
+    setPostingType("customer_to_customer");
+
+    setSubmitting(false);
   }
 
   return (
@@ -205,10 +241,12 @@ export default function CreatePostingPage() {
             <ArrowLeftRight size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">New Posting</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              New Posting
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Move money between GL accounts and/or customer accounts — pending approval by a
-              second admin before it posts.
+              Move money between GL accounts and/or customer accounts — pending
+              approval by a second admin before it posts.
             </p>
           </div>
         </div>
@@ -240,7 +278,11 @@ export default function CreatePostingPage() {
         <Section title="Source & Destination">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {type.source === "general_ledger" ? (
-              <GlPicker label="Source GL" selected={sourceGl} onSelect={setSourceGl} />
+              <GlPicker
+                label="Source GL"
+                selected={sourceGl}
+                onSelect={setSourceGl}
+              />
             ) : (
               <AccountPicker
                 label="Source Account"
@@ -250,7 +292,11 @@ export default function CreatePostingPage() {
             )}
 
             {type.destination === "general_ledger" ? (
-              <GlPicker label="Destination GL" selected={destinationGl} onSelect={setDestinationGl} />
+              <GlPicker
+                label="Destination GL"
+                selected={destinationGl}
+                onSelect={setDestinationGl}
+              />
             ) : (
               <AccountPicker
                 label="Destination Account"
@@ -290,7 +336,8 @@ export default function CreatePostingPage() {
           />
           {insufficientBalance && (
             <p className="text-xs font-semibold text-red-600">
-              Amount exceeds the source&apos;s available balance (₦{formatBalance(sourceBalance)}).
+              Amount exceeds the source&apos;s available balance (₦
+              {formatBalance(sourceBalance)}).
             </p>
           )}
         </Section>
@@ -312,7 +359,9 @@ export default function CreatePostingPage() {
             </Select>
 
             <label className="block">
-              <span className="block font-bold text-sm text-slate-800">Remarks</span>
+              <span className="block font-bold text-sm text-slate-800">
+                Remarks
+              </span>
               <textarea
                 required
                 rows={4}
@@ -379,14 +428,10 @@ function GlPicker({
 
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
-      try {
-        const result: any = await getGeneralLedgersAction(1, value.trim());
-        setResults(result?.status === "success" ? (result.data ?? []) : []);
-      } catch (error) {
-        console.error("GL search failed:", error);
-      } finally {
-        setLoading(false);
-      }
+      const result: any = await getGeneralLedgersAction(1, value.trim());
+      setResults(result?.status === "success" ? (result.data ?? []) : []);
+
+      setLoading(false);
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -400,7 +445,8 @@ function GlPicker({
               {selected.gl_code} — {labelize(selected.name)}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-700">
-              Balance: ₦{formatBalance(selected.balance)} {selected.currency_code}
+              Balance: ₦{formatBalance(selected.balance)}{" "}
+              {selected.currency_code}
             </p>
           </div>
           <button
@@ -434,7 +480,9 @@ function GlPicker({
       </div>
 
       {!loading && query.trim().length >= 2 && results.length === 0 && (
-        <p className="mt-1.5 text-xs font-semibold text-red-600">No matching GL found.</p>
+        <p className="mt-1.5 text-xs font-semibold text-red-600">
+          No matching GL found.
+        </p>
       )}
 
       {results.length > 0 && (
@@ -483,23 +531,18 @@ function AccountPicker({
   async function handleLookup(accountNumber: string) {
     setLoading(true);
     setNotFound(false);
-    try {
-      const result: any = await getAccountsAction(1, accountNumber);
-      const match = (result?.data ?? []).find(
-        (account: LookupOption) => account.account_number === accountNumber
-      );
+    const result: any = await getAccountsAction(1, accountNumber);
+    const match = (result?.data ?? []).find(
+      (account: LookupOption) => account.account_number === accountNumber,
+    );
 
-      if (match) {
-        onSelect(match);
-      } else {
-        setNotFound(true);
-      }
-    } catch (error) {
-      console.error("Account lookup failed:", error);
+    if (match) {
+      onSelect(match);
+    } else {
       setNotFound(true);
-    } finally {
-      setLoading(false);
     }
+
+    setLoading(false);
   }
 
   function handleChange(value: string) {
@@ -525,7 +568,8 @@ function AccountPicker({
               {selected.customer?.cif_number} • {selected.customer?.full_name}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-700">
-              Balance: ₦{formatBalance(selected.available_balance)} {selected.currency_code}
+              Balance: ₦{formatBalance(selected.available_balance)}{" "}
+              {selected.currency_code}
             </p>
           </div>
           <button
@@ -559,16 +603,26 @@ function AccountPicker({
         )}
       </div>
       {notFound && !loading && (
-        <p className="mt-1.5 text-xs font-semibold text-red-600">No account found with that number.</p>
+        <p className="mt-1.5 text-xs font-semibold text-red-600">
+          No account found with that number.
+        </p>
       )}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+        {title}
+      </h2>
       {children}
     </section>
   );

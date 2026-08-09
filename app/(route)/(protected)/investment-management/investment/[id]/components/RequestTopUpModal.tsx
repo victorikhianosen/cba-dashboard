@@ -17,7 +17,10 @@ interface RequestTopUpModalProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDate(value: string | null | undefined) {
@@ -25,7 +28,11 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    : date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
 }
 
 // Only stages the request — no money moves here. A different admin has to approve it
@@ -65,23 +72,17 @@ export default function RequestTopUpModal({
     const timeout = setTimeout(async () => {
       setPreviewLoading(true);
       setPreviewError(null);
-      try {
-        const result: any = await previewTopUpAction(investmentId, amount);
+      const result: any = await previewTopUpAction(investmentId, amount);
 
-        if (result?.status !== "success") {
-          setPreview(null);
-          setPreviewError(result?.message || "Unable to preview this top-up.");
-          return;
-        }
-
-        setPreview(result.data);
-      } catch (error) {
-        console.error("Failed to preview top-up:", error);
+      if (result?.status !== "success") {
         setPreview(null);
-        setPreviewError("A network error occurred while computing the preview.");
-      } finally {
-        setPreviewLoading(false);
+        setPreviewError(result?.message || "Unable to preview this top-up.");
+        return;
       }
+
+      setPreview(result.data);
+
+      setPreviewLoading(false);
     }, 450);
 
     return () => clearTimeout(timeout);
@@ -99,10 +100,12 @@ export default function RequestTopUpModal({
       <div className="flex max-h-[90vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Top Up Investment</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Top Up Investment
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Request additional principal for investment {accountNumber}. A different admin
-              must approve this before the money moves.
+              Request additional principal for investment {accountNumber}. A
+              different admin must approve this before the money moves.
             </p>
           </div>
           <button
@@ -131,18 +134,22 @@ export default function RequestTopUpModal({
               <span>₦{formatCurrency(preview.current_principal)}</span>
               <ArrowRight size={14} />
               <span>₦{formatCurrency(preview.new_principal)}</span>
-              <span className="font-normal text-blue-700">new current principal</span>
+              <span className="font-normal text-blue-700">
+                new current principal
+              </span>
             </div>
           )}
 
           {previewError && (
-            <p className="mt-4 text-sm font-semibold text-red-600">{previewError}</p>
+            <p className="mt-4 text-sm font-semibold text-red-600">
+              {previewError}
+            </p>
           )}
 
           {!amount || Number(amount) <= 0 ? (
             <p className="mt-6 py-10 text-center text-sm font-medium text-slate-400">
-              Enter a top-up amount to see the current schedule alongside the projected
-              schedule after the top-up.
+              Enter a top-up amount to see the current schedule alongside the
+              projected schedule after the top-up.
             </p>
           ) : previewLoading && !preview ? (
             <p className="mt-6 py-10 text-center text-sm font-medium text-slate-500">
@@ -157,9 +164,13 @@ export default function RequestTopUpModal({
                     Before Top-Up
                   </span>
                 </h3>
-                <PreviewTable rows={preview.current_schedule} amountKey="expected_interest_amount" />
+                <PreviewTable
+                  rows={preview.current_schedule}
+                  amountKey="expected_interest_amount"
+                />
                 <p className="mt-2 text-xs font-semibold text-slate-500">
-                  Current total interest to be earned: ₦{formatCurrency(preview.current_total_interest)}
+                  Current total interest to be earned: ₦
+                  {formatCurrency(preview.current_total_interest)}
                 </p>
               </div>
 
@@ -170,9 +181,13 @@ export default function RequestTopUpModal({
                     After Top-Up
                   </span>
                 </h3>
-                <PreviewTable rows={preview.projected_schedule} amountKey="expected_interest_amount" />
+                <PreviewTable
+                  rows={preview.projected_schedule}
+                  amountKey="expected_interest_amount"
+                />
                 <p className="mt-2 text-xs font-semibold text-slate-500">
-                  Projected total interest: ₦{formatCurrency(preview.projected_total_interest)}
+                  Projected total interest: ₦
+                  {formatCurrency(preview.projected_total_interest)}
                 </p>
               </div>
             </div>
@@ -199,11 +214,17 @@ export default function RequestTopUpModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
-function PreviewTable({ rows, amountKey }: { rows: Record<string, any>[]; amountKey: string }) {
+function PreviewTable({
+  rows,
+  amountKey,
+}: {
+  rows: Record<string, any>[];
+  amountKey: string;
+}) {
   if (!rows || rows.length === 0) {
     return (
       <p className="rounded-xl border border-slate-200 bg-slate-50 py-8 text-center text-sm font-medium text-slate-400">
@@ -234,7 +255,9 @@ function PreviewTable({ rows, amountKey }: { rows: Record<string, any>[]; amount
               <td className="px-3 py-2.5 text-sm font-semibold text-slate-700">
                 {row.installment_number}
               </td>
-              <td className="px-3 py-2.5 text-sm text-slate-700">{formatDate(row.due_date)}</td>
+              <td className="px-3 py-2.5 text-sm text-slate-700">
+                {formatDate(row.due_date)}
+              </td>
               <td className="px-3 py-2.5 text-sm font-bold text-slate-900">
                 ₦{formatCurrency(row[amountKey])}
               </td>

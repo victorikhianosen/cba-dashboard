@@ -16,57 +16,38 @@ interface TwoFactorData {
 export default function VerifyTwoFactorPage() {
   const router = useRouter();
 
-  const [twoFactorData, setTwoFactorData] =
-    useState<TwoFactorData | null>(null);
+  const [twoFactorData, setTwoFactorData] = useState<TwoFactorData | null>(
+    null,
+  );
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
-    const storedData = sessionStorage.getItem(
-      "two_factor_data"
-    );
+    const storedData = sessionStorage.getItem("two_factor_data");
 
     if (!storedData) {
       toast.error(
-        "Your verification session has expired. Please log in again."
+        "Your verification session has expired. Please log in again.",
       );
 
       router.replace("/login");
       return;
     }
 
-    try {
-      const parsedData: TwoFactorData =
-        JSON.parse(storedData);
+    const parsedData: TwoFactorData = JSON.parse(storedData);
 
-      if (!parsedData.two_factor_token) {
-        throw new Error("Two-factor token is missing.");
-      }
-
-      setTwoFactorData(parsedData);
-    } catch (error) {
-      console.error(
-        "Unable to read two-factor data:",
-        error
-      );
-
-      sessionStorage.removeItem("two_factor_data");
-
-      toast.error(
-        "Invalid verification session. Please log in again."
-      );
-
-      router.replace("/login");
-    } finally {
-      setPageLoading(false);
+    if (!parsedData.two_factor_token) {
+      throw new Error("Two-factor token is missing.");
     }
+
+    setTwoFactorData(parsedData);
+
+    setPageLoading(false);
   }, [router]);
 
-  async function handleVerify(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleVerify(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!twoFactorData) {
@@ -74,53 +55,31 @@ export default function VerifyTwoFactorPage() {
     }
 
     if (code.length !== 6) {
-      toast.error(
-        "Enter the 6-digit code from Google Authenticator."
-      );
+      toast.error("Enter the 6-digit code from Google Authenticator.");
 
       return;
     }
 
     setLoading(true);
 
-    try {
-      const response = await verifyTwoFactorAction({
-        code,
-        two_factor_token:
-          twoFactorData.two_factor_token,
-      });
+    const response = await verifyTwoFactorAction({
+      code,
+      two_factor_token: twoFactorData.two_factor_token,
+    });
 
-      if (
-        response?.status === "success" &&
-        response?.responseCode === "000"
-      ) {
-        // Remove temporary 2FA information
-        sessionStorage.removeItem("two_factor_data");
+    if (response?.status === "success" && response?.responseCode === "000") {
+      // Remove temporary 2FA information
+      sessionStorage.removeItem("two_factor_data");
 
-        toast.success(
-          response.message || "Login successful."
-        );
+      toast.success(response.message || "Login successful.");
 
-        router.replace("/dashboard");
-        return;
-      }
-
-      toast.error(
-        response?.message ||
-          "The verification code is invalid."
-      );
-    } catch (error) {
-      console.error(
-        "Two-factor verification error:",
-        error
-      );
-
-      toast.error(
-        "Unable to verify the code. Please try again."
-      );
-    } finally {
-      setLoading(false);
+      router.replace("/dashboard");
+      return;
     }
+
+    toast.error(response?.message || "The verification code is invalid.");
+
+    setLoading(false);
   }
 
   async function copySecret() {
@@ -128,9 +87,7 @@ export default function VerifyTwoFactorPage() {
       return;
     }
 
-    await navigator.clipboard.writeText(
-      twoFactorData.secret
-    );
+    await navigator.clipboard.writeText(twoFactorData.secret);
 
     toast.success("Secret key copied.");
   }
@@ -140,7 +97,6 @@ export default function VerifyTwoFactorPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#f5f7fb]">
         <div className="flex items-center gap-3 text-slate-600">
           <span className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-[#101d3d]" />
-
           Loading verification...
         </div>
       </div>
@@ -169,15 +125,13 @@ export default function VerifyTwoFactorPage() {
           </h2>
 
           <p className="mt-4 max-w-md text-sm opacity-80">
-            Two-factor authentication provides an
-            additional layer of protection for your
-            account and financial operations.
+            Two-factor authentication provides an additional layer of protection
+            for your account and financial operations.
           </p>
         </div>
 
         <p className="relative z-10 text-xs opacity-60">
-          © {new Date().getFullYear()} BankPro •
-          Corebanking Platform
+          © {new Date().getFullYear()} BankPro • Corebanking Platform
         </p>
       </div>
 
@@ -210,49 +164,47 @@ export default function VerifyTwoFactorPage() {
           </div>
 
           {/* QR CODE: FIRST LOGIN ONLY */}
-          {twoFactorData.requires_setup &&
-            twoFactorData.qr_code && (
-              <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
-                <p className="mb-2 text-center text-xs font-medium text-slate-700">
-                  Scan this QR code
-                </p>
+          {twoFactorData.requires_setup && twoFactorData.qr_code && (
+            <div className="mb-3 rounded-xl border border-slate-200 bg-white p-3">
+              <p className="mb-2 text-center text-xs font-medium text-slate-700">
+                Scan this QR code
+              </p>
 
-                <div className="flex justify-center">
-                  <div className="rounded-lg border border-slate-200 bg-white p-2">
-                    <img
-                      src={twoFactorData.qr_code}
-                      alt="Google Authenticator QR Code"
-                      className="h-30 w-30"
-                    />
+              <div className="flex justify-center">
+                <div className="rounded-lg border border-slate-200 bg-white p-2">
+                  <img
+                    src={twoFactorData.qr_code}
+                    alt="Google Authenticator QR Code"
+                    className="h-30 w-30"
+                  />
+                </div>
+              </div>
+
+              {/* SECRET */}
+              {twoFactorData.secret && (
+                <div className="mt-2">
+                  <p className="text-center text-[11px] text-slate-500">
+                    Unable to scan? Enter this key manually:
+                  </p>
+
+                  <div className="mt-1 flex items-center gap-2 rounded-lg bg-slate-100 px-2 py-2">
+                    <code className="flex-1 break-all text-center text-xs font-semibold tracking-wider text-slate-700">
+                      {twoFactorData.secret}
+                    </code>
+
+                    <button
+                      type="button"
+                      onClick={copySecret}
+                      title="Copy secret key"
+                      className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-[#101d3d]"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-
-                {/* SECRET */}
-                {twoFactorData.secret && (
-                  <div className="mt-2">
-                    <p className="text-center text-[11px] text-slate-500">
-                      Unable to scan? Enter this key
-                      manually:
-                    </p>
-
-                    <div className="mt-1 flex items-center gap-2 rounded-lg bg-slate-100 px-2 py-2">
-                      <code className="flex-1 break-all text-center text-xs font-semibold tracking-wider text-slate-700">
-                        {twoFactorData.secret}
-                      </code>
-
-                      <button
-                        type="button"
-                        onClick={copySecret}
-                        title="Copy secret key"
-                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-white hover:text-[#101d3d]"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
           {/* VERIFICATION FORM */}
           <form
@@ -274,11 +226,7 @@ export default function VerifyTwoFactorPage() {
               maxLength={6}
               value={code}
               onChange={(event) => {
-                const value =
-                  event.target.value.replace(
-                    /\D/g,
-                    ""
-                  );
+                const value = event.target.value.replace(/\D/g, "");
 
                 setCode(value);
               }}
@@ -288,16 +236,12 @@ export default function VerifyTwoFactorPage() {
             />
 
             <p className="mt-1 text-center text-[11px] text-slate-500">
-              Enter the current 6-digit code from
-              Google Authenticator.
+              Enter the current 6-digit code from Google Authenticator.
             </p>
 
             <button
               type="submit"
-              disabled={
-                loading ||
-                code.length !== 6
-              }
+              disabled={loading || code.length !== 6}
               className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#101d3d] py-2.5 text-base font-semibold text-white transition hover:bg-[#0c1630] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading && (
@@ -315,9 +259,7 @@ export default function VerifyTwoFactorPage() {
               type="button"
               disabled={loading}
               onClick={() => {
-                sessionStorage.removeItem(
-                  "two_factor_data"
-                );
+                sessionStorage.removeItem("two_factor_data");
 
                 router.replace("/login");
               }}

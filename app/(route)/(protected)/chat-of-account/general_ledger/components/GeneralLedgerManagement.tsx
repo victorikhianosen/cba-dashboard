@@ -73,7 +73,7 @@ export default function GeneralLedgerManagement({
   const lastPage = meta?.last_page ?? 1;
 
   const parentNameById = new Map<string, string>(
-    allLedgers.map((ledger) => [String(ledger.id), ledger.name])
+    allLedgers.map((ledger) => [String(ledger.id), ledger.name]),
   );
 
   // Skips the debounce effect on mount, since accounts are already
@@ -96,29 +96,25 @@ export default function GeneralLedgerManagement({
     searchTerm: string = search,
     statusFilter: string = status,
     assignedFilter: string = isAssigned,
-    currencyFilter: string = currencyId
+    currencyFilter: string = currencyId,
   ) {
     setPageLoading(true);
-    try {
-      const result: any = await getGeneralLedgersAction(page, searchTerm, {
-        status: statusFilter,
-        is_assigned: assignedFilter,
-        currency_id: currencyFilter,
-      });
+    const result: any = await getGeneralLedgersAction(page, searchTerm, {
+      status: statusFilter,
+      is_assigned: assignedFilter,
+      currency_id: currencyFilter,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load chart of accounts.");
-        return;
-      }
-
-      setLedgers(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load chart of accounts:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load chart of accounts.");
       setPageLoading(false);
+      return;
     }
+
+    setLedgers(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -165,76 +161,75 @@ export default function GeneralLedgerManagement({
 
   async function handleFormSubmit(formData: LedgerFormData) {
     setSubmitting(true);
-    try {
-      if (selectedLedger) {
-        const result: any = await updateGeneralLedgerAction(selectedLedger.id, {
-          name: formData.name,
-          parent_id: formData.parent_id || null,
-          classification: formData.classification,
-          type: formData.type,
-          manual_journal_entries_allowed: Boolean(formData.manual_journal_entries_allowed),
-          description: formData.description,
-        });
+    if (selectedLedger) {
+      const result: any = await updateGeneralLedgerAction(selectedLedger.id, {
+        name: formData.name,
+        parent_id: formData.parent_id || null,
+        classification: formData.classification,
+        type: formData.type,
+        manual_journal_entries_allowed: Boolean(
+          formData.manual_journal_entries_allowed,
+        ),
+        description: formData.description,
+      });
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update account.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Account updated successfully.");
-      } else {
-        const result: any = await createGeneralLedgerAction({
-          name: formData.name,
-          currency_id: formData.currency_id,
-          parent_id: formData.parent_id || null,
-          classification: formData.classification,
-          type: formData.type,
-          manual_journal_entries_allowed: Boolean(formData.manual_journal_entries_allowed),
-          description: formData.description,
-        });
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create account.");
-          return;
-        }
-
-        await fetchPage(1);
-        await fetchStats();
-
-        toast.success(result.message || "Account created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update account.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedLedger(null);
-    } catch (error) {
-      console.error("Failed to save account:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Account updated successfully.");
+    } else {
+      const result: any = await createGeneralLedgerAction({
+        name: formData.name,
+        currency_id: formData.currency_id,
+        parent_id: formData.parent_id || null,
+        classification: formData.classification,
+        type: formData.type,
+        manual_journal_entries_allowed: Boolean(
+          formData.manual_journal_entries_allowed,
+        ),
+        description: formData.description,
+      });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create account.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchPage(1);
+      await fetchStats();
+
+      toast.success(result.message || "Account created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedLedger(null);
+
+    setSubmitting(false);
   }
 
   async function handleStatusChange(ledger: Ledger) {
     const newStatus = ledger.status === "active" ? "inactive" : "active";
     setActionMenuId(null);
 
-    try {
-      const result: any = await updateGeneralLedgerStatusAction(ledger.id, newStatus);
+    const result: any = await updateGeneralLedgerStatusAction(
+      ledger.id,
+      newStatus,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update account status.");
-        return;
-      }
-
-      await fetchPage(currentPage);
-      await fetchStats();
-
-      toast.success(result.message || "Account status updated successfully.");
-    } catch (error) {
-      console.error("Failed to update account status:", error);
-      toast.error("A network error occurred. Please try again.");
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update account status.");
+      return;
     }
+
+    await fetchPage(currentPage);
+    await fetchStats();
+
+    toast.success(result.message || "Account status updated successfully.");
   }
 
   return (
@@ -253,7 +248,12 @@ export default function GeneralLedgerManagement({
         <div className="flex items-center gap-2">
           <ExportDropdown
             baseEndpoint="/admin/general-ledgers"
-            params={{ search, status, is_assigned: isAssigned, currency_id: currencyId }}
+            params={{
+              search,
+              status,
+              is_assigned: isAssigned,
+              currency_id: currencyId,
+            }}
           />
 
           <button
@@ -400,7 +400,9 @@ export default function GeneralLedgerManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    <span className="capitalize">{ledger.classification ?? "—"}</span>
+                    <span className="capitalize">
+                      {ledger.classification ?? "—"}
+                    </span>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500 capitalize">
                       {ledger.type?.replace(/_/g, " ") ?? ""}
                     </p>
@@ -408,7 +410,7 @@ export default function GeneralLedgerManagement({
 
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {ledger.parent_id
-                      ? parentNameById.get(String(ledger.parent_id)) ?? "—"
+                      ? (parentNameById.get(String(ledger.parent_id)) ?? "—")
                       : "—"}
                   </td>
 
@@ -436,7 +438,9 @@ export default function GeneralLedgerManagement({
                     {ledger.created_at ? (
                       <>
                         <div>{formatDate(ledger.created_at)}</div>
-                        <div className="text-xs text-slate-500">{formatTime(ledger.created_at)}</div>
+                        <div className="text-xs text-slate-500">
+                          {formatTime(ledger.created_at)}
+                        </div>
                       </>
                     ) : (
                       "—"
@@ -448,7 +452,7 @@ export default function GeneralLedgerManagement({
                       isOpen={actionMenuId === ledger.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === ledger.id ? null : ledger.id
+                          actionMenuId === ledger.id ? null : ledger.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -520,7 +524,7 @@ export default function GeneralLedgerManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -554,7 +558,11 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    : date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
 }
 
 function formatTime(value: string | null | undefined) {
@@ -562,7 +570,11 @@ function formatTime(value: string | null | undefined) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? "—"
-    : date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    : date.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
 }
 
 // Turns "operating_expenses" into "Operating Expenses" for display.
@@ -578,12 +590,18 @@ function formatName(name: string) {
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

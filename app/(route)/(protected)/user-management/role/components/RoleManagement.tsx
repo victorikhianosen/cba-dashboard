@@ -44,7 +44,7 @@ export default function RoleManagement({
   // Holds the statistics from the last *unfiltered* fetch so the summary
   // cards stay stable while a search is scoping the current result set.
   const [globalStats, setGlobalStats] = useState<Record<string, any> | null>(
-    initialMeta?.statistics ?? null
+    initialMeta?.statistics ?? null,
   );
   const [pageLoading, setPageLoading] = useState(false);
 
@@ -71,26 +71,22 @@ export default function RoleManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getRolesAction(page, searchTerm);
+    const result: any = await getRolesAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load roles.");
-        return;
-      }
-
-      setRoles(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-
-      if (!searchTerm.trim() && result.meta?.statistics) {
-        setGlobalStats(result.meta.statistics);
-      }
-    } catch (error) {
-      console.error("Failed to load roles:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load roles.");
       setPageLoading(false);
+      return;
     }
+
+    setRoles(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    if (!searchTerm.trim() && result.meta?.statistics) {
+      setGlobalStats(result.meta.statistics);
+    }
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -142,65 +138,58 @@ export default function RoleManagement({
 
   async function handleFormSubmit(formData: RoleFormData) {
     setSubmitting(true);
-    try {
-      if (selectedRole) {
-        const result: any = await updateRoleAction(selectedRole.id, {
-          name: formData.name,
-        });
+    if (selectedRole) {
+      const result: any = await updateRoleAction(selectedRole.id, {
+        name: formData.name,
+      });
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update role.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Role updated successfully.");
-      } else {
-        const result: any = await createRoleAction({
-          name: formData.name,
-        });
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create role.");
-          return;
-        }
-
-        await fetchPage(1);
-
-        toast.success(result.message || "Role created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update role.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedRole(null);
-    } catch (error) {
-      console.error("Failed to save role:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Role updated successfully.");
+    } else {
+      const result: any = await createRoleAction({
+        name: formData.name,
+      });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create role.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchPage(1);
+
+      toast.success(result.message || "Role created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedRole(null);
+
+    setSubmitting(false);
   }
 
   async function handleDelete() {
     if (!roleToDelete) return;
     setDeleting(true);
-    try {
-      const result: any = await deleteRoleAction(roleToDelete.id);
+    const result: any = await deleteRoleAction(roleToDelete.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to delete role.");
-        return;
-      }
-
-      setRoleToDelete(null);
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Role deleted successfully.");
-    } catch (error) {
-      console.error("Failed to delete role:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to delete role.");
       setDeleting(false);
+      return;
     }
+
+    setRoleToDelete(null);
+    await fetchPage(currentPage);
+
+    toast.success(result.message || "Role deleted successfully.");
+
+    setDeleting(false);
   }
 
   return (
@@ -299,7 +288,9 @@ export default function RoleManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {Array.isArray(role.permissions) ? role.permissions.length : 0}{" "}
+                    {Array.isArray(role.permissions)
+                      ? role.permissions.length
+                      : 0}{" "}
                     assigned
                   </td>
 
@@ -309,11 +300,16 @@ export default function RoleManagement({
                       : "—"}
                   </td>
 
-                  <td className="px-5" onClick={(event) => event.stopPropagation()}>
+                  <td
+                    className="px-5"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <ActionMenu
                       isOpen={actionMenuId === role.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === role.id ? null : role.id)
+                        setActionMenuId(
+                          actionMenuId === role.id ? null : role.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                       widthClassName="w-56"
@@ -388,7 +384,7 @@ export default function RoleManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -464,12 +460,18 @@ export function formatRoleName(name: string) {
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

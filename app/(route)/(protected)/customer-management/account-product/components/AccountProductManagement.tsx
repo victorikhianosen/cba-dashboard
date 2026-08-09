@@ -78,7 +78,11 @@ function buildPayload(formData: AccountProductFormData) {
   }
 
   for (const field of NUMERIC_FIELDS) {
-    if (payload[field] === "" || payload[field] === undefined || payload[field] === null) {
+    if (
+      payload[field] === "" ||
+      payload[field] === undefined ||
+      payload[field] === null
+    ) {
       delete payload[field];
     } else {
       const parsed = Number(payload[field]);
@@ -97,7 +101,9 @@ export default function AccountProductManagement({
   currencies,
   generalLedgers,
 }: AccountProductManagementProps) {
-  const [accountProducts, setAccountProducts] = useState<AccountProduct[]>(initialAccountProducts);
+  const [accountProducts, setAccountProducts] = useState<AccountProduct[]>(
+    initialAccountProducts,
+  );
   const [meta, setMeta] = useState<AccountProductMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
 
@@ -105,7 +111,8 @@ export default function AccountProductManagement({
   const [statusFilter, setStatusFilter] = useState("all");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedAccountProduct, setSelectedAccountProduct] = useState<AccountProduct | null>(null);
+  const [selectedAccountProduct, setSelectedAccountProduct] =
+    useState<AccountProduct | null>(null);
   const [actionMenuId, setActionMenuId] = useState<any>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -114,11 +121,14 @@ export default function AccountProductManagement({
 
   const totalProducts = stats?.total_account_products ?? accountProducts.length;
   const activeProducts =
-    stats?.total_active ?? accountProducts.filter((p) => p.status === "active").length;
+    stats?.total_active ??
+    accountProducts.filter((p) => p.status === "active").length;
   const pendingProducts =
-    stats?.total_pending ?? accountProducts.filter((p) => p.status === "pending").length;
+    stats?.total_pending ??
+    accountProducts.filter((p) => p.status === "pending").length;
   const inactiveProducts =
-    stats?.total_inactive ?? accountProducts.filter((p) => p.status === "inactive").length;
+    stats?.total_inactive ??
+    accountProducts.filter((p) => p.status === "inactive").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -127,22 +137,18 @@ export default function AccountProductManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getAccountProductsAction(page, searchTerm);
+    const result: any = await getAccountProductsAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load account products.");
-        return;
-      }
-
-      setAccountProducts(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load account products:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load account products.");
       setPageLoading(false);
+      return;
     }
+
+    setAccountProducts(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -193,40 +199,40 @@ export default function AccountProductManagement({
 
   async function handleFormSubmit(formData: AccountProductFormData) {
     setSubmitting(true);
-    try {
-      const payload = buildPayload(formData);
+    const payload = buildPayload(formData);
 
-      if (selectedAccountProduct) {
-        const result: any = await updateAccountProductAction(selectedAccountProduct.id, payload);
+    if (selectedAccountProduct) {
+      const result: any = await updateAccountProductAction(
+        selectedAccountProduct.id,
+        payload,
+      );
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update account product.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Account product updated successfully.");
-      } else {
-        const result: any = await createAccountProductAction(payload);
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create account product.");
-          return;
-        }
-
-        await fetchPage(1);
-
-        toast.success(result.message || "Account product created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update account product.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedAccountProduct(null);
-    } catch (error) {
-      console.error("Failed to save account product:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Account product updated successfully.");
+    } else {
+      const result: any = await createAccountProductAction(payload);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create account product.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchPage(1);
+
+      toast.success(result.message || "Account product created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedAccountProduct(null);
+
+    setSubmitting(false);
   }
 
   // Pending products go through the dedicated approve endpoint (its own
@@ -235,27 +241,24 @@ export default function AccountProductManagement({
   async function handleStatusChange(product: AccountProduct) {
     setActionMenuId(null);
 
-    try {
-      const result: any =
-        product.status === "pending"
-          ? await approveAccountProductAction(product.id)
-          : await updateAccountProductStatusAction(
-              product.id,
-              product.status === "active" ? "inactive" : "active"
-            );
+    const result: any =
+      product.status === "pending"
+        ? await approveAccountProductAction(product.id)
+        : await updateAccountProductStatusAction(
+            product.id,
+            product.status === "active" ? "inactive" : "active",
+          );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update account product status.");
-        return;
-      }
-
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Account product status updated successfully.");
-    } catch (error) {
-      console.error("Failed to update account product status:", error);
-      toast.error("A network error occurred. Please try again.");
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update account product status.");
+      return;
     }
+
+    await fetchPage(currentPage);
+
+    toast.success(
+      result.message || "Account product status updated successfully.",
+    );
   }
 
   function statusActionLabel(product: AccountProduct) {
@@ -377,7 +380,9 @@ export default function AccountProductManagement({
                         <Box size={21} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-slate-900">{toDisplayLabel(product.name)}</p>
+                        <p className="font-bold text-sm text-slate-900">
+                          {toDisplayLabel(product.name)}
+                        </p>
                         <p className="text-xs font-semibold text-slate-500 mt-0.5">
                           {product.code ?? `ID: ${product.id}`}
                         </p>
@@ -406,7 +411,7 @@ export default function AccountProductManagement({
                       isOpen={actionMenuId === product.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === product.id ? null : product.id
+                          actionMenuId === product.id ? null : product.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -473,7 +478,7 @@ export default function AccountProductManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -506,12 +511,18 @@ export default function AccountProductManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

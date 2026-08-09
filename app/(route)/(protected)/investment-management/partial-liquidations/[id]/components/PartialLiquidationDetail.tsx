@@ -25,7 +25,10 @@ interface PartialLiquidationDetailProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -36,10 +39,15 @@ function formatDateTime(value: string | null | undefined) {
     : `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-function userLabel(user: Record<string, any> | null | undefined, fallback: any) {
+function userLabel(
+  user: Record<string, any> | null | undefined,
+  fallback: any,
+) {
   if (user) {
     const name = `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim();
-    return user.username ? `${user.username}${name ? ` (${name})` : ""}` : name || fallback;
+    return user.username
+      ? `${user.username}${name ? ` (${name})` : ""}`
+      : name || fallback;
   }
   return fallback ?? "—";
 }
@@ -53,7 +61,9 @@ export default function PartialLiquidationDetail({
   const router = useRouter();
   const { currentUser, hasPermission } = usePermissions();
 
-  const [liquidation, setLiquidation] = useState<Liquidation | null>(initialLiquidation);
+  const [liquidation, setLiquidation] = useState<Liquidation | null>(
+    initialLiquidation,
+  );
   const [loading, setLoading] = useState(!initialLiquidation);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
@@ -61,19 +71,14 @@ export default function PartialLiquidationDetail({
 
   async function refresh() {
     setLoading(true);
-    try {
-      const result: any = await getPartialLiquidationAction(liquidationId);
-      if (result?.status === "success") {
-        setLiquidation(result.data);
-      } else {
-        handleApiError(result, "Failed to load partial liquidation request.");
-      }
-    } catch (error) {
-      console.error("Failed to load partial liquidation request:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setLoading(false);
+    const result: any = await getPartialLiquidationAction(liquidationId);
+    if (result?.status === "success") {
+      setLiquidation(result.data);
+    } else {
+      handleApiError(result, "Failed to load partial liquidation request.");
     }
+
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -84,16 +89,24 @@ export default function PartialLiquidationDetail({
   }, []);
 
   if (loading && !liquidation) {
-    return <p className="py-16 text-center text-sm font-medium text-slate-500">Loading...</p>;
+    return (
+      <p className="py-16 text-center text-sm font-medium text-slate-500">
+        Loading...
+      </p>
+    );
   }
 
   if (!liquidation) {
     return (
       <div className="py-16 text-center">
-        <p className="text-sm font-medium text-slate-500">Partial liquidation request not found.</p>
+        <p className="text-sm font-medium text-slate-500">
+          Partial liquidation request not found.
+        </p>
         <button
           type="button"
-          onClick={() => router.push("/investment-management/partial-liquidations")}
+          onClick={() =>
+            router.push("/investment-management/partial-liquidations")
+          }
           className="mt-4 text-sm font-semibold text-[#173673] hover:underline"
         >
           Back to Partial Liquidations
@@ -104,56 +117,61 @@ export default function PartialLiquidationDetail({
 
   const isPending = liquidation.status === "pending";
   const isOwnRequest =
-    Boolean(currentUser?.username) && currentUser?.username === liquidation.requester?.username;
-  const canAct = isPending && hasPermission("approve_investments") && !isOwnRequest;
+    Boolean(currentUser?.username) &&
+    currentUser?.username === liquidation.requester?.username;
+  const canAct =
+    isPending && hasPermission("approve_investments") && !isOwnRequest;
 
   async function handleApprove(totpCode: string) {
     setActionPending(true);
-    try {
-      const result: any = await approvePartialLiquidationAction(liquidationId, totpCode);
+    const result: any = await approvePartialLiquidationAction(
+      liquidationId,
+      totpCode,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to approve partial liquidation.");
-        return;
-      }
-
-      toast.success(result.message || "Partial liquidation approved and applied successfully.");
-      setApproveModalOpen(false);
-      refresh();
-    } catch (error) {
-      console.error("Failed to approve partial liquidation:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to approve partial liquidation.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(
+      result.message ||
+        "Partial liquidation approved and applied successfully.",
+    );
+    setApproveModalOpen(false);
+    refresh();
+
+    setActionPending(false);
   }
 
   async function handleReject(reason: string) {
     setActionPending(true);
-    try {
-      const result: any = await rejectPartialLiquidationAction(liquidationId, reason);
+    const result: any = await rejectPartialLiquidationAction(
+      liquidationId,
+      reason,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to reject partial liquidation.");
-        return;
-      }
-
-      toast.success(result.message || "Partial liquidation rejected.");
-      setRejectModalOpen(false);
-      refresh();
-    } catch (error) {
-      console.error("Failed to reject partial liquidation:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to reject partial liquidation.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(result.message || "Partial liquidation rejected.");
+    setRejectModalOpen(false);
+    refresh();
+
+    setActionPending(false);
   }
 
   return (
     <>
       <button
         type="button"
-        onClick={() => router.push("/investment-management/partial-liquidations")}
+        onClick={() =>
+          router.push("/investment-management/partial-liquidations")
+        }
         className="mb-5 flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900"
       >
         <ArrowLeft size={16} />
@@ -179,9 +197,11 @@ export default function PartialLiquidationDetail({
                   {liquidation.investment?.account_number ?? "—"}
                 </Link>
               ) : (
-                liquidation.investment?.account_number ?? "—"
+                (liquidation.investment?.account_number ?? "—")
               )}
-              {liquidation.investment?.customer?.name ? ` · ${liquidation.investment.customer.name}` : ""}
+              {liquidation.investment?.customer?.name
+                ? ` · ${liquidation.investment.customer.name}`
+                : ""}
             </p>
           </div>
 
@@ -208,7 +228,10 @@ export default function PartialLiquidationDetail({
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-          <DetailField label="Amount" value={`₦${formatCurrency(liquidation.amount)}`} />
+          <DetailField
+            label="Amount"
+            value={`₦${formatCurrency(liquidation.amount)}`}
+          />
           <DetailField
             label="Investment Current Principal"
             value={`₦${formatCurrency(liquidation.investment?.current_principal)}`}
@@ -219,33 +242,54 @@ export default function PartialLiquidationDetail({
             label="Requested By"
             value={userLabel(liquidation.requester, liquidation.requested_by)}
           />
-          <DetailField label="Requested At" value={formatDateTime(liquidation.requested_at)} />
+          <DetailField
+            label="Requested At"
+            value={formatDateTime(liquidation.requested_at)}
+          />
 
           {liquidation.status !== "pending" && (
             <>
               {liquidation.approver && (
                 <DetailField
                   label="Approved By"
-                  value={userLabel(liquidation.approver, liquidation.approved_by)}
+                  value={userLabel(
+                    liquidation.approver,
+                    liquidation.approved_by,
+                  )}
                 />
               )}
               {liquidation.approved_at && (
-                <DetailField label="Approved At" value={formatDateTime(liquidation.approved_at)} />
+                <DetailField
+                  label="Approved At"
+                  value={formatDateTime(liquidation.approved_at)}
+                />
               )}
               {liquidation.transaction_reference && (
-                <DetailField label="Transaction Reference" value={liquidation.transaction_reference} />
+                <DetailField
+                  label="Transaction Reference"
+                  value={liquidation.transaction_reference}
+                />
               )}
               {liquidation.rejecter && (
                 <DetailField
                   label="Rejected By"
-                  value={userLabel(liquidation.rejecter, liquidation.rejected_by)}
+                  value={userLabel(
+                    liquidation.rejecter,
+                    liquidation.rejected_by,
+                  )}
                 />
               )}
               {liquidation.rejected_at && (
-                <DetailField label="Rejected At" value={formatDateTime(liquidation.rejected_at)} />
+                <DetailField
+                  label="Rejected At"
+                  value={formatDateTime(liquidation.rejected_at)}
+                />
               )}
               {liquidation.rejection_reason && (
-                <DetailField label="Rejection Reason" value={liquidation.rejection_reason} />
+                <DetailField
+                  label="Rejection Reason"
+                  value={liquidation.rejection_reason}
+                />
               )}
             </>
           )}
@@ -264,7 +308,7 @@ export default function PartialLiquidationDetail({
         isOpen={rejectModalOpen}
         title="Reject Partial Liquidation"
         description={`This will reject the partial liquidation request of ₦${formatCurrency(
-          liquidation.amount
+          liquidation.amount,
         )} for investment ${liquidation.investment?.account_number ?? liquidation.reference}.`}
         confirmLabel="Reject Request"
         confirmTone="danger"
@@ -279,8 +323,12 @@ export default function PartialLiquidationDetail({
 function DetailField({ label, value }: { label: string; value: any }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-800">{value ?? "—"}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-slate-800">
+        {value ?? "—"}
+      </p>
     </div>
   );
 }

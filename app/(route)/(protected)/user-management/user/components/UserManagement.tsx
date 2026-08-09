@@ -60,29 +60,26 @@ export default function UserManagement({
   const pendingUsers =
     stats?.total_pending ?? users.filter((u) => u.status === "pending").length;
   const inactiveUsers =
-    stats?.total_inactive ?? users.filter((u) => u.status === "inactive").length;
+    stats?.total_inactive ??
+    users.filter((u) => u.status === "inactive").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getUsersAction(page);
+    const result: any = await getUsersAction(page);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load users.");
-        return;
-      }
-
-      setUsers(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load users:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load users.");
       setPageLoading(false);
+      return;
     }
+
+    setUsers(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -131,37 +128,28 @@ export default function UserManagement({
     const newStatus = user.status === "active" ? "inactive" : "active";
     setActionMenuId(null);
 
-    try {
-      const result: any = await updateUserStatusAction(user.id, newStatus);
+    const result: any = await updateUserStatusAction(user.id, newStatus);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update user status.");
-        return;
-      }
-
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "User status updated successfully.");
-    } catch (error) {
-      console.error("Failed to update user status:", error);
-      toast.error("A network error occurred. Please try again.");
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update user status.");
+      return;
     }
+
+    await fetchPage(currentPage);
+
+    toast.success(result.message || "User status updated successfully.");
   }
 
   async function handleDelete() {
     if (!userToDelete) return;
     setDeleting(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setUsers((current) =>
-        current.filter((user) => user.id !== userToDelete.id)
-      );
-      setUserToDelete(null);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setDeleting(false);
-    }
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    setUsers((current) =>
+      current.filter((user) => user.id !== userToDelete.id),
+    );
+    setUserToDelete(null);
+
+    setDeleting(false);
   }
 
   return (
@@ -270,7 +258,9 @@ export default function UserManagement({
                 <tr
                   key={user.id}
                   className="cursor-pointer hover:bg-slate-50/80 transition-colors"
-                  onClick={() => router.push(`/user-management/user/${user.id}`)}
+                  onClick={() =>
+                    router.push(`/user-management/user/${user.id}`)
+                  }
                 >
                   <td className="px-5 py-5">
                     <div className="flex items-center gap-3">
@@ -316,12 +306,15 @@ export default function UserManagement({
                     <StatusBadge status={user.status} />
                   </td>
 
-                  <td className="px-5" onClick={(event) => event.stopPropagation()}>
+                  <td
+                    className="px-5"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <ActionMenu
                       isOpen={actionMenuId === user.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === user.id ? null : user.id
+                          actionMenuId === user.id ? null : user.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -400,7 +393,7 @@ export default function UserManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -427,7 +420,11 @@ export default function UserManagement({
               Delete User?
             </h2>
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Are you sure you want to delete <b>{userToDelete.first_name} {userToDelete.last_name}</b>? This action cannot be undone.
+              Are you sure you want to delete{" "}
+              <b>
+                {userToDelete.first_name} {userToDelete.last_name}
+              </b>
+              ? This action cannot be undone.
             </p>
 
             <div className="mt-7 flex justify-end gap-3">
@@ -456,12 +453,18 @@ export default function UserManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

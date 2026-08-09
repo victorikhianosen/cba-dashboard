@@ -31,14 +31,13 @@ const emptyUserForm: UserFormData = {
 };
 
 export default function CreateUserPage({ branches = [] }: CreateUserPageProps) {
+  const router = useRouter();
 
-    const router = useRouter();
-  
   const [formData, setFormData] = useState<UserFormData>(emptyUserForm);
   const [submitting, setSubmitting] = useState(false);
 
   function handleInputChange(
-    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
@@ -48,36 +47,30 @@ export default function CreateUserPage({ branches = [] }: CreateUserPageProps) {
     event.preventDefault();
     setSubmitting(true);
 
-    try {
-      const result: any = await createUserAction({
-        branch_id: formData.branch_id,
-        staff_code: formData.staff_code,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        gender: formData.gender,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        country: formData.country,
-      });
+    const result: any = await createUserAction({
+      branch_id: formData.branch_id,
+      staff_code: formData.staff_code,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      gender: formData.gender,
+      phone: formData.phone,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      country: formData.country,
+    });
 
-      console.log("createUserAction result:", result);
+    console.log("createUserAction result:", result);
 
-      if (!result || result.status !== "success") {
-        handleApiError(result, "Failed to create user.");
-        setSubmitting(false);
-        return;
-      }
-      
-      toast.success(result.message || "User created successfully.");
-      router.push("/user-management/user");
-    } catch (error) {
-      console.error("Failed to create user:", error);
-      toast.error("A network error occurred. Please try again.");
+    if (!result || result.status !== "success") {
+      handleApiError(result, "Failed to create user.");
       setSubmitting(false);
+      return;
     }
+
+    toast.success(result.message || "User created successfully.");
+    router.push("/user-management/user");
   }
 
   return (

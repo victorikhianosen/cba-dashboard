@@ -31,7 +31,9 @@ export default function FinancialTransactionsManagement() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [status, setStatus] = useState("");
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -40,22 +42,23 @@ export default function FinancialTransactionsManagement() {
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getFinancialTransactionsAction(page, { from, to, search, status });
+    const result: any = await getFinancialTransactionsAction(page, {
+      from,
+      to,
+      search,
+      status,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load financial transactions.");
-        return;
-      }
-
-      setTransactions(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load financial transactions:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load financial transactions.");
       setPageLoading(false);
+      return;
     }
+
+    setTransactions(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   useEffect(() => {
@@ -75,7 +78,8 @@ export default function FinancialTransactionsManagement() {
   }, [search, from, to, status]);
 
   function goToPage(page: number) {
-    if (page < 1 || page > lastPage || page === currentPage || pageLoading) return;
+    if (page < 1 || page > lastPage || page === currentPage || pageLoading)
+      return;
     fetchPage(page);
   }
 
@@ -83,19 +87,27 @@ export default function FinancialTransactionsManagement() {
     <>
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Financial Transactions</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Financial Transactions
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             All financial transactions (postings) recorded across the platform
           </p>
         </div>
 
-        <ExportDropdown baseEndpoint="/admin/financial-transactions" params={{ from, to, search, status }} />
+        <ExportDropdown
+          baseEndpoint="/admin/financial-transactions"
+          params={{ from, to, search, status }}
+        />
       </div>
 
       {/* FILTERS */}
       <section className="mt-7 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+          />
           <input
             type="search"
             value={search}
@@ -152,8 +164,10 @@ export default function FinancialTransactionsManagement() {
 
             <tbody className="divide-y divide-slate-100">
               {transactions.map((txn) => (
-                <tr key={txn.id} className="hover:bg-slate-50/80 transition-colors">
-
+                <tr
+                  key={txn.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {txn.transaction_reference ?? "—"}
                   </td>
@@ -171,12 +185,13 @@ export default function FinancialTransactionsManagement() {
                   </td>
                   <td className="px-5">
                     <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${txn.status === "completed" || txn.status === "posted"
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold capitalize ${
+                        txn.status === "completed" || txn.status === "posted"
                           ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                           : txn.status === "failed"
                             ? "bg-red-100 text-red-800 border border-red-300"
                             : "bg-amber-100 text-amber-800 border border-amber-300"
-                        }`}
+                      }`}
                     >
                       {txn.status}
                     </span>
@@ -186,18 +201,24 @@ export default function FinancialTransactionsManagement() {
                     {txn.created_at ? (
                       <>
                         <div>
-                          {new Date(txn.created_at).toLocaleDateString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {new Date(txn.created_at).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {new Date(txn.created_at).toLocaleTimeString("en-GB", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: true,
-                          })}
+                          {new Date(txn.created_at).toLocaleTimeString(
+                            "en-GB",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: true,
+                            },
+                          )}
                         </div>
                       </>
                     ) : (
@@ -208,13 +229,17 @@ export default function FinancialTransactionsManagement() {
                   <td className="px-5">
                     <ActionMenu
                       isOpen={actionMenuId === txn.id}
-                      onToggle={() => setActionMenuId(actionMenuId === txn.id ? null : txn.id)}
+                      onToggle={() =>
+                        setActionMenuId(actionMenuId === txn.id ? null : txn.id)
+                      }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton
                         onClick={() => {
                           setActionMenuId(null);
-                          router.push(`/chat-of-account/financial-transactions/${txn.id}`);
+                          router.push(
+                            `/chat-of-account/financial-transactions/${txn.id}`,
+                          );
                         }}
                       >
                         <Eye size={16} />
@@ -227,7 +252,10 @@ export default function FinancialTransactionsManagement() {
 
               {!pageLoading && transactions.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-5 py-16 text-center text-sm font-medium text-slate-500"
+                  >
                     No financial transactions found.
                   </td>
                 </tr>

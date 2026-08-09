@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Box, CheckCircle2, Eye, Plus, UserPlus, UserMinus } from "lucide-react";
+import {
+  Box,
+  CheckCircle2,
+  Eye,
+  Plus,
+  UserPlus,
+  UserMinus,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import {
   approveTellerAction,
@@ -32,12 +39,17 @@ interface TellerManagementProps {
 }
 
 function userLabel(user: LookupOption) {
-  return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username;
+  return (
+    `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username
+  );
 }
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export default function TellerManagement({
@@ -84,41 +96,33 @@ export default function TellerManagement({
     }
 
     setSubmitting(true);
-    try {
-      const result: any = await createTellerAction(form);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to create teller.");
-        return;
-      }
-      toast.success("Teller created — pending approval.");
-      setCreateOpen(false);
-      refresh();
-    } catch (error) {
-      console.error("Failed to create teller:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await createTellerAction(form);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to create teller.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller created — pending approval.");
+    setCreateOpen(false);
+    refresh();
+
+    setSubmitting(false);
   }
 
   async function handleApprove(totpCode: string) {
     if (!approveTarget) return;
     setSubmitting(true);
-    try {
-      const result: any = await approveTellerAction(approveTarget.id, totpCode);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to approve teller.");
-        return;
-      }
-      toast.success("Teller approved.");
-      setApproveTarget(null);
-      refresh();
-    } catch (error) {
-      console.error("Failed to approve teller:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await approveTellerAction(approveTarget.id, totpCode);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to approve teller.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller approved.");
+    setApproveTarget(null);
+    refresh();
+
+    setSubmitting(false);
   }
 
   async function handleAssign() {
@@ -128,49 +132,43 @@ export default function TellerManagement({
     }
 
     setSubmitting(true);
-    try {
-      const result: any = await assignTellerAction(assignTarget.id, assignUserId);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to assign teller.");
-        return;
-      }
-      toast.success("Teller assigned.");
-      setAssignTarget(null);
-      setAssignUserId("");
-      refresh();
-    } catch (error) {
-      console.error("Failed to assign teller:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await assignTellerAction(assignTarget.id, assignUserId);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to assign teller.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller assigned.");
+    setAssignTarget(null);
+    setAssignUserId("");
+    refresh();
+
+    setSubmitting(false);
   }
 
   async function handleUnassign() {
     if (!unassignTarget) return;
     setSubmitting(true);
-    try {
-      const result: any = await unassignTellerAction(unassignTarget.id);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to unassign teller.");
-        return;
-      }
-      toast.success("Teller unassigned.");
-      setUnassignTarget(null);
-      refresh();
-    } catch (error) {
-      console.error("Failed to unassign teller:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await unassignTellerAction(unassignTarget.id);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to unassign teller.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller unassigned.");
+    setUnassignTarget(null);
+    refresh();
+
+    setSubmitting(false);
   }
 
   return (
     <>
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Tellers</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Tellers
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             Cash drawers — each with its own GL, branch, and linked vault.
           </p>
@@ -190,13 +188,27 @@ export default function TellerManagement({
           <table className="w-full min-w-250">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Teller</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Branch / Vault</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Assigned Cashier</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Balance</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Session</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Status</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Actions</th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Teller
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Branch / Vault
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Assigned Cashier
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Balance
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Session
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Status
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -208,7 +220,9 @@ export default function TellerManagement({
                         <Box size={16} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-900">{teller.name}</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {teller.name}
+                        </p>
                         <p className="text-xs text-slate-500">{teller.code}</p>
                       </div>
                     </div>
@@ -216,13 +230,16 @@ export default function TellerManagement({
                   <td className="px-5 py-4 text-sm text-slate-700">
                     {teller.branch_name || "—"}
                     <br />
-                    <span className="text-xs text-slate-500">{teller.vault_name}</span>
+                    <span className="text-xs text-slate-500">
+                      {teller.vault_name}
+                    </span>
                   </td>
                   <td className="px-5 py-4 text-sm text-slate-700">
                     {teller.current_assignment?.user_name || "Unassigned"}
                   </td>
                   <td className="px-5 py-4 text-sm font-bold text-slate-900">
-                    {teller.currency_code ?? ""} {formatCurrency(teller.balance)}
+                    {teller.currency_code ?? ""}{" "}
+                    {formatCurrency(teller.balance)}
                   </td>
                   <td className="px-5 py-4 text-sm text-slate-700">
                     {teller.current_session ? (
@@ -239,8 +256,8 @@ export default function TellerManagement({
                         teller.status === "active"
                           ? "bg-green-100 text-green-800 border border-green-300"
                           : teller.status === "pending"
-                          ? "bg-amber-100 text-amber-800 border border-amber-300"
-                          : "bg-slate-100 text-slate-700 border border-slate-300"
+                            ? "bg-amber-100 text-amber-800 border border-amber-300"
+                            : "bg-slate-100 text-slate-700 border border-slate-300"
                       }`}
                     >
                       {teller.status}
@@ -255,26 +272,29 @@ export default function TellerManagement({
                         <Eye size={14} />
                         View
                       </Link>
-                      {teller.status === "pending" && String(teller.created_by) !== String(currentUser?.id) && (
-                        <button
-                          type="button"
-                          onClick={() => setApproveTarget(teller)}
-                          className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
-                        >
-                          <CheckCircle2 size={14} />
-                          Approve
-                        </button>
-                      )}
-                      {teller.status === "active" && !teller.current_assignment && (
-                        <button
-                          type="button"
-                          onClick={() => setAssignTarget(teller)}
-                          className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                        >
-                          <UserPlus size={14} />
-                          Assign
-                        </button>
-                      )}
+                      {teller.status === "pending" &&
+                        String(teller.created_by) !==
+                          String(currentUser?.id) && (
+                          <button
+                            type="button"
+                            onClick={() => setApproveTarget(teller)}
+                            className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition"
+                          >
+                            <CheckCircle2 size={14} />
+                            Approve
+                          </button>
+                        )}
+                      {teller.status === "active" &&
+                        !teller.current_assignment && (
+                          <button
+                            type="button"
+                            onClick={() => setAssignTarget(teller)}
+                            className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                          >
+                            <UserPlus size={14} />
+                            Assign
+                          </button>
+                        )}
                       {teller.current_assignment && !teller.current_session && (
                         <button
                           type="button"
@@ -294,84 +314,139 @@ export default function TellerManagement({
         </div>
 
         {tellers.length === 0 && (
-          <div className="py-16 text-center text-sm font-medium text-slate-500">No tellers found.</div>
+          <div className="py-16 text-center text-sm font-medium text-slate-500">
+            No tellers found.
+          </div>
         )}
       </section>
 
-      <SideDrawer isOpen={createOpen} onClose={() => setCreateOpen(false)} widthClassName="max-w-2xl">
+      <SideDrawer
+        isOpen={createOpen}
+        onClose={() => setCreateOpen(false)}
+        widthClassName="max-w-2xl"
+      >
         <div>
           <h2 className="text-lg font-bold text-slate-900">New Teller</h2>
           <p className="mt-1 text-sm text-slate-600">
             Cash drawer — needs its own GL, branch, and linked vault.
           </p>
           <div className="mt-6 space-y-6">
-              <SearchableSelect
-                label="Branch"
-                name="branch_id"
-                value={form.branch_id}
-                onChange={(e) => setForm((f) => ({ ...f, branch_id: e.target.value, vault_id: "" }))}
-                options={branches.map((b) => ({ value: String(b.id), label: b.name }))}
+            <SearchableSelect
+              label="Branch"
+              name="branch_id"
+              value={form.branch_id}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  branch_id: e.target.value,
+                  vault_id: "",
+                }))
+              }
+              options={branches.map((b) => ({
+                value: String(b.id),
+                label: b.name,
+              }))}
+            />
+            <SearchableSelect
+              label="Vault"
+              name="vault_id"
+              value={form.vault_id}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, vault_id: e.target.value }))
+              }
+              options={vaults
+                .filter(
+                  (v) =>
+                    !form.branch_id ||
+                    String(v.branch_id) === String(form.branch_id),
+                )
+                .map((v) => ({
+                  value: String(v.id),
+                  label: `${v.name} (${v.code})`,
+                }))}
+            />
+            <div>
+              <label className="mb-1.5 block text-sm font-bold text-slate-800">
+                Name
+              </label>
+              <input
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
               />
-              <SearchableSelect
-                label="Vault"
-                name="vault_id"
-                value={form.vault_id}
-                onChange={(e) => setForm((f) => ({ ...f, vault_id: e.target.value }))}
-                options={vaults
-                  .filter((v) => !form.branch_id || String(v.branch_id) === String(form.branch_id))
-                  .map((v) => ({ value: String(v.id), label: `${v.name} (${v.code})` }))}
-              />
+            </div>
+            <SearchableSelect
+              label="Currency"
+              name="currency_id"
+              value={form.currency_id}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, currency_id: e.target.value }))
+              }
+              options={currencies.map((c) => ({
+                value: String(c.id),
+                label: `${c.code} - ${c.name}`,
+                sublabel: c.name,
+              }))}
+            />
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1.5 block text-sm font-bold text-slate-800">Name</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                <label className="mb-1.5 block text-sm font-bold text-slate-800">
+                  Opening Float Ceiling
+                </label>
+                <AmountInput
+                  value={form.opening_float_ceiling_amount}
+                  onChange={(raw) =>
+                    setForm((f) => ({
+                      ...f,
+                      opening_float_ceiling_amount: raw,
+                    }))
+                  }
                   className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
                 />
               </div>
-              <SearchableSelect
-                label="Currency"
-                name="currency_id"
-                value={form.currency_id}
-                onChange={(e) => setForm((f) => ({ ...f, currency_id: e.target.value }))}
-                options={currencies.map((c) => ({ value: String(c.id), label: `${c.code} - ${c.name}`, sublabel: c.name }))}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-800">Opening Float Ceiling</label>
-                  <AmountInput
-                    value={form.opening_float_ceiling_amount}
-                    onChange={(raw) => setForm((f) => ({ ...f, opening_float_ceiling_amount: raw }))}
-                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-bold text-slate-800">Variance Tolerance</label>
-                  <AmountInput
-                    value={form.variance_tolerance_amount}
-                    onChange={(raw) => setForm((f) => ({ ...f, variance_tolerance_amount: raw }))}
-                    className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
-                  />
-                </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-bold text-slate-800">
+                  Variance Tolerance
+                </label>
+                <AmountInput
+                  value={form.variance_tolerance_amount}
+                  onChange={(raw) =>
+                    setForm((f) => ({ ...f, variance_tolerance_amount: raw }))
+                  }
+                  className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
+                />
               </div>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={form.requires_variance_approval}
-                  onChange={(e) => setForm((f) => ({ ...f, requires_variance_approval: e.target.checked }))}
-                  className="h-4 w-4 rounded border-slate-300"
-                />
-                Require second-admin approval for out-of-tolerance variance
-              </label>
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={form.allows_teller_to_teller_transfer}
-                  onChange={(e) => setForm((f) => ({ ...f, allows_teller_to_teller_transfer: e.target.checked }))}
-                  className="h-4 w-4 rounded border-slate-300"
-                />
-                Allow direct teller-to-teller cash transfers
-              </label>
+            </div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.requires_variance_approval}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    requires_variance_approval: e.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Require second-admin approval for out-of-tolerance variance
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.allows_teller_to_teller_transfer}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    allows_teller_to_teller_transfer: e.target.checked,
+                  }))
+                }
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Allow direct teller-to-teller cash transfers
+            </label>
           </div>
 
           <div className="mt-8 flex justify-end gap-3">
@@ -398,7 +473,9 @@ export default function TellerManagement({
         <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 p-6">
-              <h2 className="text-lg font-bold text-slate-900">Assign Teller</h2>
+              <h2 className="text-lg font-bold text-slate-900">
+                Assign Teller
+              </h2>
               <p className="mt-1 text-sm text-slate-600">
                 Assign a cashier to '{assignTarget.name}'.
               </p>
@@ -409,7 +486,10 @@ export default function TellerManagement({
                 name="user_id"
                 value={assignUserId}
                 onChange={(e) => setAssignUserId(e.target.value)}
-                options={users.map((u) => ({ value: String(u.id), label: userLabel(u) }))}
+                options={users.map((u) => ({
+                  value: String(u.id),
+                  label: userLabel(u),
+                }))}
               />
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-200 p-6">

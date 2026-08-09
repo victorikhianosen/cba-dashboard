@@ -31,7 +31,10 @@ interface FundGlManagementProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -65,11 +68,13 @@ export default function FundGlManagement({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
   const totalFundGls = meta?.total ?? fundGls.length;
   const pendingFundGls = fundGls.filter(
-    (f) => f.status === "pending_review" || f.status === "pending_approval"
+    (f) => f.status === "pending_review" || f.status === "pending_approval",
   ).length;
   const approvedFundGls = fundGls.filter((f) => f.status === "approved").length;
   const rejectedFundGls = fundGls.filter((f) => f.status === "rejected").length;
@@ -88,22 +93,18 @@ export default function FundGlManagement({
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getFundGlsAction(page, exportParams);
+    const result: any = await getFundGlsAction(page, exportParams);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load fund GL transfers.");
-        return;
-      }
-
-      setFundGls(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load fund GL transfers:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load fund GL transfers.");
       setPageLoading(false);
+      return;
     }
+
+    setFundGls(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   useEffect(() => {
@@ -137,14 +138,20 @@ export default function FundGlManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Fund GL</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Fund GL
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
-            GL to GL transfers — maker, reviewer and approver each sign off before it posts
+            GL to GL transfers — maker, reviewer and approver each sign off
+            before it posts
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportDropdown baseEndpoint="/admin/fund-gls" params={exportParams} />
+          <ExportDropdown
+            baseEndpoint="/admin/fund-gls"
+            params={exportParams}
+          />
 
           <button
             type="button"
@@ -261,9 +268,14 @@ export default function FundGlManagement({
 
             <tbody className="divide-y divide-slate-100">
               {fundGls.map((fundGl) => (
-                <tr key={fundGl.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={fundGl.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 py-5">
-                    <p className="font-bold text-sm text-slate-900">{fundGl.reference}</p>
+                    <p className="font-bold text-sm text-slate-900">
+                      {fundGl.reference}
+                    </p>
                     {fundGl.transaction_reference && (
                       <p className="mt-0.5 text-xs font-medium text-slate-400">
                         {fundGl.transaction_reference}
@@ -272,13 +284,17 @@ export default function FundGlManagement({
                   </td>
 
                   <td className="px-5 text-sm text-slate-700">
-                    <p className="font-semibold text-slate-900">{glLabel(fundGl.source)}</p>
+                    <p className="font-semibold text-slate-900">
+                      {glLabel(fundGl.source)}
+                    </p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500">
                       {glCode(fundGl.source)}
                     </p>
                   </td>
                   <td className="px-5 text-sm text-slate-700">
-                    <p className="font-semibold text-slate-900">{glLabel(fundGl.destination)}</p>
+                    <p className="font-semibold text-slate-900">
+                      {glLabel(fundGl.destination)}
+                    </p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500">
                       {glCode(fundGl.destination)}
                     </p>
@@ -300,7 +316,9 @@ export default function FundGlManagement({
                     <ActionMenu
                       isOpen={actionMenuId === fundGl.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === fundGl.id ? null : fundGl.id)
+                        setActionMenuId(
+                          actionMenuId === fundGl.id ? null : fundGl.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                     >
@@ -366,7 +384,7 @@ export default function FundGlManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -387,12 +405,18 @@ export default function FundGlManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

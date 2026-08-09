@@ -1,5 +1,6 @@
 "use server";
 
+import { SESSION_LOCK_COOKIE_NAME } from "@/guard/session-lock-guard";
 import { cookies } from "next/headers";
 
 const baseURL = process.env.API_BASE_URL;
@@ -19,7 +20,6 @@ function withMethodOverride(formData: FormData, method: string) {
   }
   return formData;
 }
-
 
 const SESSION_MAX_AGE_SECONDS = 45 * 60;
 
@@ -46,15 +46,11 @@ async function saveToken(token: string) {
       sameSite: "lax",
       path: "/",
       maxAge: SESSION_MAX_AGE_SECONDS,
-    }
+    },
   );
 }
 
-async function request({
-  endpoint,
-  method = "GET",
-  body,
-}: RequestConfig) {
+async function request({ endpoint, method = "GET", body }: RequestConfig) {
   const response = await fetch(`${baseURL}${endpoint}`, {
     method,
     headers: {
@@ -64,7 +60,32 @@ async function request({
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  return response.json();
+  return parseApiResponse(response, endpoint);
+}
+
+// Every server action's catch block was returning the same generic "A network error
+// occurred" message whenever this threw — which happened whenever the backend returned
+// something that wasn't valid JSON (a raw PHP fatal error page, a crashed process, a
+// proxy/500 HTML page), silently hiding the real backend error. This logs the actual
+// status + response body server-side (visible in the `next dev`/server terminal) and
+// returns it in the response instead of throwing, so callers see what actually happened.
+async function parseApiResponse(response: Response, endpoint: string) {
+  const text = await response.text();
+
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    console.error(
+      `[api-client] Non-JSON response from ${endpoint} (status ${response.status}):\n${text.slice(0, 2000)}`,
+    );
+
+    return {
+      status: "failed",
+      responseCode: String(response.status),
+      message: `Backend returned a non-JSON response (HTTP ${response.status}). See server logs for the full body.`,
+      raw: text.slice(0, 500),
+    };
+  }
 }
 
 export async function publicApiClient(config: RequestConfig) {
@@ -95,12 +116,11 @@ export async function authApiClient(config: RequestConfig) {
     body: isFormData
       ? withMethodOverride(config.body as FormData, method)
       : config.body
-      ? JSON.stringify(config.body)
-      : undefined,
+        ? JSON.stringify(config.body)
+        : undefined,
   });
 
-  const text = await response.text();
-  const result = text ? JSON.parse(text) : {};
+  const result = await parseApiResponse(response, config.endpoint);
 
   // The backend rejected the token (missing/expired/revoked) — kill the
   // local session immediately so the app can't keep acting as if the user
@@ -112,11 +132,13 @@ export async function authApiClient(config: RequestConfig) {
   return result;
 }
 
-
 async function clearToken() {
   const cookieStore = await cookies();
   cookieStore.delete("banq_token");
   cookieStore.delete("banq_token_expires_at");
+  // Otherwise a stale lock flag from this session could rewrite the very next login
+  // (a different user, on a shared machine) straight to the session-locked screen.
+  cookieStore.delete(SESSION_LOCK_COOKIE_NAME);
 }
 
 export async function saveOnboardingStatus(completed: boolean) {
@@ -131,7 +153,5 @@ export async function saveOnboardingStatus(completed: boolean) {
     // maxAge: 60 * 60 * 24,
   });
 }
-
-
 
 export { saveToken, clearToken };

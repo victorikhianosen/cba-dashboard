@@ -24,25 +24,38 @@ interface TellerActionFormProps {
   onSuccess: () => void;
 }
 
-const inputClassName = "h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]";
+const inputClassName =
+  "h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]";
 
-export default function TellerActionForm({ action, session, myTeller, onCancel, onSuccess }: TellerActionFormProps) {
+export default function TellerActionForm({
+  action,
+  session,
+  myTeller,
+  onCancel,
+  onSuccess,
+}: TellerActionFormProps) {
   const meta = ACTION_META[action];
   const Icon = meta.icon;
 
   const [submitting, setSubmitting] = useState(false);
   const [accountNumber, setAccountNumber] = useState("");
-  const [resolvedAccount, setResolvedAccount] = useState<ResolvedAccount | null>(null);
+  const [resolvedAccount, setResolvedAccount] =
+    useState<ResolvedAccount | null>(null);
   const [amount, setAmount] = useState("");
   const [narration, setNarration] = useState("");
 
   const tellerCurrencyCode: string | null = myTeller.currency_code ?? null;
   const currencyMismatch = Boolean(
-    resolvedAccount?.currencyCode && tellerCurrencyCode && resolvedAccount.currencyCode !== tellerCurrencyCode
+    resolvedAccount?.currencyCode &&
+    tellerCurrencyCode &&
+    resolvedAccount.currencyCode !== tellerCurrencyCode,
   );
 
   const exceedsBalance = Boolean(
-    action === "withdraw" && resolvedAccount && amount && Number(amount) > resolvedAccount.balance
+    action === "withdraw" &&
+    resolvedAccount &&
+    amount &&
+    Number(amount) > resolvedAccount.balance,
   );
 
   const isFormValid = Boolean(
@@ -50,7 +63,7 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
     Number(amount) > 0 &&
     (!meta.needsAccount || (accountNumber && resolvedAccount)) &&
     !currencyMismatch &&
-    !exceedsBalance
+    !exceedsBalance,
   );
 
   async function handleSubmit() {
@@ -70,59 +83,93 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
     }
 
     if (currencyMismatch) {
-      toast.error(`This teller operates in ${tellerCurrencyCode}, but the account is in ${resolvedAccount?.currencyCode}. Currencies must match.`);
+      toast.error(
+        `This teller operates in ${tellerCurrencyCode}, but the account is in ${resolvedAccount?.currencyCode}. Currencies must match.`,
+      );
       return;
     }
 
-    if (action === "withdraw" && resolvedAccount && Number(amount) > resolvedAccount.balance) {
+    if (
+      action === "withdraw" &&
+      resolvedAccount &&
+      Number(amount) > resolvedAccount.balance
+    ) {
       toast.error("Withdrawal amount exceeds the account's available balance.");
       return;
     }
 
     setSubmitting(true);
-    try {
-      let result: any;
+    let result: any;
 
-      if (action === "buy") {
-        result = await buyTellerCashAction(session.id, "vault", myTeller.vault_id, amount, narration || undefined);
-      } else if (action === "sell") {
-        result = await sellTellerCashAction(session.id, "vault", myTeller.vault_id, amount, narration || undefined);
-      } else if (action === "deposit") {
-        result = await depositForCustomerAction(session.id, accountNumber, amount, narration || undefined);
-      } else {
-        result = await requestWithdrawalAction(session.id, accountNumber, amount, narration || undefined);
-      }
-
-      if (result?.status !== "success") {
-        handleApiError(result, "That action failed.");
-        return;
-      }
-
-      toast.success(meta.successMessage);
-      setAccountNumber("");
-      setResolvedAccount(null);
-      setAmount("");
-      setNarration("");
-      onSuccess();
-    } catch (error) {
-      console.error("Teller action failed:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+    if (action === "buy") {
+      result = await buyTellerCashAction(
+        session.id,
+        "vault",
+        myTeller.vault_id,
+        amount,
+        narration || undefined,
+      );
+    } else if (action === "sell") {
+      result = await sellTellerCashAction(
+        session.id,
+        "vault",
+        myTeller.vault_id,
+        amount,
+        narration || undefined,
+      );
+    } else if (action === "deposit") {
+      result = await depositForCustomerAction(
+        session.id,
+        accountNumber,
+        amount,
+        narration || undefined,
+      );
+    } else {
+      result = await requestWithdrawalAction(
+        session.id,
+        accountNumber,
+        amount,
+        narration || undefined,
+      );
     }
+
+    if (result?.status !== "success") {
+      handleApiError(result, "That action failed.");
+      setSubmitting(false);
+      return;
+    }
+
+    toast.success(meta.successMessage);
+    setAccountNumber("");
+    setResolvedAccount(null);
+    setAmount("");
+    setNarration("");
+    onSuccess();
+
+    setSubmitting(false);
   }
 
-  const toneButtonClass = meta.tone === "emerald" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700";
-  const toneIconClass = meta.tone === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
+  const toneButtonClass =
+    meta.tone === "emerald"
+      ? "bg-emerald-600 hover:bg-emerald-700"
+      : "bg-red-600 hover:bg-red-700";
+  const toneIconClass =
+    meta.tone === "emerald"
+      ? "bg-emerald-50 text-emerald-700"
+      : "bg-red-50 text-red-700";
 
   return (
     <div>
       <div className="flex items-center gap-4">
-        <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${toneIconClass}`}>
+        <div
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${toneIconClass}`}
+        >
           <Icon size={26} />
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">{meta.title}</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            {meta.title}
+          </h1>
           <p className="mt-1 text-sm text-slate-600">{meta.helper}</p>
         </div>
       </div>
@@ -138,18 +185,33 @@ export default function TellerActionForm({ action, session, myTeller, onCancel, 
           />
         )}
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-slate-800">Amount</label>
-          <AmountInput value={amount} onChange={setAmount} className={inputClassName} autoFocus={!meta.needsAccount} />
+          <label className="mb-1.5 block text-sm font-bold text-slate-800">
+            Amount
+          </label>
+          <AmountInput
+            value={amount}
+            onChange={setAmount}
+            className={inputClassName}
+            autoFocus={!meta.needsAccount}
+          />
           {action === "withdraw" && resolvedAccount && (
             <p className="mt-1 text-xs text-slate-500">
               Cannot exceed available balance of{" "}
-              {resolvedAccount.balance.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              {resolvedAccount.currencyCode ? ` ${resolvedAccount.currencyCode}` : ""}.
+              {resolvedAccount.balance.toLocaleString("en-NG", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+              {resolvedAccount.currencyCode
+                ? ` ${resolvedAccount.currencyCode}`
+                : ""}
+              .
             </p>
           )}
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-bold text-slate-800">Narration (optional)</label>
+          <label className="mb-1.5 block text-sm font-bold text-slate-800">
+            Narration (optional)
+          </label>
           <input
             type="text"
             placeholder="Narration (optional)"

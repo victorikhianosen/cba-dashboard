@@ -24,7 +24,10 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 // Rough human duration between two timestamps, e.g. "12m", "1h 03m".
-function duration(start: string | null | undefined, end: string | null | undefined) {
+function duration(
+  start: string | null | undefined,
+  end: string | null | undefined,
+) {
   if (!start || !end) return "—";
   const ms = new Date(end).getTime() - new Date(start).getTime();
   if (!Number.isFinite(ms) || ms < 0) return "—";
@@ -33,7 +36,9 @@ function duration(start: string | null | undefined, end: string | null | undefin
   const hours = Math.floor(minutes / 60);
   const remMinutes = minutes % 60;
 
-  return hours > 0 ? `${hours}h ${String(remMinutes).padStart(2, "0")}m` : `${minutes}m`;
+  return hours > 0
+    ? `${hours}h ${String(remMinutes).padStart(2, "0")}m`
+    : `${minutes}m`;
 }
 
 export default function UserJourneyManagement({
@@ -56,22 +61,18 @@ export default function UserJourneyManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getUserJourneySessionsAction(page, searchTerm);
+    const result: any = await getUserJourneySessionsAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load user journeys.");
-        return;
-      }
-
-      setSessions(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load user journeys:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load user journeys.");
       setPageLoading(false);
+      return;
     }
+
+    setSessions(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -105,7 +106,9 @@ export default function UserJourneyManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">User Journeys</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            User Journeys
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             Every login session and the complete timeline of activity within it
           </p>
@@ -115,7 +118,10 @@ export default function UserJourneyManagement({
       {/* SEARCH */}
       <section className="mt-7 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+          />
           <input
             type="search"
             value={search}
@@ -174,14 +180,19 @@ export default function UserJourneyManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {duration(session.started_at, session.ended_at ?? session.last_activity_at)}
+                    {duration(
+                      session.started_at,
+                      session.ended_at ?? session.last_activity_at,
+                    )}
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
                     {session.event_count ?? "—"}
                   </td>
 
-                  <td className="px-5 text-sm font-medium text-slate-800">{session.ip ?? "—"}</td>
+                  <td className="px-5 text-sm font-medium text-slate-800">
+                    {session.ip ?? "—"}
+                  </td>
 
                   <td className="px-5">
                     <SessionStatusBadge session={session} />
@@ -242,7 +253,7 @@ export default function UserJourneyManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button

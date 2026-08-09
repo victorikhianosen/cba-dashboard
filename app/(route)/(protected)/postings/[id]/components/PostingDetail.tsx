@@ -11,7 +11,11 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { approvePostingAction, getPostingAction, rejectPostingAction } from "@/actions/posting.action";
+import {
+  approvePostingAction,
+  getPostingAction,
+  rejectPostingAction,
+} from "@/actions/posting.action";
 import TotpConfirmModal from "@/components/TotpConfirmModal";
 import ReasonModal from "@/components/ReasonModal";
 import { handleApiError } from "@/lib/errors";
@@ -26,7 +30,10 @@ interface PostingDetailProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -43,8 +50,10 @@ function partyKind(type: string) {
 
 function partyLabel(party: Record<string, any> | null | undefined) {
   if (!party) return "—";
-  if (party.type === "account") return `${party.account_number} — ${party.account_name}`;
-  if (party.type === "general_ledger") return `${party.gl_code} — ${toDisplayLabel(party.name)}`;
+  if (party.type === "account")
+    return `${party.account_number} — ${party.account_name}`;
+  if (party.type === "general_ledger")
+    return `${party.gl_code} — ${toDisplayLabel(party.name)}`;
   return "—";
 }
 
@@ -66,10 +75,14 @@ function partyBalance(party: Record<string, any> | null | undefined) {
 
 function userName(user: Record<string, any> | null | undefined) {
   if (!user) return undefined;
-  return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username;
+  return (
+    `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username
+  );
 }
 
-export default function PostingDetail({ posting: initialPosting }: PostingDetailProps) {
+export default function PostingDetail({
+  posting: initialPosting,
+}: PostingDetailProps) {
   const router = useRouter();
   const { currentUser } = usePermissions();
   const [posting, setPosting] = useState<Posting>(initialPosting);
@@ -77,13 +90,18 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
 
-  const isOwnPosting = !!currentUser?.id && String(currentUser.id) === String(posting.created_by);
+  const isOwnPosting =
+    !!currentUser?.id && String(currentUser.id) === String(posting.created_by);
   const isPending = posting.status === "pending";
 
   // Returns whether the action succeeded, so callers can decide whether to close their
   // modal — a failed attempt (e.g. wrong TOTP code) should leave the modal open instead
   // of silently closing and only showing a toast.
-  async function runAction(key: string, action: () => Promise<any>, successMessage: string): Promise<boolean> {
+  async function runAction(
+    key: string,
+    action: () => Promise<any>,
+    successMessage: string,
+  ): Promise<boolean> {
     setActionPending(key);
     try {
       const result: any = await action();
@@ -102,10 +120,6 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
 
       router.refresh();
       return true;
-    } catch (error) {
-      console.error("Posting action failed:", error);
-      toast.error("A network error occurred. Please try again.");
-      return false;
     } finally {
       setActionPending(null);
     }
@@ -115,13 +129,17 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
     const succeeded = await runAction(
       "approve",
       () => approvePostingAction(posting.id, totpCode),
-      "Posting approved and posted."
+      "Posting approved and posted.",
     );
     if (succeeded) setApproveModalOpen(false);
   }
 
   async function handleReject(reason: string) {
-    const succeeded = await runAction("reject", () => rejectPostingAction(posting.id, reason), "Posting rejected.");
+    const succeeded = await runAction(
+      "reject",
+      () => rejectPostingAction(posting.id, reason),
+      "Posting rejected.",
+    );
     if (succeeded) setRejectModalOpen(false);
   }
 
@@ -148,7 +166,8 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
               </h1>
               <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                 <span className="rounded-full bg-slate-100 px-2.5 py-1">
-                  {partyKind(posting.source_type)} → {partyKind(posting.destination_type)}
+                  {partyKind(posting.source_type)} →{" "}
+                  {partyKind(posting.destination_type)}
                 </span>
                 {posting.transaction_type && (
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 capitalize">
@@ -210,10 +229,16 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Source ({partyKind(posting.source_type)})
             </p>
-            <p className="mt-1 text-sm font-bold text-slate-900">{partyLabel(posting.source)}</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {partyLabel(posting.source)}
+            </p>
             {partyBalance(posting.source)?.map(({ label, value }) => (
-              <p key={label} className="mt-1 text-xs font-semibold text-slate-500">
-                {label}: <span className="text-slate-800">₦{formatCurrency(value)}</span>
+              <p
+                key={label}
+                className="mt-1 text-xs font-semibold text-slate-500"
+              >
+                {label}:{" "}
+                <span className="text-slate-800">₦{formatCurrency(value)}</span>
               </p>
             ))}
             {posting.source?.customer_id && (
@@ -233,8 +258,12 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
               {partyLabel(posting.destination)}
             </p>
             {partyBalance(posting.destination)?.map(({ label, value }) => (
-              <p key={label} className="mt-1 text-xs font-semibold text-slate-500">
-                {label}: <span className="text-slate-800">₦{formatCurrency(value)}</span>
+              <p
+                key={label}
+                className="mt-1 text-xs font-semibold text-slate-500"
+              >
+                {label}:{" "}
+                <span className="text-slate-800">₦{formatCurrency(value)}</span>
               </p>
             ))}
             {posting.destination?.customer_id && (
@@ -253,18 +282,26 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
       <Section title="Amounts">
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
           <Field label="Amount" value={`₦${formatCurrency(posting.amount)}`} />
-          <Field label="Total" value={`₦${formatCurrency(posting.total_amount)}`} />
+          <Field
+            label="Total"
+            value={`₦${formatCurrency(posting.total_amount)}`}
+          />
         </div>
       </Section>
 
       {/* DETAILS */}
       <Section title="Details">
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Transaction Reference" value={posting.transaction_reference} />
+          <Field
+            label="Transaction Reference"
+            value={posting.transaction_reference}
+          />
         </div>
         {posting.remarks && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Remarks</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Remarks
+            </p>
             <p className="mt-1 text-sm text-slate-800">{posting.remarks}</p>
           </div>
         )}
@@ -274,20 +311,34 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
       <Section title="Record History">
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Created By" value={userName(posting.creator)} />
-          <Field label="Created Date" value={formatDateTime(posting.created_at)} />
+          <Field
+            label="Created Date"
+            value={formatDateTime(posting.created_at)}
+          />
           <Field label="Reviewed By" value={userName(posting.reviewer)} />
-          <Field label="Reviewed Date" value={formatDateTime(posting.reviewed_at)} />
+          <Field
+            label="Reviewed Date"
+            value={formatDateTime(posting.reviewed_at)}
+          />
           <Field label="Approved By" value={userName(posting.approver)} />
-          <Field label="Approved Date" value={formatDateTime(posting.approved_at)} />
+          <Field
+            label="Approved Date"
+            value={formatDateTime(posting.approved_at)}
+          />
           <Field label="Rejected By" value={userName(posting.rejecter)} />
-          <Field label="Rejected Date" value={formatDateTime(posting.rejected_at)} />
+          <Field
+            label="Rejected Date"
+            value={formatDateTime(posting.rejected_at)}
+          />
         </div>
         {posting.rejection_reason && (
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Rejection Reason
             </p>
-            <p className="mt-1 text-sm text-slate-800">{posting.rejection_reason}</p>
+            <p className="mt-1 text-sm text-slate-800">
+              {posting.rejection_reason}
+            </p>
           </div>
         )}
       </Section>
@@ -296,9 +347,18 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
       {posting.financial_transaction?.id && (
         <Section title="Financial Transaction">
           <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-3">
-            <Field label="Reference" value={posting.financial_transaction.transaction_reference} />
-            <Field label="Status" value={toDisplayLabel(posting.financial_transaction.status)} />
-            <Field label="Completed At" value={formatDateTime(posting.financial_transaction.completed_at)} />
+            <Field
+              label="Reference"
+              value={posting.financial_transaction.transaction_reference}
+            />
+            <Field
+              label="Status"
+              value={toDisplayLabel(posting.financial_transaction.status)}
+            />
+            <Field
+              label="Completed At"
+              value={formatDateTime(posting.financial_transaction.completed_at)}
+            />
           </div>
 
           {Array.isArray(posting.financial_transaction.journal_entries) &&
@@ -317,29 +377,31 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {posting.financial_transaction.journal_entries.map((entry: Record<string, any>) => (
-                        <tr key={entry.id}>
-                          <td className="px-3 py-2 text-sm text-slate-800">
-                            {entry.general_ledger
-                              ? `${entry.general_ledger.gl_code} — ${toDisplayLabel(entry.general_ledger.name)}`
-                              : (entry.general_ledger_id ?? "—")}
-                          </td>
-                          <td className="px-3 py-2 text-sm">
-                            <span
-                              className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${
-                                entry.entry_type === "credit"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {entry.entry_type}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 text-sm font-bold text-slate-900">
-                            ₦{formatCurrency(entry.amount)}
-                          </td>
-                        </tr>
-                      ))}
+                      {posting.financial_transaction.journal_entries.map(
+                        (entry: Record<string, any>) => (
+                          <tr key={entry.id}>
+                            <td className="px-3 py-2 text-sm text-slate-800">
+                              {entry.general_ledger
+                                ? `${entry.general_ledger.gl_code} — ${toDisplayLabel(entry.general_ledger.name)}`
+                                : (entry.general_ledger_id ?? "—")}
+                            </td>
+                            <td className="px-3 py-2 text-sm">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-xs font-bold capitalize ${
+                                  entry.entry_type === "credit"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {entry.entry_type}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-sm font-bold text-slate-900">
+                              ₦{formatCurrency(entry.amount)}
+                            </td>
+                          </tr>
+                        ),
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -348,16 +410,18 @@ export default function PostingDetail({ posting: initialPosting }: PostingDetail
         </Section>
       )}
 
-      {!posting.financial_transaction?.id && !isPending && posting.status === "approved" && (
-        <Section title="Financial Transaction">
-          <div className="py-6 text-center">
-            <Receipt size={24} className="mx-auto text-slate-300" />
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              No financial transaction recorded.
-            </p>
-          </div>
-        </Section>
-      )}
+      {!posting.financial_transaction?.id &&
+        !isPending &&
+        posting.status === "approved" && (
+          <Section title="Financial Transaction">
+            <div className="py-6 text-center">
+              <Receipt size={24} className="mx-auto text-slate-300" />
+              <p className="mt-2 text-sm font-medium text-slate-500">
+                No financial transaction recorded.
+              </p>
+            </div>
+          </Section>
+        )}
     </>
   );
 }
@@ -374,7 +438,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 text-sm font-medium text-slate-800">{value || "—"}</p>
     </div>
   );

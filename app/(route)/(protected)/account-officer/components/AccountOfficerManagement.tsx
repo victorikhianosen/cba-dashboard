@@ -51,9 +51,13 @@ export default function AccountOfficerManagement({
   const [search, setSearch] = useState("");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedOfficer, setSelectedOfficer] = useState<AccountOfficer | null>(null);
+  const [selectedOfficer, setSelectedOfficer] = useState<AccountOfficer | null>(
+    null,
+  );
 
-  const [officerToDelete, setOfficerToDelete] = useState<AccountOfficer | null>(null);
+  const [officerToDelete, setOfficerToDelete] = useState<AccountOfficer | null>(
+    null,
+  );
   const [actionMenuId, setActionMenuId] = useState<any>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -64,7 +68,7 @@ export default function AccountOfficerManagement({
   const lastPage = meta?.last_page ?? 1;
 
   const branchNameById = new Map<string, string>(
-    branches.map((branch) => [String(branch.id), branch.name])
+    branches.map((branch) => [String(branch.id), branch.name]),
   );
 
   // Skips the debounce effect on mount, since officers are already
@@ -73,22 +77,18 @@ export default function AccountOfficerManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getAccountOfficersAction(page, searchTerm);
+    const result: any = await getAccountOfficersAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load account officers.");
-        return;
-      }
-
-      setOfficers(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load account officers:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load account officers.");
       setPageLoading(false);
+      return;
     }
+
+    setOfficers(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -135,77 +135,73 @@ export default function AccountOfficerManagement({
 
   async function handleFormSubmit(formData: AccountOfficerFormData) {
     setSubmitting(true);
-    try {
-      const payload = {
-        branch_id: formData.branch_id,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        email: formData.email,
-        phone: formData.phone,
-        gender: formData.gender,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        country: formData.country,
-      };
+    const payload = {
+      branch_id: formData.branch_id,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      phone: formData.phone,
+      gender: formData.gender,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      country: formData.country,
+    };
 
-      if (selectedOfficer) {
-        const result: any = await updateAccountOfficerAction(selectedOfficer.id, payload);
+    if (selectedOfficer) {
+      const result: any = await updateAccountOfficerAction(
+        selectedOfficer.id,
+        payload,
+      );
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update account officer.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Account officer updated successfully.");
-      } else {
-        const result: any = await createAccountOfficerAction({
-          ...payload,
-          user_id: formData.user_id || null,
-        });
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create account officer.");
-          return;
-        }
-
-        await fetchPage(1);
-
-        toast.success(result.message || "Account officer created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update account officer.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedOfficer(null);
-    } catch (error) {
-      console.error("Failed to save account officer:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Account officer updated successfully.");
+    } else {
+      const result: any = await createAccountOfficerAction({
+        ...payload,
+        user_id: formData.user_id || null,
+      });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create account officer.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchPage(1);
+
+      toast.success(result.message || "Account officer created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedOfficer(null);
+
+    setSubmitting(false);
   }
 
   async function handleDelete() {
     if (!officerToDelete) return;
     setDeleting(true);
-    try {
-      const result: any = await deleteAccountOfficerAction(officerToDelete.id);
+    const result: any = await deleteAccountOfficerAction(officerToDelete.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to delete account officer.");
-        return;
-      }
-
-      setOfficerToDelete(null);
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Account officer deleted successfully.");
-    } catch (error) {
-      console.error("Failed to delete account officer:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to delete account officer.");
       setDeleting(false);
+      return;
     }
+
+    setOfficerToDelete(null);
+    await fetchPage(currentPage);
+
+    toast.success(result.message || "Account officer deleted successfully.");
+
+    setDeleting(false);
   }
 
   return (
@@ -329,7 +325,7 @@ export default function AccountOfficerManagement({
                       isOpen={actionMenuId === officer.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === officer.id ? null : officer.id
+                          actionMenuId === officer.id ? null : officer.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -399,7 +395,7 @@ export default function AccountOfficerManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -470,12 +466,18 @@ export default function AccountOfficerManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

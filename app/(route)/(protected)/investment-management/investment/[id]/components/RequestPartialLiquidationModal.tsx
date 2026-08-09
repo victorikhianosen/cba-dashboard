@@ -20,7 +20,10 @@ interface RequestPartialLiquidationModalProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 // Withdraws part (not all) of current_principal from an active investment early. Unlike
@@ -57,7 +60,8 @@ export default function RequestPartialLiquidationModal({
 
   const principal = Number(currentPrincipal ?? 0);
   const numericAmount = Number(amount || 0);
-  const isValidAmount = amount !== "" && numericAmount > 0 && numericAmount < principal;
+  const isValidAmount =
+    amount !== "" && numericAmount > 0 && numericAmount < principal;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -67,20 +71,16 @@ export default function RequestPartialLiquidationModal({
     let cancelled = false;
     const timeout = setTimeout(async () => {
       setPreviewLoading(true);
-      try {
-        const result: any = await previewPartialLiquidationForInvestmentAction(
-          investmentId,
-          isValidAmount ? amount : "0"
-        );
-        if (cancelled) return;
-        if (result?.status === "success") {
-          setPreview(result.data);
-        }
-      } catch (error) {
-        if (!cancelled) console.error("Failed to preview schedule:", error);
-      } finally {
-        if (!cancelled) setPreviewLoading(false);
+      const result: any = await previewPartialLiquidationForInvestmentAction(
+        investmentId,
+        isValidAmount ? amount : "0",
+      );
+      if (cancelled) return;
+      if (result?.status === "success") {
+        setPreview(result.data);
       }
+
+      if (!cancelled) setPreviewLoading(false);
     }, 400);
 
     return () => {
@@ -116,10 +116,13 @@ export default function RequestPartialLiquidationModal({
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Request Partial Liquidation</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Request Partial Liquidation
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              Request an early, partial withdrawal from investment {accountNumber}. A different
-              admin must approve this with a Google Authenticator code before the money moves.
+              Request an early, partial withdrawal from investment{" "}
+              {accountNumber}. A different admin must approve this with a Google
+              Authenticator code before the money moves.
             </p>
           </div>
           <button
@@ -147,20 +150,25 @@ export default function RequestPartialLiquidationModal({
 
           {maxLiquidatable !== null && (
             <p className="text-xs font-semibold text-slate-500">
-              Maximum liquidatable amount: ₦{formatCurrency(maxLiquidatable)} (this investment
-              must retain at least {retentionPercentage}% of its current principal).
+              Maximum liquidatable amount: ₦{formatCurrency(maxLiquidatable)}{" "}
+              (this investment must retain at least {retentionPercentage}% of
+              its current principal).
             </p>
           )}
 
           {amount !== "" && !isValidAmount && (
             <p className="text-sm font-semibold text-red-600">
-              Amount must be greater than 0 and less than the current principal (₦
-              {formatCurrency(principal)}). To withdraw the full amount, use Terminate instead.
+              Amount must be greater than 0 and less than the current principal
+              (₦
+              {formatCurrency(principal)}). To withdraw the full amount, use
+              Terminate instead.
             </p>
           )}
 
           <label className="block">
-            <span className="block text-sm font-bold text-slate-800">Reason</span>
+            <span className="block text-sm font-bold text-slate-800">
+              Reason
+            </span>
             <textarea
               required
               rows={3}
@@ -172,7 +180,9 @@ export default function RequestPartialLiquidationModal({
           </label>
 
           <div>
-            <h3 className="mb-2 text-sm font-bold text-slate-700">Schedule Impact</h3>
+            <h3 className="mb-2 text-sm font-bold text-slate-700">
+              Schedule Impact
+            </h3>
             {previewLoading && !preview ? (
               <p className="py-6 text-center text-sm font-medium text-slate-500">
                 Computing preview...
@@ -211,6 +221,6 @@ export default function RequestPartialLiquidationModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

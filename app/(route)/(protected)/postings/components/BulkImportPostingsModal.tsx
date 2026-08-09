@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
-import { CheckCircle2, Download, Loader2, Upload, X, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  Download,
+  Loader2,
+  Upload,
+  X,
+  XCircle,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { bulkImportPostingsAction } from "@/actions/posting.action";
@@ -22,7 +29,11 @@ type ImportResult = {
 // has to approve each one. The template's "Postings" sheet is what gets parsed; its "GL
 // Reference" sheet is just a lookup aid, so only the first sheet is read for the preview
 // here. See PostingService::bulkImport() on the API.
-export default function BulkImportPostingsModal({ isOpen, onClose, onImported }: BulkImportPostingsModalProps) {
+export default function BulkImportPostingsModal({
+  isOpen,
+  onClose,
+  onImported,
+}: BulkImportPostingsModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ImportResult>(null);
@@ -44,26 +55,25 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
     if (!selected) return;
 
     setParsing(true);
-    try {
-      const buffer = await selected.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: "array" });
-      const sheetName = workbook.SheetNames.includes("Postings") ? "Postings" : workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: "" });
+    const buffer = await selected.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheetName = workbook.SheetNames.includes("Postings")
+      ? "Postings"
+      : workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
+      defval: "",
+    });
 
-      if (rows.length === 0) {
-        setPreviewError("No rows found in the Postings sheet.");
-        return;
-      }
-
-      setPreviewColumns(Object.keys(rows[0]));
-      setPreviewRows(rows);
-    } catch (error) {
-      console.error("Failed to parse spreadsheet for preview:", error);
-      setPreviewError("Could not read this file for preview. It can still be uploaded as-is.");
-    } finally {
-      setParsing(false);
+    if (rows.length === 0) {
+      setPreviewError("No rows found in the Postings sheet.");
+      return;
     }
+
+    setPreviewColumns(Object.keys(rows[0]));
+    setPreviewRows(rows);
+
+    setParsing(false);
   }
 
   function handleClose() {
@@ -83,29 +93,24 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
     }
 
     setSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
+    const formData = new FormData();
+    formData.append("file", file);
 
-      const response: any = await bulkImportPostingsAction(formData);
+    const response: any = await bulkImportPostingsAction(formData);
 
-      if (response?.status !== "success") {
-        toast.error(response?.message || "Bulk upload failed.");
-        return;
-      }
-
-      setResult(response.data);
-      toast.success(response.message || "Bulk upload complete.");
-
-      if ((response.data?.created ?? 0) > 0) {
-        onImported();
-      }
-    } catch (error) {
-      console.error("Failed to bulk-import postings:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+    if (response?.status !== "success") {
+      toast.error(response?.message || "Bulk upload failed.");
+      return;
     }
+
+    setResult(response.data);
+    toast.success(response.message || "Bulk upload complete.");
+
+    if ((response.data?.created ?? 0) > 0) {
+      onImported();
+    }
+
+    setSubmitting(false);
   }
 
   return (
@@ -113,10 +118,13 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
       <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 p-6">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Bulk Upload Postings</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              Bulk Upload Postings
+            </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Upload a spreadsheet to create multiple pending postings at once. Each still needs a
-              second admin to approve it, same as a manually created posting.
+              Upload a spreadsheet to create multiple pending postings at once.
+              Each still needs a second admin to approve it, same as a manually
+              created posting.
             </p>
           </div>
           <button
@@ -138,7 +146,9 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
           </a>
 
           <label className="block">
-            <span className="block text-sm font-bold text-slate-800">Upload File</span>
+            <span className="block text-sm font-bold text-slate-800">
+              Upload File
+            </span>
             <div className="mt-2 flex items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white p-4">
               <Upload size={18} className="shrink-0 text-slate-400" />
               <input
@@ -149,8 +159,9 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
               />
             </div>
             <p className="mt-1.5 text-xs text-slate-500">
-              Fill in the Postings sheet of the downloaded template (use the GL Reference sheet to
-              look up GL codes), keep the column headers unchanged, then upload it here.
+              Fill in the Postings sheet of the downloaded template (use the GL
+              Reference sheet to look up GL codes), keep the column headers
+              unchanged, then upload it here.
             </p>
           </label>
 
@@ -170,16 +181,21 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
           {previewRows.length > 0 && (
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-800">Preview</span>
+                <span className="text-sm font-bold text-slate-800">
+                  Preview
+                </span>
                 <span className="text-xs font-medium text-slate-500">
-                  {previewRows.length} row{previewRows.length === 1 ? "" : "s"} found — review before uploading
+                  {previewRows.length} row{previewRows.length === 1 ? "" : "s"}{" "}
+                  found — review before uploading
                 </span>
               </div>
               <div className="max-h-72 overflow-auto rounded-xl border border-slate-200">
                 <table className="min-w-full divide-y divide-slate-200 text-xs">
                   <thead className="sticky top-0 bg-slate-50">
                     <tr>
-                      <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-600">#</th>
+                      <th className="whitespace-nowrap px-3 py-2 text-left font-semibold text-slate-600">
+                        #
+                      </th>
                       {previewColumns.map((column) => (
                         <th
                           key={column}
@@ -193,9 +209,14 @@ export default function BulkImportPostingsModal({ isOpen, onClose, onImported }:
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {previewRows.map((row, index) => (
                       <tr key={index} className="hover:bg-slate-50">
-                        <td className="whitespace-nowrap px-3 py-2 text-slate-400">{index + 1}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-400">
+                          {index + 1}
+                        </td>
                         {previewColumns.map((column) => (
-                          <td key={column} className="whitespace-nowrap px-3 py-2 text-slate-700">
+                          <td
+                            key={column}
+                            className="whitespace-nowrap px-3 py-2 text-slate-700"
+                          >
                             {String(row[column] ?? "")}
                           </td>
                         ))}

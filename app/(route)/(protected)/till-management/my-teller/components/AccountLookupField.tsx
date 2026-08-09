@@ -40,7 +40,9 @@ export default function AccountLookupField({
   const [checking, setChecking] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const currencyMismatch = Boolean(
-    resolvedAccount?.currencyCode && tellerCurrencyCode && resolvedAccount.currencyCode !== tellerCurrencyCode
+    resolvedAccount?.currencyCode &&
+    tellerCurrencyCode &&
+    resolvedAccount.currencyCode !== tellerCurrencyCode,
   );
 
   async function handleBlur() {
@@ -51,33 +53,32 @@ export default function AccountLookupField({
     }
 
     setChecking(true);
-    try {
-      const result: any = await lookupAccountByNumberAction(value.trim());
-      if (result?.status === "success" && result.data) {
-        onResolved({
-          id: result.data.id,
-          name: result.data.account_name || "",
-          balance: Number(result.data.available_balance ?? result.data.account_balance ?? 0),
-          accountNumber: result.data.account_number || "",
-          productName: result.data.account_product?.name || null,
-          currencyCode: result.data.currency_code || null,
-        });
-        setNotFound(false);
-      } else {
-        onResolved(null);
-        setNotFound(true);
-      }
-    } catch {
+    const result: any = await lookupAccountByNumberAction(value.trim());
+    if (result?.status === "success" && result.data) {
+      onResolved({
+        id: result.data.id,
+        name: result.data.account_name || "",
+        balance: Number(
+          result.data.available_balance ?? result.data.account_balance ?? 0,
+        ),
+        accountNumber: result.data.account_number || "",
+        productName: result.data.account_product?.name || null,
+        currencyCode: result.data.currency_code || null,
+      });
+      setNotFound(false);
+    } else {
       onResolved(null);
       setNotFound(true);
-    } finally {
-      setChecking(false);
     }
+
+    setChecking(false);
   }
 
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-bold text-slate-800">Account Number</label>
+      <label className="mb-1.5 block text-sm font-bold text-slate-800">
+        Account Number
+      </label>
       <input
         type="text"
         inputMode="numeric"
@@ -93,7 +94,9 @@ export default function AccountLookupField({
         autoFocus
         className="h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]"
       />
-      {checking && <p className="mt-1 text-xs text-slate-500">Looking up account...</p>}
+      {checking && (
+        <p className="mt-1 text-xs text-slate-500">Looking up account...</p>
+      )}
       {!checking && resolvedAccount && (
         <Link
           href={`/customer-management/account/${resolvedAccount.id}`}
@@ -113,12 +116,21 @@ export default function AccountLookupField({
               <UserRound size={20} />
             </div>
             <div className="min-w-0">
-              <p className={`truncate text-base font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}>
+              <p
+                className={`truncate text-base font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}
+              >
                 {resolvedAccount.name}
               </p>
-              <p className={`text-sm font-semibold ${currencyMismatch ? "text-red-700" : "text-emerald-700"}`}>
-                {resolvedAccount.balance.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                {resolvedAccount.currencyCode ? ` ${resolvedAccount.currencyCode}` : ""}
+              <p
+                className={`text-sm font-semibold ${currencyMismatch ? "text-red-700" : "text-emerald-700"}`}
+              >
+                {resolvedAccount.balance.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+                {resolvedAccount.currencyCode
+                  ? ` ${resolvedAccount.currencyCode}`
+                  : ""}
               </p>
             </div>
             <ExternalLink
@@ -129,31 +141,45 @@ export default function AccountLookupField({
             />
           </div>
 
-          <div className={`mt-3 grid grid-cols-2 gap-3 border-t pt-3 ${currencyMismatch ? "border-red-200" : "border-emerald-200"}`}>
+          <div
+            className={`mt-3 grid grid-cols-2 gap-3 border-t pt-3 ${currencyMismatch ? "border-red-200" : "border-emerald-200"}`}
+          >
             <div>
-              <p className={`text-[11px] font-semibold uppercase tracking-wide ${currencyMismatch ? "text-red-600" : "text-emerald-600"}`}>
+              <p
+                className={`text-[11px] font-semibold uppercase tracking-wide ${currencyMismatch ? "text-red-600" : "text-emerald-600"}`}
+              >
                 Account Number
               </p>
-              <p className={`mt-0.5 text-sm font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}>
+              <p
+                className={`mt-0.5 text-sm font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}
+              >
                 {resolvedAccount.accountNumber}
               </p>
             </div>
             {resolvedAccount.productName && (
               <div>
-                <p className={`text-[11px] font-semibold uppercase tracking-wide ${currencyMismatch ? "text-red-600" : "text-emerald-600"}`}>
+                <p
+                  className={`text-[11px] font-semibold uppercase tracking-wide ${currencyMismatch ? "text-red-600" : "text-emerald-600"}`}
+                >
                   Account Type
                 </p>
-                <p className={`mt-0.5 text-sm font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}>
+                <p
+                  className={`mt-0.5 text-sm font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}
+                >
                   {humanize(resolvedAccount.productName)}
                 </p>
               </div>
             )}
             {resolvedAccount.currencyCode && (
               <div>
-                <p className={`text-[11px] font-semibold uppercase tracking-wide ${currencyMismatch ? "text-red-600" : "text-emerald-600"}`}>
+                <p
+                  className={`text-[11px] font-semibold uppercase tracking-wide ${currencyMismatch ? "text-red-600" : "text-emerald-600"}`}
+                >
                   Currency
                 </p>
-                <p className={`mt-0.5 text-sm font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}>
+                <p
+                  className={`mt-0.5 text-sm font-bold ${currencyMismatch ? "text-red-900" : "text-emerald-900"}`}
+                >
                   {resolvedAccount.currencyCode}
                 </p>
               </div>
@@ -163,12 +189,15 @@ export default function AccountLookupField({
       )}
       {!checking && currencyMismatch && (
         <p className="mt-1 text-xs font-semibold text-red-600">
-          This teller operates in {tellerCurrencyCode}, but this account is in {resolvedAccount?.currencyCode}. Cash
-          operations require matching currencies.
+          This teller operates in {tellerCurrencyCode}, but this account is in{" "}
+          {resolvedAccount?.currencyCode}. Cash operations require matching
+          currencies.
         </p>
       )}
       {!checking && notFound && (
-        <p className="mt-1 text-xs font-semibold text-red-600">No account found with that number.</p>
+        <p className="mt-1 text-xs font-semibold text-red-600">
+          No account found with that number.
+        </p>
       )}
     </div>
   );

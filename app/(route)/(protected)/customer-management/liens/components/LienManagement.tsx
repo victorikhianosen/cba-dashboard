@@ -35,7 +35,10 @@ interface LienManagementProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -47,17 +50,30 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600 border-slate-200";
+  const style =
+    STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600 border-slate-200";
   return (
-    <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}>
+    <span
+      className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}
+    >
       {status}
     </span>
   );
 }
 
-const STATUS_OPTIONS = ["", "pending", "active", "released", "rejected", "expired"];
+const STATUS_OPTIONS = [
+  "",
+  "pending",
+  "active",
+  "released",
+  "rejected",
+  "expired",
+];
 
-export default function LienManagement({ initialLiens, initialMeta }: LienManagementProps) {
+export default function LienManagement({
+  initialLiens,
+  initialMeta,
+}: LienManagementProps) {
   const router = useRouter();
   const { currentUser, hasPermission } = usePermissions();
   const canApprove = hasPermission("approve_liens");
@@ -72,7 +88,9 @@ export default function LienManagement({ initialLiens, initialMeta }: LienManage
   const [approveTarget, setApproveTarget] = useState<Lien | null>(null);
   const [rejectTarget, setRejectTarget] = useState<Lien | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
   const isFirstRender = useRef(true);
 
@@ -82,26 +100,26 @@ export default function LienManagement({ initialLiens, initialMeta }: LienManage
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getLiensAction(page, { search, status: statusFilter });
+    const result: any = await getLiensAction(page, {
+      search,
+      status: statusFilter,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load liens.");
-        return;
-      }
-
-      setLiens(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load liens:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load liens.");
       setPageLoading(false);
+      return;
     }
+
+    setLiens(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   function goToPage(page: number) {
-    if (page < 1 || page > lastPage || page === currentPage || pageLoading) return;
+    if (page < 1 || page > lastPage || page === currentPage || pageLoading)
+      return;
     fetchPage(page);
   }
 
@@ -121,50 +139,45 @@ export default function LienManagement({ initialLiens, initialMeta }: LienManage
   async function handleApprove(totpCode: string) {
     if (!approveTarget) return;
     setSubmitting(true);
-    try {
-      const result: any = await approveLienAction(approveTarget.id, totpCode);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to approve lien.");
-        return;
-      }
-      toast.success("Lien approved.");
-      setApproveTarget(null);
-      fetchPage(currentPage);
-    } catch (error) {
-      console.error("Failed to approve lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await approveLienAction(approveTarget.id, totpCode);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to approve lien.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Lien approved.");
+    setApproveTarget(null);
+    fetchPage(currentPage);
+
+    setSubmitting(false);
   }
 
   async function handleReject(reason: string) {
     if (!rejectTarget) return;
     setSubmitting(true);
-    try {
-      const result: any = await rejectLienAction(rejectTarget.id, reason);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to reject lien.");
-        return;
-      }
-      toast.success("Lien rejected.");
-      setRejectTarget(null);
-      fetchPage(currentPage);
-    } catch (error) {
-      console.error("Failed to reject lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await rejectLienAction(rejectTarget.id, reason);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to reject lien.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Lien rejected.");
+    setRejectTarget(null);
+    fetchPage(currentPage);
+
+    setSubmitting(false);
   }
 
   return (
     <>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Liens</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Liens
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Every lien ever requested on an account — pending, active, released, rejected or expired.
+            Every lien ever requested on an account — pending, active, released,
+            rejected or expired.
           </p>
         </div>
       </div>
@@ -197,7 +210,10 @@ export default function LienManagement({ initialLiens, initialMeta }: LienManage
       <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-200 p-5 md:flex-row md:flex-wrap md:items-center">
           <div className="relative flex-1 md:min-w-50">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+            />
             <input
               type="search"
               value={search}
@@ -214,65 +230,112 @@ export default function LienManagement({ initialLiens, initialMeta }: LienManage
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option || "all"} value={option}>
-                {option ? option.charAt(0).toUpperCase() + option.slice(1) : "All Statuses"}
+                {option
+                  ? option.charAt(0).toUpperCase() + option.slice(1)
+                  : "All Statuses"}
               </option>
             ))}
           </select>
 
-          <ExportDropdown baseEndpoint="/admin/account-liens" params={{ search, status: statusFilter }} />
+          <ExportDropdown
+            baseEndpoint="/admin/account-liens"
+            params={{ search, status: statusFilter }}
+          />
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-250">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Reference</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Account</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Customer</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Amount</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Requested By</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Requested</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Status</th>
-                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Actions</th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Reference
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Account
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Customer
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Amount
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Requested By
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Requested
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Status
+                </th>
+                <th className="px-5 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {liens.map((lien) => {
-                const isOwnRequest = String(lien.created_by) === String(currentUser?.id);
+                const isOwnRequest =
+                  String(lien.created_by) === String(currentUser?.id);
                 const isPending = lien.status === "pending";
 
                 return (
                   <tr
                     key={lien.id}
-                    onClick={() => router.push(`/customer-management/liens/${lien.id}`)}
+                    onClick={() =>
+                      router.push(`/customer-management/liens/${lien.id}`)
+                    }
                     className="cursor-pointer hover:bg-slate-50/80"
                   >
-                    <td className="px-5 py-4 text-sm font-semibold text-slate-800">{lien.reference}</td>
-                    <td className="px-5 py-4 text-sm text-slate-700">{lien.account_number}</td>
+                    <td className="px-5 py-4 text-sm font-semibold text-slate-800">
+                      {lien.reference}
+                    </td>
                     <td className="px-5 py-4 text-sm text-slate-700">
-                      <p className="font-semibold text-slate-900">{lien.customer?.full_name ?? "—"}</p>
+                      {lien.account_number}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-700">
+                      <p className="font-semibold text-slate-900">
+                        {lien.customer?.full_name ?? "—"}
+                      </p>
                       {lien.customer?.cif_number && (
-                        <p className="text-xs text-slate-500">{lien.customer.cif_number}</p>
+                        <p className="text-xs text-slate-500">
+                          {lien.customer.cif_number}
+                        </p>
                       )}
                     </td>
-                    <td className="px-5 py-4 text-sm font-bold text-slate-900">₦{formatCurrency(lien.amount)}</td>
-                    <td className="px-5 py-4 text-sm text-slate-700">{lien.created_by_name ?? "—"}</td>
+                    <td className="px-5 py-4 text-sm font-bold text-slate-900">
+                      ₦{formatCurrency(lien.amount)}
+                    </td>
                     <td className="px-5 py-4 text-sm text-slate-700">
-                      {lien.created_at ? new Date(lien.created_at).toLocaleString() : "—"}
+                      {lien.created_by_name ?? "—"}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-slate-700">
+                      {lien.created_at
+                        ? new Date(lien.created_at).toLocaleString()
+                        : "—"}
                     </td>
                     <td className="px-5 py-4">
                       <StatusBadge status={lien.status} />
                     </td>
-                    <td className="px-5 py-4" onClick={(event) => event.stopPropagation()}>
+                    <td
+                      className="px-5 py-4"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <ActionMenu
                         isOpen={actionMenuId === lien.id}
-                        onToggle={() => setActionMenuId(actionMenuId === lien.id ? null : lien.id)}
+                        onToggle={() =>
+                          setActionMenuId(
+                            actionMenuId === lien.id ? null : lien.id,
+                          )
+                        }
                         onClose={() => setActionMenuId(null)}
                       >
                         <MenuButton
                           onClick={() => {
                             setActionMenuId(null);
-                            router.push(`/customer-management/liens/${lien.id}`);
+                            router.push(
+                              `/customer-management/liens/${lien.id}`,
+                            );
                           }}
                         >
                           <Eye size={16} />
@@ -310,7 +373,10 @@ export default function LienManagement({ initialLiens, initialMeta }: LienManage
 
               {!pageLoading && liens.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-5 py-16 text-center text-sm font-medium text-slate-500"
+                  >
                     No liens found.
                   </td>
                 </tr>
@@ -393,10 +459,18 @@ function MenuButton(props: Record<string, any>) {
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>{props.icon}</div>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
+        {props.icon}
+      </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

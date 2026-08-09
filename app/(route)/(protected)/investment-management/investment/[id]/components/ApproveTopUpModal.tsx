@@ -17,7 +17,10 @@ interface ApproveTopUpModalProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDate(value: string | null | undefined) {
@@ -25,7 +28,11 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    : date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
 }
 
 // Approving is the single-step authorization to move the money (no separate Postings
@@ -59,25 +66,18 @@ export default function ApproveTopUpModal({
     (async () => {
       setPreviewLoading(true);
       setPreviewError(null);
-      try {
-        const result: any = await previewPendingTopUpAction(investmentId);
-        if (cancelled) return;
+      const result: any = await previewPendingTopUpAction(investmentId);
+      if (cancelled) return;
 
-        if (result?.status !== "success") {
-          setPreview(null);
-          setPreviewError(result?.message || "Unable to preview this top-up.");
-          return;
-        }
-
-        setPreview(result.data);
-      } catch (error) {
-        if (cancelled) return;
-        console.error("Failed to preview pending top-up:", error);
+      if (result?.status !== "success") {
         setPreview(null);
-        setPreviewError("A network error occurred while computing the preview.");
-      } finally {
-        if (!cancelled) setPreviewLoading(false);
+        setPreviewError(result?.message || "Unable to preview this top-up.");
+        return;
       }
+
+      setPreview(result.data);
+
+      if (!cancelled) setPreviewLoading(false);
     })();
 
     return () => {
@@ -94,8 +94,9 @@ export default function ApproveTopUpModal({
           <div>
             <h2 className="text-lg font-bold text-slate-900">Approve Top-Up</h2>
             <p className="mt-1 text-sm text-slate-500">
-              This will move ₦{formatCurrency(amount)} into investment {accountNumber} and
-              regenerate its remaining schedule. Review the effect below before confirming.
+              This will move ₦{formatCurrency(amount)} into investment{" "}
+              {accountNumber} and regenerate its remaining schedule. Review the
+              effect below before confirming.
             </p>
           </div>
           <button
@@ -114,12 +115,16 @@ export default function ApproveTopUpModal({
               <span>₦{formatCurrency(preview.current_principal)}</span>
               <ArrowRight size={14} />
               <span>₦{formatCurrency(preview.new_principal)}</span>
-              <span className="font-normal text-blue-700">new current principal</span>
+              <span className="font-normal text-blue-700">
+                new current principal
+              </span>
             </div>
           )}
 
           {previewError && (
-            <p className="mb-4 text-sm font-semibold text-red-600">{previewError}</p>
+            <p className="mb-4 text-sm font-semibold text-red-600">
+              {previewError}
+            </p>
           )}
 
           {previewLoading && !preview ? (
@@ -135,9 +140,13 @@ export default function ApproveTopUpModal({
                     Before Top-Up
                   </span>
                 </h3>
-                <PreviewTable rows={preview.current_schedule} amountKey="expected_interest_amount" />
+                <PreviewTable
+                  rows={preview.current_schedule}
+                  amountKey="expected_interest_amount"
+                />
                 <p className="mt-2 text-xs font-semibold text-slate-500">
-                  Current total interest to be earned: ₦{formatCurrency(preview.current_total_interest)}
+                  Current total interest to be earned: ₦
+                  {formatCurrency(preview.current_total_interest)}
                 </p>
               </div>
 
@@ -148,9 +157,13 @@ export default function ApproveTopUpModal({
                     After Top-Up
                   </span>
                 </h3>
-                <PreviewTable rows={preview.projected_schedule} amountKey="expected_interest_amount" />
+                <PreviewTable
+                  rows={preview.projected_schedule}
+                  amountKey="expected_interest_amount"
+                />
                 <p className="mt-2 text-xs font-semibold text-slate-500">
-                  Projected total interest: ₦{formatCurrency(preview.projected_total_interest)}
+                  Projected total interest: ₦
+                  {formatCurrency(preview.projected_total_interest)}
                 </p>
               </div>
             </div>
@@ -168,38 +181,46 @@ export default function ApproveTopUpModal({
               inputMode="numeric"
               maxLength={6}
               value={totpCode}
-              onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              onChange={(event) =>
+                setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+              }
               placeholder="6-digit code"
               className="mt-2 w-40 rounded-xl border border-slate-300 bg-white p-2.5 text-center text-base tracking-[0.4em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
             />
           </label>
 
           <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={pending}
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => onConfirm(totpCode)}
-            disabled={pending || totpCode.length !== 6}
-            className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? "Please wait..." : "Approve Top-Up"}
-          </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={pending}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => onConfirm(totpCode)}
+              disabled={pending || totpCode.length !== 6}
+              className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? "Please wait..." : "Approve Top-Up"}
+            </button>
           </div>
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
-function PreviewTable({ rows, amountKey }: { rows: Record<string, any>[]; amountKey: string }) {
+function PreviewTable({
+  rows,
+  amountKey,
+}: {
+  rows: Record<string, any>[];
+  amountKey: string;
+}) {
   if (!rows || rows.length === 0) {
     return (
       <p className="rounded-xl border border-slate-200 bg-slate-50 py-8 text-center text-sm font-medium text-slate-400">
@@ -230,7 +251,9 @@ function PreviewTable({ rows, amountKey }: { rows: Record<string, any>[]; amount
               <td className="px-3 py-2.5 text-sm font-semibold text-slate-700">
                 {row.installment_number}
               </td>
-              <td className="px-3 py-2.5 text-sm text-slate-700">{formatDate(row.due_date)}</td>
+              <td className="px-3 py-2.5 text-sm text-slate-700">
+                {formatDate(row.due_date)}
+              </td>
               <td className="px-3 py-2.5 text-sm font-bold text-slate-900">
                 ₦{formatCurrency(row[amountKey])}
               </td>

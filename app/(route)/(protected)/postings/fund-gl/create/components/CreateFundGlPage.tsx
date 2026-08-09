@@ -1,6 +1,11 @@
 "use client";
 
-import { useRef, useState, type FormEvent, type InputHTMLAttributes } from "react";
+import {
+  useRef,
+  useState,
+  type FormEvent,
+  type InputHTMLAttributes,
+} from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Loader2, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -25,7 +30,9 @@ function sanitizeRemark(value: string) {
 }
 
 function formatBalance(value: string | number | null | undefined) {
-  return Number(value ?? 0).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+  return Number(value ?? 0).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+  });
 }
 
 // Renders a raw "5000.5" amount as "5,000.5" for display — the underlying
@@ -34,7 +41,9 @@ function formatAmountDisplay(raw: string) {
   if (!raw) return "";
   const [intPart, decimalPart] = raw.split(".");
   const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return decimalPart !== undefined ? `${formattedInt}.${decimalPart}` : formattedInt;
+  return decimalPart !== undefined
+    ? `${formattedInt}.${decimalPart}`
+    : formattedInt;
 }
 
 // Strips whatever the user typed (commas included) back down to a plain
@@ -56,12 +65,17 @@ export default function CreateFundGlPage() {
 
   const sourceCurrency = sourceGl?.currency_code;
   const destinationCurrency = destinationGl?.currency_code;
-  const currencyMismatch = !!sourceCurrency && !!destinationCurrency && sourceCurrency !== destinationCurrency;
+  const currencyMismatch =
+    !!sourceCurrency &&
+    !!destinationCurrency &&
+    sourceCurrency !== destinationCurrency;
 
   const sourceBalance = Number(sourceGl?.balance);
-  const insufficientBalance = !!sourceGl && !!amount && Number(amount) > sourceBalance;
+  const insufficientBalance =
+    !!sourceGl && !!amount && Number(amount) > sourceBalance;
 
-  const selfPosting = !!sourceGl && !!destinationGl && sourceGl.id === destinationGl.id;
+  const selfPosting =
+    !!sourceGl && !!destinationGl && sourceGl.id === destinationGl.id;
 
   // The submit button only appears once every requirement is actually met —
   // no disabled button to stare at, no guessing what's still missing.
@@ -109,32 +123,28 @@ export default function CreateFundGlPage() {
     }
 
     setSubmitting(true);
-    try {
-      const payload: Record<string, any> = {
-        source_id: sourceGl.id,
-        destination_id: destinationGl.id,
-        amount,
-        remarks: sanitizeRemark(remarks),
-      };
+    const payload: Record<string, any> = {
+      source_id: sourceGl.id,
+      destination_id: destinationGl.id,
+      amount,
+      remarks: sanitizeRemark(remarks),
+    };
 
-      const result: any = await createFundGlAction(payload);
+    const result: any = await createFundGlAction(payload);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to create fund GL transfer.");
-        return;
-      }
-
-      toast.success(result.message || "Fund GL transfer created successfully.");
-
-      resetParties();
-      setAmount("");
-      setRemarks("");
-    } catch (error) {
-      console.error("Failed to create fund GL transfer:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to create fund GL transfer.");
       setSubmitting(false);
+      return;
     }
+
+    toast.success(result.message || "Fund GL transfer created successfully.");
+
+    resetParties();
+    setAmount("");
+    setRemarks("");
+
+    setSubmitting(false);
   }
 
   return (
@@ -153,10 +163,12 @@ export default function CreateFundGlPage() {
             <BookOpen size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">New Fund GL</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              New Fund GL
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Move money between two GL accounts — this goes through a maker, reviewer and
-              approver before it posts.
+              Move money between two GL accounts — this goes through a maker,
+              reviewer and approver before it posts.
             </p>
           </div>
         </div>
@@ -165,8 +177,16 @@ export default function CreateFundGlPage() {
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         <Section title="Source & Destination">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <GlPicker label="Source GL" selected={sourceGl} onSelect={setSourceGl} />
-            <GlPicker label="Destination GL" selected={destinationGl} onSelect={setDestinationGl} />
+            <GlPicker
+              label="Source GL"
+              selected={sourceGl}
+              onSelect={setSourceGl}
+            />
+            <GlPicker
+              label="Destination GL"
+              selected={destinationGl}
+              onSelect={setDestinationGl}
+            />
           </div>
 
           {selfPosting && (
@@ -199,14 +219,17 @@ export default function CreateFundGlPage() {
           />
           {insufficientBalance && (
             <p className="text-xs font-semibold text-red-600">
-              Amount exceeds the source&apos;s available balance (₦{formatBalance(sourceBalance)}).
+              Amount exceeds the source&apos;s available balance (₦
+              {formatBalance(sourceBalance)}).
             </p>
           )}
         </Section>
 
         <Section title="Details">
           <label className="block">
-            <span className="block font-bold text-sm text-slate-800">Remarks</span>
+            <span className="block font-bold text-sm text-slate-800">
+              Remarks
+            </span>
             <textarea
               required
               rows={4}
@@ -272,14 +295,10 @@ function GlPicker({
 
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
-      try {
-        const result: any = await getGeneralLedgersAction(1, value.trim());
-        setResults(result?.status === "success" ? (result.data ?? []) : []);
-      } catch (error) {
-        console.error("GL search failed:", error);
-      } finally {
-        setLoading(false);
-      }
+      const result: any = await getGeneralLedgersAction(1, value.trim());
+      setResults(result?.status === "success" ? (result.data ?? []) : []);
+
+      setLoading(false);
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -293,7 +312,8 @@ function GlPicker({
               {selected.gl_code} — {labelize(selected.name)}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-700">
-              Balance: ₦{formatBalance(selected.balance)} {selected.currency_code}
+              Balance: ₦{formatBalance(selected.balance)}{" "}
+              {selected.currency_code}
             </p>
           </div>
           <button
@@ -327,7 +347,9 @@ function GlPicker({
       </div>
 
       {!loading && query.trim().length >= 2 && results.length === 0 && (
-        <p className="mt-1.5 text-xs font-semibold text-red-600">No matching GL found.</p>
+        <p className="mt-1.5 text-xs font-semibold text-red-600">
+          No matching GL found.
+        </p>
       )}
 
       {results.length > 0 && (
@@ -356,10 +378,18 @@ function GlPicker({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+        {title}
+      </h2>
       {children}
     </section>
   );

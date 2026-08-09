@@ -72,7 +72,9 @@ export default function CustomerManagement({
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [meta, setMeta] = useState<CustomerMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -83,42 +85,43 @@ export default function CustomerManagement({
 
   const stats = meta?.statistics;
 
-  const totalCustomers = stats?.total_customers ?? meta?.total ?? customers.length;
+  const totalCustomers =
+    stats?.total_customers ?? meta?.total ?? customers.length;
   const activeCustomers =
-    stats?.total_active ?? customers.filter((c) => c.status === "active").length;
+    stats?.total_active ??
+    customers.filter((c) => c.status === "active").length;
   const pendingCustomers =
-    stats?.total_pending ?? customers.filter((c) => c.status === "pending").length;
+    stats?.total_pending ??
+    customers.filter((c) => c.status === "pending").length;
   const inactiveCustomers =
-    stats?.total_inactive ?? customers.filter((c) => c.status === "inactive").length;
+    stats?.total_inactive ??
+    customers.filter((c) => c.status === "inactive").length;
   const closedCustomers =
-    stats?.total_closed ?? customers.filter((c) => c.status === "closed").length;
+    stats?.total_closed ??
+    customers.filter((c) => c.status === "closed").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getCustomersAction(
-        page,
-        search,
-        statusFilter === "all" ? "" : statusFilter,
-        typeFilter === "all" ? "" : typeFilter
-      );
+    const result: any = await getCustomersAction(
+      page,
+      search,
+      statusFilter === "all" ? "" : statusFilter,
+      typeFilter === "all" ? "" : typeFilter,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load customers.");
-        return;
-      }
-
-      setCustomers(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load customers:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load customers.");
       setPageLoading(false);
+      return;
     }
+
+    setCustomers(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -147,7 +150,9 @@ export default function CustomerManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Customers</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Customers
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             Onboard and manage individual and business customers
           </p>
@@ -156,7 +161,10 @@ export default function CustomerManagement({
         <div className="flex items-center gap-2">
           <ExportDropdown
             baseEndpoint="/admin/customers"
-            params={{ search, status: statusFilter === "all" ? undefined : statusFilter }}
+            params={{
+              search,
+              status: statusFilter === "all" ? undefined : statusFilter,
+            }}
           />
 
           <button
@@ -170,7 +178,11 @@ export default function CustomerManagement({
 
           <button
             type="button"
-            onClick={() => router.push("/customer-management/customer/create?type=individual")}
+            onClick={() =>
+              router.push(
+                "/customer-management/customer/create?type=individual",
+              )
+            }
             className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#173673] px-5 text-sm font-semibold text-white transition hover:bg-[#10295c] shadow-sm"
           >
             <Plus size={18} />
@@ -287,7 +299,10 @@ export default function CustomerManagement({
 
             <tbody className="divide-y divide-slate-100">
               {customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={customer.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 py-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
@@ -302,7 +317,8 @@ export default function CustomerManagement({
                           {customerDisplayName(customer) || "—"}
                         </p>
                         <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                          {customer.code || `CUS-${customer.id}`} • {customer.username}
+                          {customer.code || `CUS-${customer.id}`} •{" "}
+                          {customer.username}
                         </p>
                       </div>
                     </div>
@@ -324,13 +340,19 @@ export default function CustomerManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {Array.isArray(customer.accounts) && customer.accounts.length > 0 ? (
+                    {Array.isArray(customer.accounts) &&
+                    customer.accounts.length > 0 ? (
                       <div className="flex flex-col gap-1">
-                        {customer.accounts.map((account: Record<string, any>) => (
-                          <span key={account.id} className="font-mono text-xs font-semibold text-slate-800">
-                            {account.account_number}
-                          </span>
-                        ))}
+                        {customer.accounts.map(
+                          (account: Record<string, any>) => (
+                            <span
+                              key={account.id}
+                              className="font-mono text-xs font-semibold text-slate-800"
+                            >
+                              {account.account_number}
+                            </span>
+                          ),
+                        )}
                       </div>
                     ) : (
                       "—"
@@ -349,14 +371,18 @@ export default function CustomerManagement({
                     <ActionMenu
                       isOpen={actionMenuId === customer.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === customer.id ? null : customer.id)
+                        setActionMenuId(
+                          actionMenuId === customer.id ? null : customer.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton
                         onClick={() => {
                           setActionMenuId(null);
-                          router.push(`/customer-management/customer/${customer.id}`);
+                          router.push(
+                            `/customer-management/customer/${customer.id}`,
+                          );
                         }}
                       >
                         <Eye size={16} />
@@ -415,7 +441,7 @@ export default function CustomerManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -436,12 +462,18 @@ export default function CustomerManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

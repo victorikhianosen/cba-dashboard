@@ -87,7 +87,13 @@ const LEGAL_FORMS = [
 ];
 
 // App\Enums\Customer\BusinessType (business.business_type)
-const BUSINESS_TYPES = ["limited_liability", "cooperative", "business_name", "not_registered", "government"];
+const BUSINESS_TYPES = [
+  "limited_liability",
+  "cooperative",
+  "business_name",
+  "not_registered",
+  "government",
+];
 
 function labelize(value: string) {
   return value
@@ -283,10 +289,14 @@ export default function CreateCustomerPage({
 
   const [common, setCommon] = useState<FieldMap>({ ...emptyCommon });
   const [person, setPerson] = useState<FieldMap>({ ...emptyPerson });
-  const [individual, setIndividual] = useState<FieldMap>({ ...emptyIndividual });
+  const [individual, setIndividual] = useState<FieldMap>({
+    ...emptyIndividual,
+  });
   const [isMinor, setIsMinor] = useState(false);
   const [guardianAccountNumber, setGuardianAccountNumber] = useState("");
-  const [businessLike, setBusinessLike] = useState<FieldMap>({ ...emptyBusinessLike });
+  const [businessLike, setBusinessLike] = useState<FieldMap>({
+    ...emptyBusinessLike,
+  });
   const [business, setBusiness] = useState<FieldMap>({ ...emptyBusiness });
 
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
@@ -307,13 +317,17 @@ export default function CreateCustomerPage({
   const [geocoding, setGeocoding] = useState(false);
 
   // undefined = not looked up yet, null = looked up but no match found.
-  const [guardianPreview, setGuardianPreview] = useState<FieldMap | null | undefined>(undefined);
+  const [guardianPreview, setGuardianPreview] = useState<
+    FieldMap | null | undefined
+  >(undefined);
   const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
 
   // Fires once the BVN reaches 11 digits — prefills Personal Information (and
   // address) from the third-party lookup so the officer doesn't retype it.
   const [bvnLookupLoading, setBvnLookupLoading] = useState(false);
-  const [bvnLookupStatus, setBvnLookupStatus] = useState<"idle" | "success" | "failed">("idle");
+  const [bvnLookupStatus, setBvnLookupStatus] = useState<
+    "idle" | "success" | "failed"
+  >("idle");
 
   useEffect(() => {
     const bvn: string = individual.bvn;
@@ -327,56 +341,52 @@ export default function CreateCustomerPage({
 
     (async () => {
       setBvnLookupLoading(true);
-      try {
-        const result: any = await lookupBvnAction(bvn);
-        if (cancelled) return;
+      const result: any = await lookupBvnAction(bvn);
+      if (cancelled) return;
 
-        if (result?.status === "success" && result.data) {
-          const d = result.data;
+      if (result?.status === "success" && result.data) {
+        const d = result.data;
 
-          setPerson((current) => ({
+        setPerson((current) => ({
+          ...current,
+          title: d.title ?? current.title,
+          first_name: d.first_name ?? current.first_name,
+          middle_name: d.middle_name ?? current.middle_name,
+          last_name: d.last_name ?? current.last_name,
+        }));
+
+        setIndividual((current) => ({
+          ...current,
+          gender: d.gender ?? current.gender,
+          marital_status: d.marital_status ?? current.marital_status,
+          dob: d.dob ?? current.dob,
+          occupation: d.occupation ?? current.occupation,
+          mother_maiden_name:
+            d.mother_maiden_name ?? current.mother_maiden_name,
+        }));
+
+        setCommon((current) => ({
+          ...current,
+          phone: d.phone ?? current.phone,
+          email: d.email ?? current.email,
+        }));
+
+        if (d.address) {
+          setAddress((current) => ({
             ...current,
-            title: d.title ?? current.title,
-            first_name: d.first_name ?? current.first_name,
-            middle_name: d.middle_name ?? current.middle_name,
-            last_name: d.last_name ?? current.last_name,
+            address: d.address.address_line_1 ?? current.address,
+            city: d.address.city ?? current.city,
+            state: d.address.state ?? current.state,
+            country: d.address.country ?? current.country,
           }));
-
-          setIndividual((current) => ({
-            ...current,
-            gender: d.gender ?? current.gender,
-            marital_status: d.marital_status ?? current.marital_status,
-            dob: d.dob ?? current.dob,
-            occupation: d.occupation ?? current.occupation,
-            mother_maiden_name: d.mother_maiden_name ?? current.mother_maiden_name,
-          }));
-
-          setCommon((current) => ({
-            ...current,
-            phone: d.phone ?? current.phone,
-            email: d.email ?? current.email,
-          }));
-
-          if (d.address) {
-            setAddress((current) => ({
-              ...current,
-              address: d.address.address_line_1 ?? current.address,
-              city: d.address.city ?? current.city,
-              state: d.address.state ?? current.state,
-              country: d.address.country ?? current.country,
-            }));
-          }
-
-          setBvnLookupStatus("success");
-        } else {
-          setBvnLookupStatus("failed");
         }
-      } catch (error) {
-        console.error("Failed to look up BVN:", error);
-        if (!cancelled) setBvnLookupStatus("failed");
-      } finally {
-        if (!cancelled) setBvnLookupLoading(false);
+
+        setBvnLookupStatus("success");
+      } else {
+        setBvnLookupStatus("failed");
       }
+
+      if (!cancelled) setBvnLookupLoading(false);
     })();
 
     return () => {
@@ -390,7 +400,8 @@ export default function CreateCustomerPage({
   // "Corporate" is not a separate customer_type anymore — it's a business-like customer with
   // director rows added, toggled here instead of picked as a type.
   const [addDirectors, setAddDirectors] = useState(false);
-  const isNotRegisteredBusiness = businessLikeType && business.business_type === "not_registered";
+  const isNotRegisteredBusiness =
+    businessLikeType && business.business_type === "not_registered";
 
   // Mirrors every `required` field actually rendered for the current
   // customer type, so the submit button can't be clicked until they're
@@ -401,7 +412,8 @@ export default function CreateCustomerPage({
 
   function requiredFieldsComplete() {
     if (!isFilled(common.phone)) return false;
-    if (!isFilled(person.first_name) || !isFilled(person.last_name)) return false;
+    if (!isFilled(person.first_name) || !isFilled(person.last_name))
+      return false;
 
     if (customerType === "individual") {
       const fields = [
@@ -423,7 +435,11 @@ export default function CreateCustomerPage({
 
     if (businessLikeType) {
       if (!isFilled(businessLike.legal_form)) return false;
-      if (!isFilled(business.business_name) || !isFilled(business.business_type)) return false;
+      if (
+        !isFilled(business.business_name) ||
+        !isFilled(business.business_type)
+      )
+        return false;
     }
 
     if (customerType === "individual") {
@@ -433,7 +449,7 @@ export default function CreateCustomerPage({
           isFilled(kin.first_name) &&
           isFilled(kin.last_name) &&
           isFilled(kin.relationship) &&
-          isFilled(kin.phone)
+          isFilled(kin.phone),
       );
       if (!kinComplete) return false;
     }
@@ -445,7 +461,7 @@ export default function CreateCustomerPage({
           isFilled(director.last_name) &&
           isFilled(director.position) &&
           isFilled(director.gender) &&
-          isFilled(director.phone)
+          isFilled(director.phone),
       );
       if (!directorsComplete) return false;
     }
@@ -458,7 +474,7 @@ export default function CreateCustomerPage({
           isFilled(signatory.last_name) &&
           isFilled(signatory.position) &&
           isFilled(signatory.gender) &&
-          isFilled(signatory.phone)
+          isFilled(signatory.phone),
       );
       if (!signatoriesComplete) return false;
     }
@@ -481,7 +497,7 @@ export default function CreateCustomerPage({
   function updateField(
     setter: (updater: (current: FieldMap) => FieldMap) => void,
     name: string,
-    value: any
+    value: any,
   ) {
     setter((current) => ({ ...current, [name]: value }));
   }
@@ -490,10 +506,10 @@ export default function CreateCustomerPage({
     setter: (updater: (current: FieldMap[]) => FieldMap[]) => void,
     key: number,
     name: string,
-    value: any
+    value: any,
   ) {
     setter((current) =>
-      current.map((row) => (row.key === key ? { ...row, [name]: value } : row))
+      current.map((row) => (row.key === key ? { ...row, [name]: value } : row)),
     );
   }
 
@@ -503,28 +519,29 @@ export default function CreateCustomerPage({
   async function detectCoordinates() {
     if (!address.address || !address.city) return;
 
-    const query = [address.address, address.city, address.state, address.country]
+    const query = [
+      address.address,
+      address.city,
+      address.state,
+      address.country,
+    ]
       .filter(Boolean)
       .join(", ");
 
     setGeocoding(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-          query
-        )}`
-      );
-      const results = await response.json();
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+        query,
+      )}`,
+    );
+    const results = await response.json();
 
-      if (results?.[0]) {
-        updateField(setAddress, "latitude", results[0].lat);
-        updateField(setAddress, "longitude", results[0].lon);
-      }
-    } catch (error) {
-      console.error("Failed to auto-detect coordinates:", error);
-    } finally {
-      setGeocoding(false);
+    if (results?.[0]) {
+      updateField(setAddress, "latitude", results[0].lat);
+      updateField(setAddress, "longitude", results[0].lon);
     }
+
+    setGeocoding(false);
   }
 
   // Resolves a guardian's account number to their id/name via the same account lookup
@@ -539,15 +556,12 @@ export default function CreateCustomerPage({
     }
 
     setGuardianLookupLoading(true);
-    try {
-      const result: any = await lookupAccountByNumberAction(query);
-      setGuardianPreview(result?.status === "success" ? result.data?.customer ?? null : null);
-    } catch (error) {
-      console.error("Failed to look up guardian:", error);
-      setGuardianPreview(null);
-    } finally {
-      setGuardianLookupLoading(false);
-    }
+    const result: any = await lookupAccountByNumberAction(query);
+    setGuardianPreview(
+      result?.status === "success" ? (result.data?.customer ?? null) : null,
+    );
+
+    setGuardianLookupLoading(false);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -560,146 +574,163 @@ export default function CreateCustomerPage({
 
     setSubmitting(true);
 
-    try {
-      const formData = new FormData();
+    const formData = new FormData();
 
-      formData.set("customer_type", customerType);
-      formData.set("branch_id", common.branch_id);
-      formData.set("account_officer_id", common.account_officer_id);
-      formData.set("phone", common.phone);
-      formData.set("email", common.email);
-      formData.set("username", common.username);
-      formData.set("password", common.password);
-      formData.set("pin", common.pin);
-      formData.set("is_staff", common.is_staff ? "1" : "0");
+    formData.set("customer_type", customerType);
+    formData.set("branch_id", common.branch_id);
+    formData.set("account_officer_id", common.account_officer_id);
+    formData.set("phone", common.phone);
+    formData.set("email", common.email);
+    formData.set("username", common.username);
+    formData.set("password", common.password);
+    formData.set("pin", common.pin);
+    formData.set("is_staff", common.is_staff ? "1" : "0");
 
-      formData.set("title", person.title);
-      formData.set("first_name", person.first_name);
-      formData.set("middle_name", person.middle_name);
-      formData.set("last_name", person.last_name);
+    formData.set("title", person.title);
+    formData.set("first_name", person.first_name);
+    formData.set("middle_name", person.middle_name);
+    formData.set("last_name", person.last_name);
 
-      if (profilePicture) formData.set("profile_picture", profilePicture);
-      if (utilityBill) formData.set("utility_bill", utilityBill);
-      if (validId) formData.set("valid_id", validId);
+    if (profilePicture) formData.set("profile_picture", profilePicture);
+    if (utilityBill) formData.set("utility_bill", utilityBill);
+    if (validId) formData.set("valid_id", validId);
 
-      if (customerType === "individual") {
-        Object.entries(individual).forEach(([field, value]) => {
-          formData.set(field, value ?? "");
-        });
-
-        // A minor is just an individual with guardian_id resolved from the account
-        // number lookup — same request shape, one extra field.
-        if (isMinor && guardianPreview?.id) {
-          formData.set("guardian_id", String(guardianPreview.id));
-        }
-
-        nextOfKin.forEach((kin, index) => {
-          formData.set(`next_of_kin[${index}][title]`, kin.title);
-          formData.set(`next_of_kin[${index}][first_name]`, kin.first_name);
-          formData.set(`next_of_kin[${index}][middle_name]`, kin.middle_name);
-          formData.set(`next_of_kin[${index}][last_name]`, kin.last_name);
-          formData.set(`next_of_kin[${index}][relationship]`, kin.relationship);
-          formData.set(`next_of_kin[${index}][gender]`, kin.gender);
-          formData.set(`next_of_kin[${index}][dob]`, kin.dob);
-          formData.set(`next_of_kin[${index}][phone]`, kin.phone);
-          formData.set(`next_of_kin[${index}][email]`, kin.email);
-          formData.set(`next_of_kin[${index}][occupation]`, kin.occupation);
-          formData.set(`next_of_kin[${index}][address]`, kin.address);
-        });
-      } else {
-        // business (optionally government, via legal_form) — optionally with directors added
-        formData.set("legal_form", businessLike.legal_form);
-        formData.set("rc_number", businessLike.rc_number);
-
-        if (businessLogo) formData.set("business_logo", businessLogo);
-
-        Object.entries(business).forEach(([field, value]) => {
-          formData.set(`business[${field}]`, value ?? "");
-        });
-
-        if (addDirectors) {
-          directors.forEach((director, index) => {
-            formData.set(`directors[${index}][title]`, director.title);
-            formData.set(`directors[${index}][first_name]`, director.first_name);
-            formData.set(`directors[${index}][last_name]`, director.last_name);
-            formData.set(`directors[${index}][position]`, director.position);
-            formData.set(`directors[${index}][phone]`, director.phone);
-            formData.set(`directors[${index}][email]`, director.email);
-            formData.set(`directors[${index}][gender]`, director.gender);
-            formData.set(`directors[${index}][dob]`, director.dob);
-            formData.set(`directors[${index}][bvn]`, director.bvn);
-            formData.set(`directors[${index}][is_primary]`, director.is_primary ? "1" : "0");
-
-            if (director.passport_photo) {
-              formData.set(`directors[${index}][passport_photo]`, director.passport_photo);
-            }
-          });
-        }
-
-        if (!isNotRegisteredBusiness) {
-          signatories.forEach((signatory, index) => {
-            formData.set(`signatories[${index}][first_name]`, signatory.first_name);
-            formData.set(`signatories[${index}][last_name]`, signatory.last_name);
-            formData.set(`signatories[${index}][position]`, signatory.position);
-            formData.set(`signatories[${index}][phone]`, signatory.phone);
-            formData.set(`signatories[${index}][email]`, signatory.email);
-            formData.set(`signatories[${index}][gender]`, signatory.gender);
-            formData.set(`signatories[${index}][bvn]`, signatory.bvn);
-
-            if (signatory.signature) {
-              formData.set(`signatories[${index}][signature]`, signatory.signature);
-            }
-            if (signatory.passport_photo) {
-              formData.set(`signatories[${index}][passport_photo]`, signatory.passport_photo);
-            }
-          });
-        }
-      }
-
-      formData.set("address[type]", address.type);
-      formData.set("address[address]", address.address);
-      formData.set("address[lgs]", address.lgs);
-      formData.set("address[city]", address.city);
-      formData.set("address[state]", address.state);
-      formData.set("address[country]", address.country);
-      formData.set("address[longitude]", address.longitude);
-      formData.set("address[latitude]", address.latitude);
-
-      metadata.forEach((field, index) => {
-        formData.set(`metadata[${index}][label]`, field.label);
-        formData.set(`metadata[${index}][value]`, field.value ?? "");
+    if (customerType === "individual") {
+      Object.entries(individual).forEach(([field, value]) => {
+        formData.set(field, value ?? "");
       });
 
-      const result: any = await createCustomerAction(formData);
-
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to create customer.");
-        return;
+      // A minor is just an individual with guardian_id resolved from the account
+      // number lookup — same request shape, one extra field.
+      if (isMinor && guardianPreview?.id) {
+        formData.set("guardian_id", String(guardianPreview.id));
       }
 
-      const customerId = result.data?.customer?.id;
-      const documentsToUpload = customDocuments.filter((doc) => doc.file);
+      nextOfKin.forEach((kin, index) => {
+        formData.set(`next_of_kin[${index}][title]`, kin.title);
+        formData.set(`next_of_kin[${index}][first_name]`, kin.first_name);
+        formData.set(`next_of_kin[${index}][middle_name]`, kin.middle_name);
+        formData.set(`next_of_kin[${index}][last_name]`, kin.last_name);
+        formData.set(`next_of_kin[${index}][relationship]`, kin.relationship);
+        formData.set(`next_of_kin[${index}][gender]`, kin.gender);
+        formData.set(`next_of_kin[${index}][dob]`, kin.dob);
+        formData.set(`next_of_kin[${index}][phone]`, kin.phone);
+        formData.set(`next_of_kin[${index}][email]`, kin.email);
+        formData.set(`next_of_kin[${index}][occupation]`, kin.occupation);
+        formData.set(`next_of_kin[${index}][address]`, kin.address);
+      });
+    } else {
+      // business (optionally government, via legal_form) — optionally with directors added
+      formData.set("legal_form", businessLike.legal_form);
+      formData.set("rc_number", businessLike.rc_number);
 
-      if (customerId && documentsToUpload.length > 0) {
-        const documentsFormData = new FormData();
-        documentsToUpload.forEach((doc, index) => {
-          documentsFormData.set(slugifyDocumentLabel(doc.label, index), doc.file as File);
+      if (businessLogo) formData.set("business_logo", businessLogo);
+
+      Object.entries(business).forEach(([field, value]) => {
+        formData.set(`business[${field}]`, value ?? "");
+      });
+
+      if (addDirectors) {
+        directors.forEach((director, index) => {
+          formData.set(`directors[${index}][title]`, director.title);
+          formData.set(`directors[${index}][first_name]`, director.first_name);
+          formData.set(`directors[${index}][last_name]`, director.last_name);
+          formData.set(`directors[${index}][position]`, director.position);
+          formData.set(`directors[${index}][phone]`, director.phone);
+          formData.set(`directors[${index}][email]`, director.email);
+          formData.set(`directors[${index}][gender]`, director.gender);
+          formData.set(`directors[${index}][dob]`, director.dob);
+          formData.set(`directors[${index}][bvn]`, director.bvn);
+          formData.set(
+            `directors[${index}][is_primary]`,
+            director.is_primary ? "1" : "0",
+          );
+
+          if (director.passport_photo) {
+            formData.set(
+              `directors[${index}][passport_photo]`,
+              director.passport_photo,
+            );
+          }
         });
-
-        const uploadResult: any = await uploadCustomerDocumentsAction(customerId, documentsFormData);
-        if (uploadResult?.status !== "success") {
-          toast.warning("Customer created, but some documents failed to upload.");
-        }
       }
 
-      toast.success(result.message || "Customer created successfully.");
-      router.push("/customer-management/customer");
-    } catch (error) {
-      console.error("Failed to create customer:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+      if (!isNotRegisteredBusiness) {
+        signatories.forEach((signatory, index) => {
+          formData.set(
+            `signatories[${index}][first_name]`,
+            signatory.first_name,
+          );
+          formData.set(`signatories[${index}][last_name]`, signatory.last_name);
+          formData.set(`signatories[${index}][position]`, signatory.position);
+          formData.set(`signatories[${index}][phone]`, signatory.phone);
+          formData.set(`signatories[${index}][email]`, signatory.email);
+          formData.set(`signatories[${index}][gender]`, signatory.gender);
+          formData.set(`signatories[${index}][bvn]`, signatory.bvn);
+
+          if (signatory.signature) {
+            formData.set(
+              `signatories[${index}][signature]`,
+              signatory.signature,
+            );
+          }
+          if (signatory.passport_photo) {
+            formData.set(
+              `signatories[${index}][passport_photo]`,
+              signatory.passport_photo,
+            );
+          }
+        });
+      }
     }
+
+    formData.set("address[type]", address.type);
+    formData.set("address[address]", address.address);
+    formData.set("address[lgs]", address.lgs);
+    formData.set("address[city]", address.city);
+    formData.set("address[state]", address.state);
+    formData.set("address[country]", address.country);
+    formData.set("address[longitude]", address.longitude);
+    formData.set("address[latitude]", address.latitude);
+
+    metadata.forEach((field, index) => {
+      formData.set(`metadata[${index}][label]`, field.label);
+      formData.set(`metadata[${index}][value]`, field.value ?? "");
+    });
+
+    const result: any = await createCustomerAction(formData);
+
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to create customer.");
+      setSubmitting(false);
+      return;
+    }
+
+    const customerId = result.data?.customer?.id;
+    const documentsToUpload = customDocuments.filter((doc) => doc.file);
+
+    if (customerId && documentsToUpload.length > 0) {
+      const documentsFormData = new FormData();
+      documentsToUpload.forEach((doc, index) => {
+        documentsFormData.set(
+          slugifyDocumentLabel(doc.label, index),
+          doc.file as File,
+        );
+      });
+
+      const uploadResult: any = await uploadCustomerDocumentsAction(
+        customerId,
+        documentsFormData,
+      );
+      if (uploadResult?.status !== "success") {
+        toast.warning("Customer created, but some documents failed to upload.");
+      }
+    }
+
+    toast.success(result.message || "Customer created successfully.");
+    router.push("/customer-management/customer");
+
+    setSubmitting(false);
   }
 
   return (
@@ -719,9 +750,13 @@ export default function CreateCustomerPage({
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Add New Customer</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Add New Customer
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Onboard an individual (optionally a minor) or business customer (optionally government, via legal form) — business customers can optionally add directors.
+              Onboard an individual (optionally a minor) or business customer
+              (optionally government, via legal form) — business customers can
+              optionally add directors.
             </p>
           </div>
         </div>
@@ -755,7 +790,9 @@ export default function CreateCustomerPage({
               label="Branch"
               required={false}
               value={common.branch_id}
-              onChange={(e) => updateField(setCommon, "branch_id", e.target.value)}
+              onChange={(e) =>
+                updateField(setCommon, "branch_id", e.target.value)
+              }
             >
               <option value="">Select branch</option>
               {branches.map((branch) => (
@@ -769,7 +806,9 @@ export default function CreateCustomerPage({
               label="Account Officer"
               required={false}
               value={common.account_officer_id}
-              onChange={(e) => updateField(setCommon, "account_officer_id", e.target.value)}
+              onChange={(e) =>
+                updateField(setCommon, "account_officer_id", e.target.value)
+              }
             >
               <option value="">Select account officer</option>
               {accountOfficers.map((officer) => (
@@ -781,13 +820,16 @@ export default function CreateCustomerPage({
           </div>
 
           <p className="text-xs font-medium text-slate-500">
-            Username, PIN and password are generated automatically — username from the
-            customer's name, PIN defaults to 0000, password defaults to the BVN.
+            Username, PIN and password are generated automatically — username
+            from the customer's name, PIN defaults to 0000, password defaults to
+            the BVN.
           </p>
         </Section>
 
         {/* CONTACT PERSON — shared by every customer type */}
-        <Section title={businessLikeType ? "Contact Person" : "Personal Information"}>
+        <Section
+          title={businessLikeType ? "Contact Person" : "Personal Information"}
+        >
           {customerType === "individual" && (
             <label className="block">
               <span className="flex flex-wrap items-center gap-2">
@@ -815,7 +857,11 @@ export default function CreateCustomerPage({
                   required
                   value={individual.bvn}
                   onChange={(e) =>
-                    updateField(setIndividual, "bvn", onlyDigits(e.target.value, 11))
+                    updateField(
+                      setIndividual,
+                      "bvn",
+                      onlyDigits(e.target.value, 11),
+                    )
                   }
                   placeholder="Enter 11-digit BVN"
                   maxLength={11}
@@ -835,7 +881,9 @@ export default function CreateCustomerPage({
             <Input
               label="Phone"
               value={common.phone}
-              onChange={(e) => updateField(setCommon, "phone", onlyDigits(e.target.value, 15))}
+              onChange={(e) =>
+                updateField(setCommon, "phone", onlyDigits(e.target.value, 15))
+              }
               placeholder="e.g. 08031234567"
               maxLength={15}
             />
@@ -854,7 +902,9 @@ export default function CreateCustomerPage({
             <Checkbox
               label="This customer is a staff member"
               checked={common.is_staff}
-              onChange={(e) => updateField(setCommon, "is_staff", e.target.checked)}
+              onChange={(e) =>
+                updateField(setCommon, "is_staff", e.target.checked)
+              }
             />
           )}
 
@@ -866,7 +916,16 @@ export default function CreateCustomerPage({
               onChange={(e) => updateField(setPerson, "title", e.target.value)}
             >
               <option value="">—</option>
-              {["Mr", "Mrs", "Miss", "Master", "Dr", "Chief", "Alhaji", "Alhaja"].map((title) => (
+              {[
+                "Mr",
+                "Mrs",
+                "Miss",
+                "Master",
+                "Dr",
+                "Chief",
+                "Alhaji",
+                "Alhaja",
+              ].map((title) => (
                 <option key={title} value={title}>
                   {title}
                 </option>
@@ -875,18 +934,32 @@ export default function CreateCustomerPage({
             <Input
               label="First Name"
               value={person.first_name}
-              onChange={(e) => updateField(setPerson, "first_name", onlyLetters(e.target.value))}
+              onChange={(e) =>
+                updateField(
+                  setPerson,
+                  "first_name",
+                  onlyLetters(e.target.value),
+                )
+              }
             />
             <Input
               label="Middle Name"
               required={false}
               value={person.middle_name}
-              onChange={(e) => updateField(setPerson, "middle_name", onlyLetters(e.target.value))}
+              onChange={(e) =>
+                updateField(
+                  setPerson,
+                  "middle_name",
+                  onlyLetters(e.target.value),
+                )
+              }
             />
             <Input
               label="Last Name"
               value={person.last_name}
-              onChange={(e) => updateField(setPerson, "last_name", onlyLetters(e.target.value))}
+              onChange={(e) =>
+                updateField(setPerson, "last_name", onlyLetters(e.target.value))
+              }
             />
           </div>
 
@@ -896,7 +969,9 @@ export default function CreateCustomerPage({
                 <Select
                   label="Gender"
                   value={individual.gender}
-                  onChange={(e) => updateField(setIndividual, "gender", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "gender", e.target.value)
+                  }
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -904,7 +979,9 @@ export default function CreateCustomerPage({
                 <Select
                   label="Marital Status"
                   value={individual.marital_status}
-                  onChange={(e) => updateField(setIndividual, "marital_status", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "marital_status", e.target.value)
+                  }
                 >
                   <option value="single">Single</option>
                   <option value="married">Married</option>
@@ -915,7 +992,9 @@ export default function CreateCustomerPage({
                   label="Date of Birth"
                   type="date"
                   value={individual.dob}
-                  onChange={(e) => updateField(setIndividual, "dob", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "dob", e.target.value)
+                  }
                 />
               </div>
 
@@ -923,12 +1002,16 @@ export default function CreateCustomerPage({
                 <Input
                   label="Occupation"
                   value={individual.occupation}
-                  onChange={(e) => updateField(setIndividual, "occupation", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "occupation", e.target.value)
+                  }
                 />
                 <Select
                   label="Working Status"
                   value={individual.working_status}
-                  onChange={(e) => updateField(setIndividual, "working_status", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "working_status", e.target.value)
+                  }
                 >
                   <option value="employed">Employed</option>
                   <option value="self_employed">Self-Employed</option>
@@ -942,13 +1025,21 @@ export default function CreateCustomerPage({
                 <Input
                   label="Mother's Maiden Name"
                   value={individual.mother_maiden_name}
-                  onChange={(e) => updateField(setIndividual, "mother_maiden_name", e.target.value)}
+                  onChange={(e) =>
+                    updateField(
+                      setIndividual,
+                      "mother_maiden_name",
+                      e.target.value,
+                    )
+                  }
                 />
                 <Input
                   label="Spouse Name"
                   required={false}
                   value={individual.spouse_name}
-                  onChange={(e) => updateField(setIndividual, "spouse_name", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "spouse_name", e.target.value)
+                  }
                 />
               </div>
 
@@ -956,14 +1047,22 @@ export default function CreateCustomerPage({
                 <Input
                   label="NIN"
                   value={individual.nin_number}
-                  onChange={(e) => updateField(setIndividual, "nin_number", onlyDigits(e.target.value, 11))}
+                  onChange={(e) =>
+                    updateField(
+                      setIndividual,
+                      "nin_number",
+                      onlyDigits(e.target.value, 11),
+                    )
+                  }
                   maxLength={11}
                 />
                 <Input
                   label="TIN"
                   required={false}
                   value={individual.tin}
-                  onChange={(e) => updateField(setIndividual, "tin", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "tin", e.target.value)
+                  }
                 />
               </div>
 
@@ -981,13 +1080,17 @@ export default function CreateCustomerPage({
                   }}
                   className="h-4 w-4 rounded border-slate-300 text-[#173673] focus:ring-[#29478f]"
                 />
-                <span className="text-sm font-bold text-slate-800">This customer is a minor</span>
+                <span className="text-sm font-bold text-slate-800">
+                  This customer is a minor
+                </span>
               </label>
 
               {isMinor && (
                 <label className="block">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="font-bold text-sm text-slate-800">Guardian Account Number</span>
+                    <span className="font-bold text-sm text-slate-800">
+                      Guardian Account Number
+                    </span>
 
                     {guardianLookupLoading && (
                       <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
@@ -1002,7 +1105,8 @@ export default function CreateCustomerPage({
                     )}
                     {!guardianLookupLoading && guardianPreview && (
                       <span className="text-xs font-semibold text-emerald-700">
-                        Guardian: {guardianPreview.full_name} ({guardianPreview.cif_number})
+                        Guardian: {guardianPreview.full_name} (
+                        {guardianPreview.cif_number})
                       </span>
                     )}
                   </span>
@@ -1035,7 +1139,9 @@ export default function CreateCustomerPage({
               <Select
                 label="Legal Form"
                 value={businessLike.legal_form}
-                onChange={(e) => updateField(setBusinessLike, "legal_form", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusinessLike, "legal_form", e.target.value)
+                }
               >
                 <option value="">Select legal form</option>
                 {LEGAL_FORMS.map((form) => (
@@ -1047,13 +1153,17 @@ export default function CreateCustomerPage({
               <Input
                 label="Business Name"
                 value={business.business_name}
-                onChange={(e) => updateField(setBusiness, "business_name", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_name", e.target.value)
+                }
               />
               <Input
                 label="RC Number"
                 required={false}
                 value={businessLike.rc_number}
-                onChange={(e) => updateField(setBusinessLike, "rc_number", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusinessLike, "rc_number", e.target.value)
+                }
               />
             </div>
           )}
@@ -1064,22 +1174,30 @@ export default function CreateCustomerPage({
         <RepeatingSection
           title="Custom Fields"
           rows={metadata}
-          onAdd={() => setMetadata((current) => [...current, newMetadataField()])}
-          onRemove={(key) => setMetadata((current) => current.filter((row) => row.key !== key))}
+          onAdd={() =>
+            setMetadata((current) => [...current, newMetadataField()])
+          }
+          onRemove={(key) =>
+            setMetadata((current) => current.filter((row) => row.key !== key))
+          }
           minRows={0}
           renderRow={(field) => (
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Label"
                 value={field.label}
-                onChange={(e) => updateRow(setMetadata, field.key, "label", e.target.value)}
+                onChange={(e) =>
+                  updateRow(setMetadata, field.key, "label", e.target.value)
+                }
                 placeholder="e.g. Referral Source"
               />
               <Input
                 label="Value"
                 required={false}
                 value={field.value}
-                onChange={(e) => updateRow(setMetadata, field.key, "value", e.target.value)}
+                onChange={(e) =>
+                  updateRow(setMetadata, field.key, "value", e.target.value)
+                }
               />
             </div>
           )}
@@ -1101,7 +1219,9 @@ export default function CreateCustomerPage({
             <Input
               label="Street Address"
               value={address.address}
-              onChange={(e) => updateField(setAddress, "address", e.target.value)}
+              onChange={(e) =>
+                updateField(setAddress, "address", e.target.value)
+              }
               onBlur={detectCoordinates}
             />
           </div>
@@ -1135,7 +1255,9 @@ export default function CreateCustomerPage({
           />
 
           {geocoding && (
-            <p className="text-xs font-medium text-slate-500">Detecting coordinates from address…</p>
+            <p className="text-xs font-medium text-slate-500">
+              Detecting coordinates from address…
+            </p>
           )}
         </Section>
 
@@ -1146,12 +1268,16 @@ export default function CreateCustomerPage({
                 label="Trading Name"
                 required={false}
                 value={business.trading_name}
-                onChange={(e) => updateField(setBusiness, "trading_name", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "trading_name", e.target.value)
+                }
               />
               <Select
                 label="Business Type"
                 value={business.business_type}
-                onChange={(e) => updateField(setBusiness, "business_type", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_type", e.target.value)
+                }
               >
                 <option value="">Select business type</option>
                 {BUSINESS_TYPES.map((type) => (
@@ -1164,14 +1290,20 @@ export default function CreateCustomerPage({
                 label="Registration Number"
                 required={false}
                 value={business.registration_number}
-                onChange={(e) => updateField(setBusiness, "registration_number", e.target.value)}
+                onChange={(e) =>
+                  updateField(
+                    setBusiness,
+                    "registration_number",
+                    e.target.value,
+                  )
+                }
               />
             </div>
 
             {isNotRegisteredBusiness && (
               <p className="rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-800">
-                Not-registered businesses are captured like an individual — no directors or
-                signatories are required below.
+                Not-registered businesses are captured like an individual — no
+                directors or signatories are required below.
               </p>
             )}
 
@@ -1181,14 +1313,18 @@ export default function CreateCustomerPage({
                 type="date"
                 required={false}
                 value={business.registration_date}
-                onChange={(e) => updateField(setBusiness, "registration_date", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "registration_date", e.target.value)
+                }
               />
               <Input
                 label="Incorporation Date"
                 type="date"
                 required={false}
                 value={business.incorporation_date}
-                onChange={(e) => updateField(setBusiness, "incorporation_date", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "incorporation_date", e.target.value)
+                }
               />
             </div>
 
@@ -1197,13 +1333,17 @@ export default function CreateCustomerPage({
                 label="Nature of Business"
                 required={false}
                 value={business.nature_of_business}
-                onChange={(e) => updateField(setBusiness, "nature_of_business", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "nature_of_business", e.target.value)
+                }
               />
               <Input
                 label="Industry"
                 required={false}
                 value={business.industry}
-                onChange={(e) => updateField(setBusiness, "industry", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "industry", e.target.value)
+                }
               />
             </div>
 
@@ -1212,13 +1352,17 @@ export default function CreateCustomerPage({
                 label="Business TIN"
                 required={false}
                 value={business.tin}
-                onChange={(e) => updateField(setBusiness, "tin", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "tin", e.target.value)
+                }
               />
               <Input
                 label="VAT Number"
                 required={false}
                 value={business.vat_number}
-                onChange={(e) => updateField(setBusiness, "vat_number", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "vat_number", e.target.value)
+                }
               />
             </div>
 
@@ -1228,7 +1372,11 @@ export default function CreateCustomerPage({
                 required={false}
                 value={business.business_phone}
                 onChange={(e) =>
-                  updateField(setBusiness, "business_phone", onlyDigits(e.target.value, 15))
+                  updateField(
+                    setBusiness,
+                    "business_phone",
+                    onlyDigits(e.target.value, 15),
+                  )
                 }
                 maxLength={15}
               />
@@ -1238,7 +1386,9 @@ export default function CreateCustomerPage({
                 required={false}
                 pattern={EMAIL_PATTERN}
                 value={business.business_email}
-                onChange={(e) => updateField(setBusiness, "business_email", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_email", e.target.value)
+                }
               />
             </div>
 
@@ -1246,19 +1396,32 @@ export default function CreateCustomerPage({
               label="Website"
               required={false}
               value={business.website}
-              onChange={(e) => updateField(setBusiness, "website", e.target.value)}
+              onChange={(e) =>
+                updateField(setBusiness, "website", e.target.value)
+              }
               placeholder="https://"
             />
           </Section>
         )}
 
         <Section title="Identity Documents">
-          <div className={`grid gap-4 ${businessLikeType ? "grid-cols-4" : "grid-cols-3"}`}>
-            <FileInput label="Profile Picture" onChange={(file) => setProfilePicture(file)} />
-            <FileInput label="Utility Bill" onChange={(file) => setUtilityBill(file)} />
+          <div
+            className={`grid gap-4 ${businessLikeType ? "grid-cols-4" : "grid-cols-3"}`}
+          >
+            <FileInput
+              label="Profile Picture"
+              onChange={(file) => setProfilePicture(file)}
+            />
+            <FileInput
+              label="Utility Bill"
+              onChange={(file) => setUtilityBill(file)}
+            />
             <FileInput label="Valid ID" onChange={(file) => setValidId(file)} />
             {businessLikeType && (
-              <FileInput label="Business Logo" onChange={(file) => setBusinessLogo(file)} />
+              <FileInput
+                label="Business Logo"
+                onChange={(file) => setBusinessLogo(file)}
+              />
             )}
           </div>
         </Section>
@@ -1268,9 +1431,13 @@ export default function CreateCustomerPage({
         <RepeatingSection
           title="Additional Documents"
           rows={customDocuments}
-          onAdd={() => setCustomDocuments((current) => [...current, newCustomDocument()])}
+          onAdd={() =>
+            setCustomDocuments((current) => [...current, newCustomDocument()])
+          }
           onRemove={(key) =>
-            setCustomDocuments((current) => current.filter((row) => row.key !== key))
+            setCustomDocuments((current) =>
+              current.filter((row) => row.key !== key),
+            )
           }
           minRows={0}
           renderRow={(doc) => (
@@ -1279,12 +1446,21 @@ export default function CreateCustomerPage({
                 label="Document Label"
                 required={false}
                 value={doc.label}
-                onChange={(e) => updateRow(setCustomDocuments, doc.key, "label", e.target.value)}
+                onChange={(e) =>
+                  updateRow(
+                    setCustomDocuments,
+                    doc.key,
+                    "label",
+                    e.target.value,
+                  )
+                }
                 placeholder="e.g. Proof of Address"
               />
               <FileInput
                 label="File"
-                onChange={(file) => updateRow(setCustomDocuments, doc.key, "file", file)}
+                onChange={(file) =>
+                  updateRow(setCustomDocuments, doc.key, "file", file)
+                }
               />
             </div>
           )}
@@ -1309,7 +1485,9 @@ export default function CreateCustomerPage({
             rows={directors}
             onAdd={() => setDirectors((current) => [...current, newDirector()])}
             onRemove={(key) =>
-              setDirectors((current) => current.filter((row) => row.key !== key))
+              setDirectors((current) =>
+                current.filter((row) => row.key !== key),
+              )
             }
             minRows={0}
             renderRow={(director) => (
@@ -1319,10 +1497,25 @@ export default function CreateCustomerPage({
                     label="Title"
                     required={false}
                     value={director.title}
-                    onChange={(e) => updateRow(setDirectors, director.key, "title", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "title",
+                        e.target.value,
+                      )
+                    }
                   >
                     <option value="">—</option>
-                    {["Mr", "Mrs", "Miss", "Dr", "Chief", "Alhaji", "Alhaja"].map((title) => (
+                    {[
+                      "Mr",
+                      "Mrs",
+                      "Miss",
+                      "Dr",
+                      "Chief",
+                      "Alhaji",
+                      "Alhaja",
+                    ].map((title) => (
                       <option key={title} value={title}>
                         {title}
                       </option>
@@ -1332,14 +1525,24 @@ export default function CreateCustomerPage({
                     label="First Name"
                     value={director.first_name}
                     onChange={(e) =>
-                      updateRow(setDirectors, director.key, "first_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "first_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                   <Input
                     label="Last Name"
                     value={director.last_name}
                     onChange={(e) =>
-                      updateRow(setDirectors, director.key, "last_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "last_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                 </div>
@@ -1348,13 +1551,27 @@ export default function CreateCustomerPage({
                   <Input
                     label="Position"
                     value={director.position}
-                    onChange={(e) => updateRow(setDirectors, director.key, "position", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "position",
+                        e.target.value,
+                      )
+                    }
                     placeholder="e.g. Chief Executive Officer"
                   />
                   <Select
                     label="Gender"
                     value={director.gender}
-                    onChange={(e) => updateRow(setDirectors, director.key, "gender", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "gender",
+                        e.target.value,
+                      )
+                    }
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -1366,7 +1583,12 @@ export default function CreateCustomerPage({
                     label="Phone"
                     value={director.phone}
                     onChange={(e) =>
-                      updateRow(setDirectors, director.key, "phone", onlyDigits(e.target.value, 15))
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "phone",
+                        onlyDigits(e.target.value, 15),
+                      )
                     }
                     maxLength={15}
                   />
@@ -1376,7 +1598,14 @@ export default function CreateCustomerPage({
                     pattern={EMAIL_PATTERN}
                     required={false}
                     value={director.email}
-                    onChange={(e) => updateRow(setDirectors, director.key, "email", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "email",
+                        e.target.value,
+                      )
+                    }
                   />
                 </div>
 
@@ -1386,14 +1615,26 @@ export default function CreateCustomerPage({
                     type="date"
                     required={false}
                     value={director.dob}
-                    onChange={(e) => updateRow(setDirectors, director.key, "dob", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "dob",
+                        e.target.value,
+                      )
+                    }
                   />
                   <Input
                     label="BVN"
                     required={false}
                     value={director.bvn}
                     onChange={(e) =>
-                      updateRow(setDirectors, director.key, "bvn", onlyDigits(e.target.value, 11))
+                      updateRow(
+                        setDirectors,
+                        director.key,
+                        "bvn",
+                        onlyDigits(e.target.value, 11),
+                      )
                     }
                     maxLength={11}
                   />
@@ -1402,12 +1643,26 @@ export default function CreateCustomerPage({
                 <Checkbox
                   label="Primary director"
                   checked={director.is_primary}
-                  onChange={(e) => updateRow(setDirectors, director.key, "is_primary", e.target.checked)}
+                  onChange={(e) =>
+                    updateRow(
+                      setDirectors,
+                      director.key,
+                      "is_primary",
+                      e.target.checked,
+                    )
+                  }
                 />
 
                 <FileInput
                   label="Passport Photo"
-                  onChange={(file) => updateRow(setDirectors, director.key, "passport_photo", file)}
+                  onChange={(file) =>
+                    updateRow(
+                      setDirectors,
+                      director.key,
+                      "passport_photo",
+                      file,
+                    )
+                  }
                 />
               </>
             )}
@@ -1419,9 +1674,13 @@ export default function CreateCustomerPage({
           <RepeatingSection
             title="Signatories"
             rows={signatories}
-            onAdd={() => setSignatories((current) => [...current, newSignatory()])}
+            onAdd={() =>
+              setSignatories((current) => [...current, newSignatory()])
+            }
             onRemove={(key) =>
-              setSignatories((current) => current.filter((row) => row.key !== key))
+              setSignatories((current) =>
+                current.filter((row) => row.key !== key),
+              )
             }
             minRows={1}
             renderRow={(signatory) => (
@@ -1431,14 +1690,24 @@ export default function CreateCustomerPage({
                     label="First Name"
                     value={signatory.first_name}
                     onChange={(e) =>
-                      updateRow(setSignatories, signatory.key, "first_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "first_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                   <Input
                     label="Last Name"
                     value={signatory.last_name}
                     onChange={(e) =>
-                      updateRow(setSignatories, signatory.key, "last_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "last_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                 </div>
@@ -1447,12 +1716,26 @@ export default function CreateCustomerPage({
                   <Input
                     label="Position"
                     value={signatory.position}
-                    onChange={(e) => updateRow(setSignatories, signatory.key, "position", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "position",
+                        e.target.value,
+                      )
+                    }
                   />
                   <Select
                     label="Gender"
                     value={signatory.gender}
-                    onChange={(e) => updateRow(setSignatories, signatory.key, "gender", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "gender",
+                        e.target.value,
+                      )
+                    }
                   >
                     <option value="male">Male</option>
                     <option value="female">Female</option>
@@ -1464,7 +1747,12 @@ export default function CreateCustomerPage({
                     label="Phone"
                     value={signatory.phone}
                     onChange={(e) =>
-                      updateRow(setSignatories, signatory.key, "phone", onlyDigits(e.target.value, 15))
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "phone",
+                        onlyDigits(e.target.value, 15),
+                      )
                     }
                     maxLength={15}
                   />
@@ -1474,7 +1762,14 @@ export default function CreateCustomerPage({
                     pattern={EMAIL_PATTERN}
                     required={false}
                     value={signatory.email}
-                    onChange={(e) => updateRow(setSignatories, signatory.key, "email", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "email",
+                        e.target.value,
+                      )
+                    }
                   />
                 </div>
 
@@ -1483,7 +1778,12 @@ export default function CreateCustomerPage({
                   required={false}
                   value={signatory.bvn}
                   onChange={(e) =>
-                    updateRow(setSignatories, signatory.key, "bvn", onlyDigits(e.target.value, 11))
+                    updateRow(
+                      setSignatories,
+                      signatory.key,
+                      "bvn",
+                      onlyDigits(e.target.value, 11),
+                    )
                   }
                   maxLength={11}
                 />
@@ -1491,11 +1791,25 @@ export default function CreateCustomerPage({
                 <div className="grid grid-cols-2 gap-4">
                   <FileInput
                     label="Signature"
-                    onChange={(file) => updateRow(setSignatories, signatory.key, "signature", file)}
+                    onChange={(file) =>
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "signature",
+                        file,
+                      )
+                    }
                   />
                   <FileInput
                     label="Passport Photo"
-                    onChange={(file) => updateRow(setSignatories, signatory.key, "passport_photo", file)}
+                    onChange={(file) =>
+                      updateRow(
+                        setSignatories,
+                        signatory.key,
+                        "passport_photo",
+                        file,
+                      )
+                    }
                   />
                 </div>
               </>
@@ -1507,9 +1821,13 @@ export default function CreateCustomerPage({
           <RepeatingSection
             title="Next of Kin"
             rows={nextOfKin}
-            onAdd={() => setNextOfKin((current) => [...current, newNextOfKin()])}
+            onAdd={() =>
+              setNextOfKin((current) => [...current, newNextOfKin()])
+            }
             onRemove={(key) =>
-              setNextOfKin((current) => current.filter((row) => row.key !== key))
+              setNextOfKin((current) =>
+                current.filter((row) => row.key !== key),
+              )
             }
             minRows={1}
             renderRow={(kin) => (
@@ -1519,7 +1837,9 @@ export default function CreateCustomerPage({
                     label="Title"
                     required={false}
                     value={kin.title}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "title", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "title", e.target.value)
+                    }
                   >
                     <option value="">—</option>
                     {["Mr", "Mrs", "Miss", "Dr"].map((title) => (
@@ -1532,7 +1852,12 @@ export default function CreateCustomerPage({
                     label="First Name"
                     value={kin.first_name}
                     onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "first_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "first_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                   <Input
@@ -1540,14 +1865,24 @@ export default function CreateCustomerPage({
                     required={false}
                     value={kin.middle_name}
                     onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "middle_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "middle_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                   <Input
                     label="Last Name"
                     value={kin.last_name}
                     onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "last_name", onlyLetters(e.target.value))
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "last_name",
+                        onlyLetters(e.target.value),
+                      )
                     }
                   />
                 </div>
@@ -1556,14 +1891,23 @@ export default function CreateCustomerPage({
                   <Input
                     label="Relationship"
                     value={kin.relationship}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "relationship", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "relationship",
+                        e.target.value,
+                      )
+                    }
                     placeholder="e.g. Sister"
                   />
                   <Select
                     label="Gender"
                     required={false}
                     value={kin.gender}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "gender", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "gender", e.target.value)
+                    }
                   >
                     <option value="">—</option>
                     <option value="male">Male</option>
@@ -1574,7 +1918,9 @@ export default function CreateCustomerPage({
                     type="date"
                     required={false}
                     value={kin.dob}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "dob", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "dob", e.target.value)
+                    }
                   />
                 </div>
 
@@ -1583,7 +1929,12 @@ export default function CreateCustomerPage({
                     label="Phone"
                     value={kin.phone}
                     onChange={(e) =>
-                      updateRow(setNextOfKin, kin.key, "phone", onlyDigits(e.target.value, 15))
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "phone",
+                        onlyDigits(e.target.value, 15),
+                      )
                     }
                     maxLength={15}
                   />
@@ -1593,7 +1944,9 @@ export default function CreateCustomerPage({
                     pattern={EMAIL_PATTERN}
                     required={false}
                     value={kin.email}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "email", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(setNextOfKin, kin.key, "email", e.target.value)
+                    }
                   />
                 </div>
 
@@ -1602,13 +1955,27 @@ export default function CreateCustomerPage({
                     label="Occupation"
                     required={false}
                     value={kin.occupation}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "occupation", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "occupation",
+                        e.target.value,
+                      )
+                    }
                   />
                   <Input
                     label="Address"
                     required={false}
                     value={kin.address}
-                    onChange={(e) => updateRow(setNextOfKin, kin.key, "address", e.target.value)}
+                    onChange={(e) =>
+                      updateRow(
+                        setNextOfKin,
+                        kin.key,
+                        "address",
+                        e.target.value,
+                      )
+                    }
                   />
                 </div>
               </>
@@ -1626,7 +1993,9 @@ export default function CreateCustomerPage({
           <button
             type="submit"
             disabled={submitting || !canSubmit}
-            title={!canSubmit ? "Fill in all required fields to continue" : undefined}
+            title={
+              !canSubmit ? "Fill in all required fields to continue" : undefined
+            }
             className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm"
           >
             {submitting ? "Please wait..." : "Create Customer"}
@@ -1640,7 +2009,9 @@ export default function CreateCustomerPage({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -1664,7 +2035,9 @@ function RepeatingSection({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+          {title}
+        </h2>
         <button
           type="button"
           onClick={onAdd}
@@ -1677,7 +2050,10 @@ function RepeatingSection({
 
       <div className="mt-4 space-y-4">
         {rows.map((row, index) => (
-          <div key={row.key} className="rounded-xl border border-slate-200 p-4 space-y-4">
+          <div
+            key={row.key}
+            className="rounded-xl border border-slate-200 p-4 space-y-4"
+          >
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 {title} #{index + 1}

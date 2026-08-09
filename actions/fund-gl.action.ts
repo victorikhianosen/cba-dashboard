@@ -10,95 +10,81 @@ export async function getFundGlsAction(
     search?: string;
     status?: string;
     per_page?: number;
-  } = {}
+  } = {},
 ) {
-  try {
-    const params = new URLSearchParams({
-      page: String(page),
-      per_page: String(filters.per_page ?? 50),
-    });
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(filters.per_page ?? 50),
+  });
 
-    if (filters.from) params.set("from", filters.from);
-    if (filters.to) params.set("to", filters.to);
-    if (filters.search) params.set("search", filters.search);
-    if (filters.status) params.set("status", filters.status);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.search) params.set("search", filters.search);
+  if (filters.status) params.set("status", filters.status);
 
-    const result: any = await authApiClient({
-      endpoint: `/admin/fund-gls?${params.toString()}`,
-      method: "GET",
-    });
+  const result: any = await authApiClient({
+    endpoint: `/admin/fund-gls?${params.toString()}`,
+    method: "GET",
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
 export async function getFundGlAction(id: number | string) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/fund-gls/${id}`,
-      method: "GET",
-    });
+  const result: any = await authApiClient({
+    endpoint: `/admin/fund-gls/${id}`,
+    method: "GET",
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
 export async function createFundGlAction(data: Record<string, any>) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: "/admin/fund-gls",
-      method: "POST",
-      body: data,
-    });
+  const result: any = await authApiClient({
+    endpoint: "/admin/fund-gls",
+    method: "POST",
+    body: data,
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
-export async function reviewFundGlAction(id: number | string, totpCode: string) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/fund-gls/${id}/review`,
-      method: "POST",
-      body: { totp_code: totpCode },
-    });
+export async function reviewFundGlAction(
+  id: number | string,
+  totpCode: string,
+) {
+  const result: any = await authApiClient({
+    endpoint: `/admin/fund-gls/${id}/review`,
+    method: "POST",
+    body: { totp_code: totpCode },
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
-export async function approveFundGlAction(id: number | string, totpCode: string) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/fund-gls/${id}/approve`,
-      method: "POST",
-      body: { totp_code: totpCode },
-    });
+export async function approveFundGlAction(
+  id: number | string,
+  totpCode: string,
+) {
+  const result: any = await authApiClient({
+    endpoint: `/admin/fund-gls/${id}/approve`,
+    method: "POST",
+    body: { totp_code: totpCode },
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }
 
-export async function rejectFundGlAction(id: number | string, reason: string, totpCode: string) {
-  try {
-    const result: any = await authApiClient({
-      endpoint: `/admin/fund-gls/${id}/reject`,
-      method: "POST",
-      body: { reason, totp_code: totpCode },
-    });
+export async function rejectFundGlAction(
+  id: number | string,
+  reason: string,
+  totpCode: string,
+) {
+  const result: any = await authApiClient({
+    endpoint: `/admin/fund-gls/${id}/reject`,
+    method: "POST",
+    body: { reason, totp_code: totpCode },
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }

@@ -57,7 +57,10 @@ interface InvestmentDetailProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 // Rate columns are stored as decimal(19,6) on the backend (e.g. "10.000000"), so raw values
@@ -83,8 +86,15 @@ function DateStack({ value }: { value: string | null | undefined }) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return <span>{value}</span>;
 
-  const day = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const day = date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const time = date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <span className="flex flex-col">
@@ -102,7 +112,9 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export default function InvestmentDetail({ investment: initialInvestment }: InvestmentDetailProps) {
+export default function InvestmentDetail({
+  investment: initialInvestment,
+}: InvestmentDetailProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -114,7 +126,7 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
       ? "transactions"
       : searchParams.get("tab") === "schedule"
         ? "schedule"
-        : "details"
+        : "details",
   );
   const [actionPending, setActionPending] = useState(false);
   const [emailingLetter, setEmailingLetter] = useState(false);
@@ -126,10 +138,14 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
   const [approveTopUpModalOpen, setApproveTopUpModalOpen] = useState(false);
   const [rejectTopUpModalOpen, setRejectTopUpModalOpen] = useState(false);
   const [terminateModalOpen, setTerminateModalOpen] = useState(false);
-  const [partialLiquidationModalOpen, setPartialLiquidationModalOpen] = useState(false);
+  const [partialLiquidationModalOpen, setPartialLiquidationModalOpen] =
+    useState(false);
 
   const [transactions, setTransactions] = useState<Record<string, any>[]>([]);
-  const [transactionsMeta, setTransactionsMeta] = useState<Record<string, any> | null>(null);
+  const [transactionsMeta, setTransactionsMeta] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [transactionsLoaded, setTransactionsLoaded] = useState(false);
 
@@ -138,8 +154,13 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
   const [scheduleLoaded, setScheduleLoaded] = useState(false);
 
   const [showPreviousSchedules, setShowPreviousSchedules] = useState(false);
-  const [previousSchedule, setPreviousSchedule] = useState<Record<string, any>[]>([]);
-  const [previousScheduleMeta, setPreviousScheduleMeta] = useState<Record<string, any> | null>(null);
+  const [previousSchedule, setPreviousSchedule] = useState<
+    Record<string, any>[]
+  >([]);
+  const [previousScheduleMeta, setPreviousScheduleMeta] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [previousScheduleLoading, setPreviousScheduleLoading] = useState(false);
   const [previousScheduleLoaded, setPreviousScheduleLoaded] = useState(false);
 
@@ -152,7 +173,9 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
       params.set("tab", tab);
     }
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
   }
 
   useEffect(() => {
@@ -167,66 +190,60 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
 
   async function fetchTransactions(page: number) {
     setTransactionsLoading(true);
-    try {
-      const result: any = await getInvestmentTransactionsAction(investment.id, page);
+    const result: any = await getInvestmentTransactionsAction(
+      investment.id,
+      page,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load investment transactions.");
-        return;
-      }
-
-      setTransactions(Array.isArray(result.data) ? result.data : []);
-      setTransactionsMeta(result.meta ?? null);
-      setTransactionsLoaded(true);
-    } catch (error) {
-      console.error("Failed to load investment transactions:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load investment transactions.");
       setTransactionsLoading(false);
+      return;
     }
+
+    setTransactions(Array.isArray(result.data) ? result.data : []);
+    setTransactionsMeta(result.meta ?? null);
+    setTransactionsLoaded(true);
+
+    setTransactionsLoading(false);
   }
 
   async function fetchSchedule() {
     setScheduleLoading(true);
-    try {
-      const result: any = await getInvestmentScheduleAction(investment.id);
+    const result: any = await getInvestmentScheduleAction(investment.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load investment schedule.");
-        return;
-      }
-
-      setSchedule(Array.isArray(result.data) ? result.data : []);
-      setScheduleLoaded(true);
-    } catch (error) {
-      console.error("Failed to load investment schedule:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load investment schedule.");
       setScheduleLoading(false);
+      return;
     }
+
+    setSchedule(Array.isArray(result.data) ? result.data : []);
+    setScheduleLoaded(true);
+
+    setScheduleLoading(false);
   }
 
   // Deliberately separate and lazy — only called when "Previous Schedules" is expanded,
   // so a heavily topped-up investment doesn't download its whole history up front.
   async function fetchPreviousSchedule(page: number) {
     setPreviousScheduleLoading(true);
-    try {
-      const result: any = await getPreviousInvestmentScheduleAction(investment.id, page);
+    const result: any = await getPreviousInvestmentScheduleAction(
+      investment.id,
+      page,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load previous schedules.");
-        return;
-      }
-
-      setPreviousSchedule(Array.isArray(result.data) ? result.data : []);
-      setPreviousScheduleMeta(result.meta ?? null);
-      setPreviousScheduleLoaded(true);
-    } catch (error) {
-      console.error("Failed to load previous schedules:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load previous schedules.");
       setPreviousScheduleLoading(false);
+      return;
     }
+
+    setPreviousSchedule(Array.isArray(result.data) ? result.data : []);
+    setPreviousScheduleMeta(result.meta ?? null);
+    setPreviousScheduleLoaded(true);
+
+    setPreviousScheduleLoading(false);
   }
 
   function handleTogglePreviousSchedules() {
@@ -238,179 +255,163 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
 
   async function handleEmailLetter() {
     setEmailingLetter(true);
-    try {
-      const result: any = await emailInvestmentLetterAction(investment.id);
+    const result: any = await emailInvestmentLetterAction(investment.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to email investment letter.");
-        return;
-      }
-
-      toast.success(result.message || "Investment letter is being sent to the customer.");
-    } catch (error) {
-      console.error("Failed to email investment letter:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to email investment letter.");
       setEmailingLetter(false);
-      setLetterMenuOpen(false);
+      return;
     }
+
+    toast.success(
+      result.message || "Investment letter is being sent to the customer.",
+    );
+
+    setEmailingLetter(false);
+    setLetterMenuOpen(false);
   }
 
   async function handleApprove(totpCode: string) {
     setActionPending(true);
-    try {
-      const result: any = await approveInvestmentAction(investment.id, totpCode);
+    const result: any = await approveInvestmentAction(investment.id, totpCode);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to approve investment.");
-        return;
-      }
-
-      toast.success(result.message || "Investment approved successfully.");
-      setInvestment(result.data ?? { ...investment, status: "active" });
-      setApproveModalOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to approve investment:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to approve investment.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(result.message || "Investment approved successfully.");
+    setInvestment(result.data ?? { ...investment, status: "active" });
+    setApproveModalOpen(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
   async function handleReject() {
     setActionPending(true);
-    try {
-      const result: any = await rejectInvestmentAction(investment.id);
+    const result: any = await rejectInvestmentAction(investment.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to reject investment.");
-        return;
-      }
-
-      toast.success(result.message || "Investment rejected.");
-      setInvestment(result.data ?? { ...investment, status: "rejected" });
-      setRejectModalOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to reject investment:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to reject investment.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(result.message || "Investment rejected.");
+    setInvestment(result.data ?? { ...investment, status: "rejected" });
+    setRejectModalOpen(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
   async function handleRequestTopUp(amount: string) {
     setActionPending(true);
-    try {
-      const result: any = await requestTopUpAction(investment.id, amount);
+    const result: any = await requestTopUpAction(investment.id, amount);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to request top-up.");
-        return;
-      }
-
-      toast.success(result.message || "Top-up requested; awaiting approval.");
-      setInvestment(result.data ?? investment);
-      setTopUpModalOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to request top-up:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to request top-up.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(result.message || "Top-up requested; awaiting approval.");
+    setInvestment(result.data ?? investment);
+    setTopUpModalOpen(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
   async function handleApproveTopUp(totpCode: string) {
     setActionPending(true);
-    try {
-      const result: any = await approveTopUpAction(investment.id, totpCode);
+    const result: any = await approveTopUpAction(investment.id, totpCode);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to approve top-up.");
-        return;
-      }
-
-      toast.success(result.message || "Top-up approved and applied successfully.");
-      setInvestment(result.data ?? investment);
-      setApproveTopUpModalOpen(false);
-      setScheduleLoaded(false);
-      setPreviousScheduleLoaded(false);
-      setShowPreviousSchedules(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to approve top-up:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to approve top-up.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(
+      result.message || "Top-up approved and applied successfully.",
+    );
+    setInvestment(result.data ?? investment);
+    setApproveTopUpModalOpen(false);
+    setScheduleLoaded(false);
+    setPreviousScheduleLoaded(false);
+    setShowPreviousSchedules(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
   async function handleRejectTopUp() {
     setActionPending(true);
-    try {
-      const result: any = await rejectTopUpAction(investment.id, "Top-up rejected by approver.");
+    const result: any = await rejectTopUpAction(
+      investment.id,
+      "Top-up rejected by approver.",
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to reject top-up.");
-        return;
-      }
-
-      toast.success(result.message || "Top-up rejected.");
-      setInvestment(result.data ?? investment);
-      setRejectTopUpModalOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to reject top-up:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to reject top-up.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(result.message || "Top-up rejected.");
+    setInvestment(result.data ?? investment);
+    setRejectTopUpModalOpen(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
-  async function handleRequestPartialLiquidation(amount: string, reason: string) {
+  async function handleRequestPartialLiquidation(
+    amount: string,
+    reason: string,
+  ) {
     setActionPending(true);
-    try {
-      const result: any = await requestPartialLiquidationAction(investment.id, amount, reason);
+    const result: any = await requestPartialLiquidationAction(
+      investment.id,
+      amount,
+      reason,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to request partial liquidation.");
-        return;
-      }
-
-      toast.success(result.message || "Partial liquidation requested; awaiting approval.");
-      setPartialLiquidationModalOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to request partial liquidation:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to request partial liquidation.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(
+      result.message || "Partial liquidation requested; awaiting approval.",
+    );
+    setPartialLiquidationModalOpen(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
   async function handleTerminate(reason: string) {
     setActionPending(true);
-    try {
-      const result: any = await terminateInvestmentAction(investment.id, reason);
+    const result: any = await terminateInvestmentAction(investment.id, reason);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to terminate investment.");
-        return;
-      }
-
-      toast.success(result.message || "Investment terminated successfully.");
-      setInvestment(result.data ?? investment);
-      setTerminateModalOpen(false);
-      setScheduleLoaded(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to terminate investment:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to terminate investment.");
       setActionPending(false);
+      return;
     }
+
+    toast.success(result.message || "Investment terminated successfully.");
+    setInvestment(result.data ?? investment);
+    setTerminateModalOpen(false);
+    setScheduleLoaded(false);
+    router.refresh();
+
+    setActionPending(false);
   }
 
   const canTopUp =
@@ -420,7 +421,8 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
 
   // Only an active investment can be terminated — enforced server-side too.
   const canTerminate =
-    investment.status === "active" && investment.investment_product?.allow_early_liquidation;
+    investment.status === "active" &&
+    investment.investment_product?.allow_early_liquidation;
 
   // Product-level allow_partial_withdrawal flag and "no pending request already open" are
   // enforced server-side (the show endpoint doesn't necessarily expose the product flag
@@ -431,7 +433,8 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
   // Same maker-checker rule the backend enforces (and would 403 on otherwise) — hidden
   // here rather than shown-then-erroring, matching PostingManagement's isOwnPosting pattern.
   const isOwnInvestment =
-    Boolean(currentUser?.id) && String(currentUser?.id) === String(investment.created_by);
+    Boolean(currentUser?.id) &&
+    String(currentUser?.id) === String(investment.created_by);
   const isOwnTopUpRequest =
     Boolean(currentUser?.username) &&
     currentUser?.username === investment.pending_topup_requested_by;
@@ -442,7 +445,9 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
   // investment.metadata.top_ups is a JSON *array* (not an object keyed by label) — MySQL's
   // JSON type doesn't reliably preserve key order for objects on repeated updates, but
   // array element order is preserved, so ordering here is just the array's own order.
-  const topUpHistory: Record<string, any>[] = Array.isArray(investment.metadata?.top_ups)
+  const topUpHistory: Record<string, any>[] = Array.isArray(
+    investment.metadata?.top_ups,
+  )
     ? investment.metadata.top_ups
     : [];
 
@@ -479,8 +484,13 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
               </div>
 
               <p className="mt-2 text-lg font-bold text-slate-900">
-                ₦{formatCurrency(investment.current_principal ?? investment.principal_amount)}
-                <span className="ml-1.5 text-xs font-semibold text-slate-500">Current Principal</span>
+                ₦
+                {formatCurrency(
+                  investment.current_principal ?? investment.principal_amount,
+                )}
+                <span className="ml-1.5 text-xs font-semibold text-slate-500">
+                  Current Principal
+                </span>
               </p>
             </div>
           </div>
@@ -562,9 +572,11 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
 
         {investment.pending_topup_amount && (
           <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-            Top-up of ₦{formatCurrency(investment.pending_topup_amount)} requested by{" "}
-            {investment.pending_topup_requested_by ?? "—"} is awaiting approval.
-            {isOwnTopUpRequest && " You requested this, so a different admin must approve it."}
+            Top-up of ₦{formatCurrency(investment.pending_topup_amount)}{" "}
+            requested by {investment.pending_topup_requested_by ?? "—"} is
+            awaiting approval.
+            {isOwnTopUpRequest &&
+              " You requested this, so a different admin must approve it."}
           </div>
         )}
       </div>
@@ -573,6 +585,7 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
         isOpen={approveModalOpen}
         investmentId={investment.id}
         accountNumber={investment.account_number}
+        principalAmount={investment.principal_amount}
         pending={actionPending}
         onCancel={() => setApproveModalOpen(false)}
         onConfirm={handleApprove}
@@ -646,7 +659,9 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
             type="button"
             onClick={() => setActiveTab(key)}
             className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-              activeTab === key ? "bg-[#173673] text-white shadow-sm" : "text-slate-600 hover:bg-slate-100"
+              activeTab === key
+                ? "bg-[#173673] text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-100"
             }`}
           >
             <Icon size={16} />
@@ -660,7 +675,10 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
           {/* CUSTOMER */}
           <Section title="Customer">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="CIF Number" value={investment.customer?.cif_number} />
+              <Field
+                label="CIF Number"
+                value={investment.customer?.cif_number}
+              />
               <Field label="Full Name" value={investment.customer?.full_name} />
               <Field
                 label="Email"
@@ -678,14 +696,26 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
           {/* FINANCIAL POSITION */}
           <Section title="Financial Position">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Principal Amount" value={`₦${formatCurrency(investment.principal_amount)}`} />
-              <Field label="Current Principal" value={`₦${formatCurrency(investment.current_principal)}`} />
+              <Field
+                label="Principal Amount"
+                value={`₦${formatCurrency(investment.principal_amount)}`}
+              />
+              <Field
+                label="Current Principal"
+                value={`₦${formatCurrency(investment.current_principal)}`}
+              />
               <Field
                 label="Total Liquidated"
                 value={`₦${formatCurrency(investment.total_withdrawal_amount)}`}
               />
-              <Field label="Maturity Value" value={`₦${formatCurrency(investment.maturity_value)}`} />
-              <Field label="Net Interest Paid" value={`₦${formatCurrency(investment.net_interest_paid)}`} />
+              <Field
+                label="Maturity Value"
+                value={`₦${formatCurrency(investment.maturity_value)}`}
+              />
+              <Field
+                label="Net Interest Paid"
+                value={`₦${formatCurrency(investment.net_interest_paid)}`}
+              />
               <Field
                 label="Total Interest Paid"
                 value={`₦${formatCurrency(investment.total_interest_paid)}`}
@@ -725,7 +755,10 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                     {topUpHistory.map((entry, index) => (
                       <tr key={entry.label ?? index}>
                         <td className="px-3 py-3 text-sm font-semibold capitalize text-slate-700">
-                          {(entry.label ?? `topup_${index + 1}`).replace("_topup", "")}
+                          {(entry.label ?? `topup_${index + 1}`).replace(
+                            "_topup",
+                            "",
+                          )}
                         </td>
                         <td className="px-3 py-3 text-sm font-bold text-slate-900">
                           ₦{formatCurrency(entry.amount)}
@@ -757,17 +790,28 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
           {/* INVESTMENT INFO */}
           <Section title="Investment Information">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Source Account" value={investment.source_account?.account_number} />
-              <Field label="Interest Rate" value={formatPercent(investment.interest_rate)} />
+              <Field
+                label="Source Account"
+                value={investment.source_account?.account_number}
+              />
+              <Field
+                label="Interest Rate"
+                value={formatPercent(investment.interest_rate)}
+              />
               <Field
                 label="Interest Posting Period"
                 value={toDisplayLabel(investment.interest_posting_period)}
               />
               <Field
                 label="Tenure"
-                value={investment.tenure ? `${investment.tenure} days` : undefined}
+                value={
+                  investment.tenure ? `${investment.tenure} days` : undefined
+                }
               />
-              <Field label="Auto Renew" value={investment.auto_renew ? "Yes" : "No"} />
+              <Field
+                label="Auto Renew"
+                value={investment.auto_renew ? "Yes" : "No"}
+              />
               <Field
                 label="Early Liquidation Lock Days"
                 value={investment.early_liquidation_lock_days}
@@ -782,8 +826,14 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
           {/* SCHEDULE */}
           <Section title="Schedule">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Start Date" value={<DateStack value={investment.start_date} />} />
-              <Field label="Maturity Date" value={<DateStack value={investment.maturity_date} />} />
+              <Field
+                label="Start Date"
+                value={<DateStack value={investment.start_date} />}
+              />
+              <Field
+                label="Maturity Date"
+                value={<DateStack value={investment.maturity_date} />}
+              />
               <Field
                 label="Last Interest Payment"
                 value={formatDateTime(investment.last_interest_payment_date)}
@@ -792,8 +842,14 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                 label="Next Interest Payment"
                 value={formatDateTime(investment.next_interest_payment_date)}
               />
-              <Field label="Opened" value={formatDateTime(investment.created_at)} />
-              <Field label="Last Updated" value={formatDateTime(investment.updated_at)} />
+              <Field
+                label="Opened"
+                value={formatDateTime(investment.created_at)}
+              />
+              <Field
+                label="Last Updated"
+                value={formatDateTime(investment.updated_at)}
+              />
             </div>
           </Section>
         </>
@@ -857,8 +913,12 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                         <td className="px-3 py-3 text-sm text-slate-700">
                           {txn.transaction_reference ?? "—"}
                         </td>
-                        <td className="px-3 py-3 text-sm text-slate-700">{txn.description ?? "—"}</td>
-                        <td className="px-3 py-3 text-sm text-slate-700">{txn.created_by ?? "—"}</td>
+                        <td className="px-3 py-3 text-sm text-slate-700">
+                          {txn.description ?? "—"}
+                        </td>
+                        <td className="px-3 py-3 text-sm text-slate-700">
+                          {txn.created_by ?? "—"}
+                        </td>
                         <td className="px-3 py-3 text-sm text-slate-700">
                           <DateStack value={txn.created_at} />
                         </td>
@@ -871,7 +931,8 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
               {transactionsMeta && (
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm font-medium text-slate-600">
-                    Showing {transactionsMeta.from ?? 0}-{transactionsMeta.to ?? 0} of{" "}
+                    Showing {transactionsMeta.from ?? 0}-
+                    {transactionsMeta.to ?? 0} of{" "}
                     {transactionsMeta.total ?? transactions.length} transactions
                   </p>
 
@@ -879,21 +940,30 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => fetchTransactions(transactionsMeta.current_page - 1)}
-                        disabled={transactionsLoading || transactionsMeta.current_page <= 1}
+                        onClick={() =>
+                          fetchTransactions(transactionsMeta.current_page - 1)
+                        }
+                        disabled={
+                          transactionsLoading ||
+                          transactionsMeta.current_page <= 1
+                        }
                         className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
                       >
                         <ChevronLeft size={16} />
                       </button>
                       <span className="px-3 text-sm font-semibold text-slate-700">
-                        Page {transactionsMeta.current_page} of {transactionsMeta.last_page}
+                        Page {transactionsMeta.current_page} of{" "}
+                        {transactionsMeta.last_page}
                       </span>
                       <button
                         type="button"
-                        onClick={() => fetchTransactions(transactionsMeta.current_page + 1)}
+                        onClick={() =>
+                          fetchTransactions(transactionsMeta.current_page + 1)
+                        }
                         disabled={
                           transactionsLoading ||
-                          transactionsMeta.current_page >= transactionsMeta.last_page
+                          transactionsMeta.current_page >=
+                            transactionsMeta.last_page
                         }
                         className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
                       >
@@ -925,8 +995,9 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
             <>
               {currentScheduleVersion > 1 && (
                 <p className="mb-4 text-sm font-medium text-slate-500">
-                  This investment was topped up — only the current schedule is shown below;
-                  every earlier version is kept for reference under "Previous Schedules".
+                  This investment was topped up — only the current schedule is
+                  shown below; every earlier version is kept for reference under
+                  "Previous Schedules".
                 </p>
               )}
 
@@ -949,7 +1020,11 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                     onClick={handleTogglePreviousSchedules}
                     className="flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-[#173673]"
                   >
-                    {showPreviousSchedules ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    {showPreviousSchedules ? (
+                      <ChevronUp size={16} />
+                    ) : (
+                      <ChevronDown size={16} />
+                    )}
                     Previous Schedules
                     {previousScheduleLoaded &&
                       ` (${previousScheduleMeta?.total ?? previousSchedule.length} installments)`}
@@ -957,7 +1032,8 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
 
                   {showPreviousSchedules && (
                     <>
-                      {previousScheduleLoading && previousSchedule.length === 0 ? (
+                      {previousScheduleLoading &&
+                      previousSchedule.length === 0 ? (
                         <p className="mt-3 py-6 text-center text-sm font-medium text-slate-500">
                           Loading previous schedules...
                         </p>
@@ -977,13 +1053,20 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                             <tbody className="divide-y divide-slate-100">
                               {previousSchedule.map((row) => (
                                 <tr key={row.id} className="text-slate-500">
-                                  <td className="px-3 py-2.5 text-sm font-semibold">v{row.version}</td>
-                                  <td className="px-3 py-2.5 text-sm">{row.installment_number}</td>
+                                  <td className="px-3 py-2.5 text-sm font-semibold">
+                                    v{row.version}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-sm">
+                                    {row.installment_number}
+                                  </td>
                                   <td className="px-3 py-2.5 text-sm">
                                     <DateStack value={row.due_date} />
                                   </td>
                                   <td className="px-3 py-2.5 text-sm">
-                                    ₦{formatCurrency(row.expected_interest_amount)}
+                                    ₦
+                                    {formatCurrency(
+                                      row.expected_interest_amount,
+                                    )}
                                   </td>
                                   <td className="px-3 py-2.5 text-sm">
                                     ₦{formatCurrency(row.paid_amount)}
@@ -996,32 +1079,46 @@ export default function InvestmentDetail({ investment: initialInvestment }: Inve
                             </tbody>
                           </table>
 
-                          {previousScheduleMeta && previousScheduleMeta.last_page > 1 && (
-                            <div className="mt-3 flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => fetchPreviousSchedule(previousScheduleMeta.current_page - 1)}
-                                disabled={previousScheduleLoading || previousScheduleMeta.current_page <= 1}
-                                className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
-                              >
-                                <ChevronLeft size={16} />
-                              </button>
-                              <span className="px-3 text-sm font-semibold text-slate-700">
-                                Page {previousScheduleMeta.current_page} of {previousScheduleMeta.last_page}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => fetchPreviousSchedule(previousScheduleMeta.current_page + 1)}
-                                disabled={
-                                  previousScheduleLoading ||
-                                  previousScheduleMeta.current_page >= previousScheduleMeta.last_page
-                                }
-                                className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
-                              >
-                                <ChevronRight size={16} />
-                              </button>
-                            </div>
-                          )}
+                          {previousScheduleMeta &&
+                            previousScheduleMeta.last_page > 1 && (
+                              <div className="mt-3 flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    fetchPreviousSchedule(
+                                      previousScheduleMeta.current_page - 1,
+                                    )
+                                  }
+                                  disabled={
+                                    previousScheduleLoading ||
+                                    previousScheduleMeta.current_page <= 1
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
+                                >
+                                  <ChevronLeft size={16} />
+                                </button>
+                                <span className="px-3 text-sm font-semibold text-slate-700">
+                                  Page {previousScheduleMeta.current_page} of{" "}
+                                  {previousScheduleMeta.last_page}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    fetchPreviousSchedule(
+                                      previousScheduleMeta.current_page + 1,
+                                    )
+                                  }
+                                  disabled={
+                                    previousScheduleLoading ||
+                                    previousScheduleMeta.current_page >=
+                                      previousScheduleMeta.last_page
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 transition"
+                                >
+                                  <ChevronRight size={16} />
+                                </button>
+                              </div>
+                            )}
                         </div>
                       )}
                     </>
@@ -1045,10 +1142,20 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Field({ label, value, icon }: { label: string; value: ReactNode; icon?: ReactNode }) {
+function Field({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: ReactNode;
+  icon?: ReactNode;
+}) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-800">
         {icon}
         {value || "—"}

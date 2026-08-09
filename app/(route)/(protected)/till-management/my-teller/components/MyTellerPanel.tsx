@@ -25,7 +25,10 @@ interface MyTellerPanelProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,7 +43,10 @@ const STATUS_LABELS: Record<string, string> = {
 // then buy/sell (internal vault transfers).
 const ACTION_ORDER: ActionKind[] = ["deposit", "withdraw", "buy", "sell"];
 
-export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPanelProps) {
+export default function MyTellerPanel({
+  initialSession,
+  myTeller,
+}: MyTellerPanelProps) {
   const [session, setSession] = useState<CashierSession>(initialSession);
   const [submitting, setSubmitting] = useState(false);
   const [activeAction, setActiveAction] = useState<ActionKind | null>(null);
@@ -62,21 +68,20 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
     }
 
     setSubmitting(true);
-    try {
-      const result: any = await openCashierSessionAction(myTeller.id, openingFloat);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to open teller session.");
-        return;
-      }
-      toast.success("Teller session opened.");
-      setOpeningFloat("");
-      refresh();
-    } catch (error) {
-      console.error("Failed to open teller session:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await openCashierSessionAction(
+      myTeller.id,
+      openingFloat,
+    );
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to open teller session.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller session opened.");
+    setOpeningFloat("");
+    refresh();
+
+    setSubmitting(false);
   }
 
   async function handleClose() {
@@ -86,56 +91,55 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
     }
 
     setSubmitting(true);
-    try {
-      const result: any = await closeCashierSessionAction(session.id, countedAmount);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to close teller session.");
-        return;
-      }
-      toast.success("Teller session closed — pending reconciliation.");
-      setCountedAmount("");
-      refresh();
-    } catch (error) {
-      console.error("Failed to close teller session:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await closeCashierSessionAction(
+      session.id,
+      countedAmount,
+    );
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to close teller session.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller session closed — pending reconciliation.");
+    setCountedAmount("");
+    refresh();
+
+    setSubmitting(false);
   }
 
   async function handleReconcile() {
     if (!session) return;
 
     setSubmitting(true);
-    try {
-      const result: any = await reconcileCashierSessionAction(session.id);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to reconcile teller session.");
-        return;
-      }
-      toast.success("Teller session reconciled.");
-      refresh();
-    } catch (error) {
-      console.error("Failed to reconcile teller session:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await reconcileCashierSessionAction(session.id);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to reconcile teller session.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Teller session reconciled.");
+    refresh();
+
+    setSubmitting(false);
   }
 
   if (!myTeller) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
         <Wallet size={32} className="mx-auto text-slate-300" />
-        <h1 className="mt-4 text-lg font-bold text-slate-900">No Teller Assigned</h1>
+        <h1 className="mt-4 text-lg font-bold text-slate-900">
+          No Teller Assigned
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          You are not currently assigned to a teller. Contact your head cashier or a branch admin.
+          You are not currently assigned to a teller. Contact your head cashier
+          or a branch admin.
         </p>
       </div>
     );
   }
 
-  const inputClassName = "h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]";
+  const inputClassName =
+    "h-11 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-900 outline-none focus:border-[#29478f]";
 
   return (
     <>
@@ -145,7 +149,9 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
             <Wallet size={26} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{myTeller.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              {myTeller.name}
+            </h1>
             <p className="mt-1 text-sm text-slate-600">
               {myTeller.code} — {myTeller.branch_name}
             </p>
@@ -166,8 +172,14 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
           </p>
           <div className="mt-4 flex items-end gap-3">
             <div className="flex-1">
-              <label className="mb-1.5 block text-sm font-bold text-slate-800">Opening Float Amount</label>
-              <AmountInput value={openingFloat} onChange={setOpeningFloat} className={inputClassName} />
+              <label className="mb-1.5 block text-sm font-bold text-slate-800">
+                Opening Float Amount
+              </label>
+              <AmountInput
+                value={openingFloat}
+                onChange={setOpeningFloat}
+                className={inputClassName}
+              />
             </div>
             <button
               type="button"
@@ -185,13 +197,17 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
         <>
           <section className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">Opening Float</p>
+              <p className="text-sm font-semibold text-slate-500">
+                Opening Float
+              </p>
               <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
                 ₦{formatCurrency(session.opening_float_amount)}
               </h2>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm font-semibold text-slate-500">Expected Balance</p>
+              <p className="text-sm font-semibold text-slate-500">
+                Expected Balance
+              </p>
               <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
                 ₦{formatCurrency(session.expected_closing_balance)}
               </h2>
@@ -237,8 +253,14 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
               </p>
               <div className="mt-4 flex items-end gap-3">
                 <div className="flex-1">
-                  <label className="mb-1.5 block text-sm font-bold text-slate-800">Counted Cash Amount</label>
-                  <AmountInput value={countedAmount} onChange={setCountedAmount} className={inputClassName} />
+                  <label className="mb-1.5 block text-sm font-bold text-slate-800">
+                    Counted Cash Amount
+                  </label>
+                  <AmountInput
+                    value={countedAmount}
+                    onChange={setCountedAmount}
+                    className={inputClassName}
+                  />
                 </div>
                 <button
                   type="button"
@@ -255,8 +277,9 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
           {session.status === "pending_reconciliation" && (
             <section className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-6">
               <p className="text-sm font-semibold text-amber-800">
-                Counted amount: ₦{formatCurrency(session.counted_closing_amount)}. Run reconciliation to
-                compare against the expected balance.
+                Counted amount: ₦
+                {formatCurrency(session.counted_closing_amount)}. Run
+                reconciliation to compare against the expected balance.
               </p>
               <button
                 type="button"
@@ -272,8 +295,9 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
           {session.status === "pending_variance_approval" && (
             <section className="mt-6 rounded-xl border border-red-200 bg-red-50 p-6">
               <p className="text-sm font-semibold text-red-800">
-                Variance of ₦{formatCurrency(session.variance_amount)} is outside tolerance and awaiting a
-                second admin's approval. You cannot approve your own session's variance.
+                Variance of ₦{formatCurrency(session.variance_amount)} is
+                outside tolerance and awaiting a second admin's approval. You
+                cannot approve your own session's variance.
               </p>
             </section>
           )}
@@ -281,14 +305,19 @@ export default function MyTellerPanel({ initialSession, myTeller }: MyTellerPane
           {(session.status === "reconciled" || session.status === "closed") && (
             <section className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-6">
               <p className="text-sm font-semibold text-emerald-800">
-                Session closed. Variance: ₦{formatCurrency(session.variance_amount ?? 0)}.
+                Session closed. Variance: ₦
+                {formatCurrency(session.variance_amount ?? 0)}.
               </p>
             </section>
           )}
         </>
       )}
 
-      <SideDrawer isOpen={activeAction !== null} onClose={() => setActiveAction(null)} widthClassName="max-w-4xl">
+      <SideDrawer
+        isOpen={activeAction !== null}
+        onClose={() => setActiveAction(null)}
+        widthClassName="max-w-4xl"
+      >
         {activeAction && session && (
           <TellerActionForm
             action={activeAction}

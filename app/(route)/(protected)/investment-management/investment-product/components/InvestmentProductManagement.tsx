@@ -72,7 +72,11 @@ function buildPayload(formData: InvestmentProductFormData) {
   }
 
   for (const field of NUMERIC_FIELDS) {
-    if (payload[field] === "" || payload[field] === undefined || payload[field] === null) {
+    if (
+      payload[field] === "" ||
+      payload[field] === undefined ||
+      payload[field] === null
+    ) {
       delete payload[field];
     } else {
       const parsed = Number(payload[field]);
@@ -91,8 +95,9 @@ export default function InvestmentProductManagement({
   currencies,
   generalLedgers,
 }: InvestmentProductManagementProps) {
-  const [investmentProducts, setInvestmentProducts] =
-    useState<InvestmentProduct[]>(initialInvestmentProducts);
+  const [investmentProducts, setInvestmentProducts] = useState<
+    InvestmentProduct[]
+  >(initialInvestmentProducts);
   const [meta, setMeta] = useState<InvestmentProductMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
 
@@ -108,13 +113,17 @@ export default function InvestmentProductManagement({
 
   const stats = meta?.statistics;
 
-  const totalProducts = stats?.total_investment_products ?? investmentProducts.length;
+  const totalProducts =
+    stats?.total_investment_products ?? investmentProducts.length;
   const activeProducts =
-    stats?.total_active ?? investmentProducts.filter((p) => p.status === "active").length;
+    stats?.total_active ??
+    investmentProducts.filter((p) => p.status === "active").length;
   const pendingProducts =
-    stats?.total_pending ?? investmentProducts.filter((p) => p.status === "pending").length;
+    stats?.total_pending ??
+    investmentProducts.filter((p) => p.status === "pending").length;
   const inactiveProducts =
-    stats?.total_inactive ?? investmentProducts.filter((p) => p.status === "inactive").length;
+    stats?.total_inactive ??
+    investmentProducts.filter((p) => p.status === "inactive").length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -123,22 +132,18 @@ export default function InvestmentProductManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getInvestmentProductsAction(page, searchTerm);
+    const result: any = await getInvestmentProductsAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load investment products.");
-        return;
-      }
-
-      setInvestmentProducts(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load investment products:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load investment products.");
       setPageLoading(false);
+      return;
     }
+
+    setInvestmentProducts(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -187,57 +192,67 @@ export default function InvestmentProductManagement({
     setSelectedInvestmentProduct(null);
   }
 
-  async function handleFormSubmit(formData: InvestmentProductFormData, iconFile: File | null) {
+  async function handleFormSubmit(
+    formData: InvestmentProductFormData,
+    iconFile: File | null,
+  ) {
     setSubmitting(true);
-    try {
-      const payload = buildPayload(formData);
-      let productId: number | string | undefined = selectedInvestmentProduct?.id;
+    const payload = buildPayload(formData);
+    let productId: number | string | undefined = selectedInvestmentProduct?.id;
 
-      if (selectedInvestmentProduct) {
-        const result: any = await updateInvestmentProductAction(
-          selectedInvestmentProduct.id,
-          payload
-        );
+    if (selectedInvestmentProduct) {
+      const result: any = await updateInvestmentProductAction(
+        selectedInvestmentProduct.id,
+        payload,
+      );
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update investment product.");
-          return;
-        }
-
-        toast.success(result.message || "Investment product updated successfully.");
-      } else {
-        const result: any = await createInvestmentProductAction(payload);
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create investment product.");
-          return;
-        }
-
-        productId = result?.data?.id;
-
-        toast.success(result.message || "Investment product created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update investment product.");
+        setSubmitting(false);
+        return;
       }
 
-      if (iconFile && productId) {
-        const iconFormData = new FormData();
-        iconFormData.set("icon", iconFile);
+      toast.success(
+        result.message || "Investment product updated successfully.",
+      );
+    } else {
+      const result: any = await createInvestmentProductAction(payload);
 
-        const iconResult: any = await uploadInvestmentProductIconAction(productId, iconFormData);
-        if (iconResult?.status !== "success") {
-          handleApiError(iconResult, "Product saved, but the icon failed to upload.");
-        }
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create investment product.");
+        setSubmitting(false);
+        return;
       }
 
-      await fetchPage(selectedInvestmentProduct ? currentPage : 1);
+      productId = result?.data?.id;
 
-      setDrawerOpen(false);
-      setSelectedInvestmentProduct(null);
-    } catch (error) {
-      console.error("Failed to save investment product:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+      toast.success(
+        result.message || "Investment product created successfully.",
+      );
     }
+
+    if (iconFile && productId) {
+      const iconFormData = new FormData();
+      iconFormData.set("icon", iconFile);
+
+      const iconResult: any = await uploadInvestmentProductIconAction(
+        productId,
+        iconFormData,
+      );
+      if (iconResult?.status !== "success") {
+        handleApiError(
+          iconResult,
+          "Product saved, but the icon failed to upload.",
+        );
+      }
+    }
+
+    await fetchPage(selectedInvestmentProduct ? currentPage : 1);
+
+    setDrawerOpen(false);
+    setSelectedInvestmentProduct(null);
+
+    setSubmitting(false);
   }
 
   // Pending products go through the dedicated approve endpoint (its own
@@ -246,27 +261,24 @@ export default function InvestmentProductManagement({
   async function handleStatusChange(product: InvestmentProduct) {
     setActionMenuId(null);
 
-    try {
-      const result: any =
-        product.status === "pending"
-          ? await approveInvestmentProductAction(product.id)
-          : await updateInvestmentProductStatusAction(
-              product.id,
-              product.status === "active" ? "inactive" : "active"
-            );
+    const result: any =
+      product.status === "pending"
+        ? await approveInvestmentProductAction(product.id)
+        : await updateInvestmentProductStatusAction(
+            product.id,
+            product.status === "active" ? "inactive" : "active",
+          );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update investment product status.");
-        return;
-      }
-
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Investment product status updated successfully.");
-    } catch (error) {
-      console.error("Failed to update investment product status:", error);
-      toast.error("A network error occurred. Please try again.");
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update investment product status.");
+      return;
     }
+
+    await fetchPage(currentPage);
+
+    toast.success(
+      result.message || "Investment product status updated successfully.",
+    );
   }
 
   function statusActionLabel(product: InvestmentProduct) {
@@ -390,7 +402,9 @@ export default function InvestmentProductManagement({
                         <Box size={21} />
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-slate-900">{toDisplayLabel(product.name)}</p>
+                        <p className="font-bold text-sm text-slate-900">
+                          {toDisplayLabel(product.name)}
+                        </p>
                         <p className="text-xs font-semibold text-slate-500 mt-0.5">
                           {product.code ?? `ID: ${product.id}`}
                         </p>
@@ -419,7 +433,7 @@ export default function InvestmentProductManagement({
                       isOpen={actionMenuId === product.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === product.id ? null : product.id
+                          actionMenuId === product.id ? null : product.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -486,7 +500,7 @@ export default function InvestmentProductManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -519,12 +533,18 @@ export default function InvestmentProductManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

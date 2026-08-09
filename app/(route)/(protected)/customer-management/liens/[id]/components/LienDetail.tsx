@@ -20,7 +20,10 @@ type Lien = Record<string, any>;
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -40,9 +43,12 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600 border-slate-200";
+  const style =
+    STATUS_STYLES[status] ?? "bg-slate-100 text-slate-600 border-slate-200";
   return (
-    <span className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}>
+    <span
+      className={`inline-block rounded-full border px-2.5 py-1 text-xs font-bold capitalize ${style}`}
+    >
       {status}
     </span>
   );
@@ -63,62 +69,50 @@ export default function LienDetail({ lien: initialLien }: { lien: Lien }) {
 
   async function handleApprove(totpCode: string) {
     setSubmitting(true);
-    try {
-      const result: any = await approveLienAction(lien.id, totpCode);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to approve lien.");
-        return;
-      }
-      toast.success("Lien approved.");
-      setLien(result.data ?? lien);
-      setApproveOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to approve lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await approveLienAction(lien.id, totpCode);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to approve lien.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Lien approved.");
+    setLien(result.data ?? lien);
+    setApproveOpen(false);
+    router.refresh();
+
+    setSubmitting(false);
   }
 
   async function handleReject(reason: string) {
     setSubmitting(true);
-    try {
-      const result: any = await rejectLienAction(lien.id, reason);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to reject lien.");
-        return;
-      }
-      toast.success("Lien rejected.");
-      setLien(result.data ?? lien);
-      setRejectOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to reject lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await rejectLienAction(lien.id, reason);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to reject lien.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Lien rejected.");
+    setLien(result.data ?? lien);
+    setRejectOpen(false);
+    router.refresh();
+
+    setSubmitting(false);
   }
 
   async function handleRelease(reason: string, totpCode: string) {
     setSubmitting(true);
-    try {
-      const result: any = await releaseLienAction(lien.id, reason, totpCode);
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to release lien.");
-        return;
-      }
-      toast.success("Lien released.");
-      setLien(result.data ?? lien);
-      setReleaseOpen(false);
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to release lien:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    const result: any = await releaseLienAction(lien.id, reason, totpCode);
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to release lien.");
       setSubmitting(false);
+      return;
     }
+    toast.success("Lien released.");
+    setLien(result.data ?? lien);
+    setReleaseOpen(false);
+    router.refresh();
+
+    setSubmitting(false);
   }
 
   return (
@@ -138,9 +132,13 @@ export default function LienDetail({ lien: initialLien }: { lien: Lien }) {
               <Lock size={26} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">{lien.reference}</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                {lien.reference}
+              </h1>
               <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
-                <span className="rounded-full bg-slate-100 px-2.5 py-1">{lien.account_number}</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                  {lien.account_number}
+                </span>
                 <StatusBadge status={lien.status} />
               </div>
             </div>
@@ -154,7 +152,11 @@ export default function LienDetail({ lien: initialLien }: { lien: Lien }) {
                     label="Approve"
                     icon={<CheckCircle2 size={14} />}
                     disabled={isOwnRequest}
-                    title={isOwnRequest ? "You cannot approve a lien you requested yourself" : undefined}
+                    title={
+                      isOwnRequest
+                        ? "You cannot approve a lien you requested yourself"
+                        : undefined
+                    }
                     onClick={() => setApproveOpen(true)}
                     className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                   />
@@ -206,27 +208,39 @@ export default function LienDetail({ lien: initialLien }: { lien: Lien }) {
         <div className="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-4">
             <Field label="Requested By" value={lien.created_by_name} />
-            <Field label="Requested At" value={formatDateTime(lien.created_at)} />
+            <Field
+              label="Requested At"
+              value={formatDateTime(lien.created_at)}
+            />
           </div>
 
           {(lien.status === "active" || lien.status === "released") && (
             <div className="space-y-4">
               <Field label="Approved By" value={lien.approved_by_name} />
-              <Field label="Approved At" value={formatDateTime(lien.approved_at)} />
+              <Field
+                label="Approved At"
+                value={formatDateTime(lien.approved_at)}
+              />
             </div>
           )}
 
           {lien.status === "rejected" && (
             <div className="space-y-4">
               <Field label="Rejected By" value={lien.rejected_by_name} />
-              <Field label="Rejected At" value={formatDateTime(lien.rejected_at)} />
+              <Field
+                label="Rejected At"
+                value={formatDateTime(lien.rejected_at)}
+              />
             </div>
           )}
 
           {lien.status === "released" && (
             <div className="space-y-4">
               <Field label="Released By" value={lien.release_by_name} />
-              <Field label="Released At" value={formatDateTime(lien.released_at)} />
+              <Field
+                label="Released At"
+                value={formatDateTime(lien.released_at)}
+              />
             </div>
           )}
         </div>
@@ -286,7 +300,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 text-sm font-medium text-slate-800">{value || "—"}</p>
     </div>
   );

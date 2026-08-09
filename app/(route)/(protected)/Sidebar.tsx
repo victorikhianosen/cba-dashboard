@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 import {
@@ -36,7 +35,12 @@ import {
   X,
 } from "lucide-react";
 import { logoutAction } from "@/actions/auth.action";
+import { getBrandingAction } from "@/actions/setting.action";
+import { BRANDING_UPDATED_EVENT } from "@/lib/branding-events";
 import { usePermissions } from "@/lib/permissions";
+
+const DEFAULT_BRAND_NAME = "BankPro";
+const DEFAULT_LOGO_SRC = "/logo.png";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -239,7 +243,7 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
-   {
+  {
     name: "User Mgt",
     icon: Users,
     children: [
@@ -292,14 +296,37 @@ function isActiveHref(pathname: string, href?: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function Sidebar({
-  isOpen,
-  onClose,
-}: SidebarProps) {
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { hasPermission, hasAnyPermission } = usePermissions();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const [brandName, setBrandName] = useState(DEFAULT_BRAND_NAME);
+  const [logoSrc, setLogoSrc] = useState(DEFAULT_LOGO_SRC);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadBranding() {
+      const result: any = await getBrandingAction();
+      if (cancelled || result?.status !== "success" || !result?.data) return;
+
+      // Fall back to the default whenever a field comes back empty (e.g. the logo was
+      // never uploaded) rather than only ever overwriting — otherwise a save that clears
+      // a field wouldn't be reflected here without a full reload.
+      setBrandName(result.data.name || DEFAULT_BRAND_NAME);
+      setLogoSrc(result.data.logo_url || DEFAULT_LOGO_SRC);
+    }
+
+    loadBranding();
+    window.addEventListener(BRANDING_UPDATED_EVENT, loadBranding);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(BRANDING_UPDATED_EVENT, loadBranding);
+    };
+  }, []);
 
   function isItemVisible(item: {
     permission?: string;
@@ -315,32 +342,27 @@ export default function Sidebar({
     .map((item) =>
       item.children
         ? { ...item, children: item.children.filter(isItemVisible) }
-        : item
+        : item,
     )
     .filter((item) => !item.children || item.children.length > 0);
 
   const activeGroupName = visibleMenuItems.find((item) =>
-    item.children?.some((child) => isActiveHref(pathname, child.href))
+    item.children?.some((child) => isActiveHref(pathname, child.href)),
   )?.name;
 
   const [openGroup, setOpenGroup] = useState<string | null>(
-    activeGroupName ?? null
+    activeGroupName ?? null,
   );
 
   async function handleLogout() {
     if (loggingOut) return;
     setLoggingOut(true);
-    try {
-      await logoutAction();
-      onClose();
-      router.replace("/login");
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to log out:", error);
-      toast.error("Unable to log out. Please try again.");
-    } finally {
-      setLoggingOut(false);
-    }
+    await logoutAction();
+    onClose();
+    router.replace("/login");
+    router.refresh();
+
+    setLoggingOut(false);
   }
 
   function isActive(href: string) {
@@ -362,9 +384,7 @@ export default function Sidebar({
       {/* SIDEBAR */}
       <aside
         className={`fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col bg-[#101f42] text-white transition-transform duration-300 ${
-          isOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full"
         } lg:translate-x-0`}
       >
         {/* BANKPRO BRAND */}
@@ -376,12 +396,12 @@ export default function Sidebar({
           >
             {/* LOGO */}
             <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1">
-              <Image
-                src="/logo.png"
-                alt="BankPro Logo"
-                width={48}
-                height={48}
-                priority
+              {/* Plain <img>, not next/image — logoSrc can be an external storage URL
+                  (S3/etc.) once an admin uploads one via Settings, and next/image would
+                  need that host allow-listed in next.config to optimize it. */}
+              <img
+                src={logoSrc}
+                alt={`${brandName} Logo`}
                 className="h-full w-full object-contain"
               />
             </div>
@@ -389,7 +409,7 @@ export default function Sidebar({
             {/* BRAND NAME */}
             <div className="min-w-0">
               <h2 className="truncate text-base font-semibold text-white">
-                BankPro
+                {brandName}
               </h2>
 
               <p className="mt-0.5 truncate text-[10px] text-slate-400">
@@ -416,7 +436,7 @@ export default function Sidebar({
 
             if (item.children) {
               const groupActive = item.children.some((child) =>
-                isActive(child.href)
+                isActive(child.href),
               );
               const expanded = openGroup === item.name;
 
@@ -424,9 +444,7 @@ export default function Sidebar({
                 <div key={item.name}>
                   <button
                     type="button"
-                    onClick={() =>
-                      setOpenGroup(expanded ? null : item.name)
-                    }
+                    onClick={() => setOpenGroup(expanded ? null : item.name)}
                     className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm transition ${
                       groupActive
                         ? "bg-[#29447d] font-medium text-white shadow-sm"
@@ -434,10 +452,7 @@ export default function Sidebar({
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <Icon
-                        size={19}
-                        strokeWidth={groupActive ? 2.3 : 2}
-                      />
+                      <Icon size={19} strokeWidth={groupActive ? 2.3 : 2} />
                       <span>{item.name}</span>
                     </span>
 
@@ -493,16 +508,9 @@ export default function Sidebar({
                     : "text-slate-300 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                <Icon
-                  size={19}
-                  strokeWidth={
-                    active ? 2.3 : 2
-                  }
-                />
+                <Icon size={19} strokeWidth={active ? 2.3 : 2} />
 
-                <span>
-                  {item.name}
-                </span>
+                <span>{item.name}</span>
               </Link>
             );
           })}

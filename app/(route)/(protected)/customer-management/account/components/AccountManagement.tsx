@@ -30,7 +30,10 @@ interface AccountManagementProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -53,13 +56,15 @@ export default function AccountManagement({
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
   const totalAccounts = meta?.total ?? accounts.length;
   const activeAccounts = accounts.filter((a) => a.status === "active").length;
   const pendingAccounts = accounts.filter((a) => a.status === "pending").length;
   const inactiveAccounts = accounts.filter(
-    (a) => a.status !== "active" && a.status !== "pending"
+    (a) => a.status !== "active" && a.status !== "pending",
   ).length;
 
   const currentPage = meta?.current_page ?? 1;
@@ -67,22 +72,18 @@ export default function AccountManagement({
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getAccountsAction(page, search);
+    const result: any = await getAccountsAction(page, search);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load accounts.");
-        return;
-      }
-
-      setAccounts(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load accounts:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load accounts.");
       setPageLoading(false);
+      return;
     }
+
+    setAccounts(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -109,7 +110,8 @@ export default function AccountManagement({
         .toLowerCase();
 
       const matchesSearch = searchableData.includes(keyword);
-      const matchesStatus = statusFilter === "all" || account.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || account.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -120,7 +122,9 @@ export default function AccountManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Accounts</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Accounts
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             Every account opened across all customers
           </p>
@@ -214,7 +218,10 @@ export default function AccountManagement({
 
             <tbody className="divide-y divide-slate-100">
               {filteredAccounts.map((account) => (
-                <tr key={account.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={account.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 py-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
@@ -237,7 +244,9 @@ export default function AccountManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    <p className="capitalize">{account.account_product?.product_type || "—"}</p>
+                    <p className="capitalize">
+                      {account.account_product?.product_type || "—"}
+                    </p>
                     {account.account_tier?.level && (
                       <p className="mt-1 text-xs font-semibold text-slate-500">
                         Tier {account.account_tier.level}
@@ -265,14 +274,18 @@ export default function AccountManagement({
                     <ActionMenu
                       isOpen={actionMenuId === account.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === account.id ? null : account.id)
+                        setActionMenuId(
+                          actionMenuId === account.id ? null : account.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton
                         onClick={() => {
                           setActionMenuId(null);
-                          router.push(`/customer-management/account/${account.id}`);
+                          router.push(
+                            `/customer-management/account/${account.id}`,
+                          );
                         }}
                       >
                         <Eye size={16} />
@@ -332,7 +345,7 @@ export default function AccountManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -353,12 +366,18 @@ export default function AccountManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

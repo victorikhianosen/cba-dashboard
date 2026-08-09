@@ -8,23 +8,19 @@ import { authApiClient } from "@/lib/api-client";
 export async function getInvestmentTransactionsAction(
   investmentId: number | string,
   page: number = 1,
-  filters: { search?: string; type?: string; from?: string; to?: string } = {}
+  filters: { search?: string; type?: string; from?: string; to?: string } = {},
 ) {
-  try {
-    const params = new URLSearchParams({ page: String(page) });
+  const params = new URLSearchParams({ page: String(page) });
 
-    if (filters.search) params.set("search", filters.search);
-    if (filters.type) params.set("type", filters.type);
-    if (filters.from) params.set("from", filters.from);
-    if (filters.to) params.set("to", filters.to);
+  if (filters.search) params.set("search", filters.search);
+  if (filters.type) params.set("type", filters.type);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
 
-    const result: any = await authApiClient({
-      endpoint: `/admin/investments/${investmentId}/transactions?${params.toString()}`,
-      method: "GET",
-    });
+  const result: any = await authApiClient({
+    endpoint: `/admin/investments/${investmentId}/transactions?${params.toString()}`,
+    method: "GET",
+  });
 
-    return result;
-  } catch {
-    return { status: "failed", responseCode: "500", message: "An unexpected error occurred." };
-  }
+  return result;
 }

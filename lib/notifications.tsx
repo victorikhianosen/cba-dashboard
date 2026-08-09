@@ -16,6 +16,7 @@ import {
   markNotificationAsReadAction,
 } from "@/actions/notification.action";
 import { getEcho } from "@/lib/echo";
+import { playNotificationChime } from "@/lib/notification-sound";
 import { usePermissions } from "@/lib/permissions";
 
 export type AppNotification = {
@@ -64,17 +65,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const hydrate = useCallback(async () => {
     setLoading(true);
-    try {
-      const result: any = await getNotificationsAction();
-      if (result?.status === "success") {
-        setNotifications(Array.isArray(result.data) ? result.data : []);
-        setUnreadCount(result.meta?.unread_count ?? 0);
-      }
-    } catch (error) {
-      console.error("Failed to load notifications:", error);
-    } finally {
-      setLoading(false);
+    const result: any = await getNotificationsAction();
+    if (result?.status === "success") {
+      setNotifications(Array.isArray(result.data) ? result.data : []);
+      setUnreadCount(result.meta?.unread_count ?? 0);
     }
+
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -86,19 +83,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     const echo = getEcho();
     const channel = echo.private(`App.Models.User.${currentUser.id}`);
 
-    channel.notification((notification: AppNotification["data"] & { id?: string }) => {
-      const incoming: AppNotification = {
-        id: notification.id ?? crypto.randomUUID(),
-        type: "App\\Notifications\\GenericAlertNotification",
-        data: notification,
-        read_at: null,
-        created_at: new Date().toISOString(),
-      };
+    channel.notification(
+      (notification: AppNotification["data"] & { id?: string }) => {
+        const incoming: AppNotification = {
+          id: notification.id ?? crypto.randomUUID(),
+          type: "App\\Notifications\\GenericAlertNotification",
+          data: notification,
+          read_at: null,
+          created_at: new Date().toISOString(),
+        };
 
-      setNotifications((current) => [incoming, ...current]);
-      setUnreadCount((count) => count + 1);
-      toast.info(notification.title);
-    });
+        setNotifications((current) => [incoming, ...current]);
+        setUnreadCount((count) => count + 1);
+        toast.info(notification.title);
+        playNotificationChime();
+      },
+    );
 
     return () => {
       echo.leave(`App.Models.User.${currentUser.id}`);
@@ -109,20 +109,26 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   async function markAsRead(id: string) {
     setNotifications((current) =>
-      current.map((item) => (item.id === id ? { ...item, read_at: new Date().toISOString() } : item))
+      current.map((item) =>
+        item.id === id ? { ...item, read_at: new Date().toISOString() } : item,
+      ),
     );
     setUnreadCount((count) => Math.max(0, count - 1));
     await markNotificationAsReadAction(id);
   }
 
   async function markAllAsRead() {
-    setNotifications((current) => current.map((item) => ({ ...item, read_at: new Date().toISOString() })));
+    setNotifications((current) =>
+      current.map((item) => ({ ...item, read_at: new Date().toISOString() })),
+    );
     setUnreadCount(0);
     await markAllNotificationsAsReadAction();
   }
 
   return (
-    <NotificationsContext.Provider value={{ notifications, unreadCount, loading, markAsRead, markAllAsRead }}>
+    <NotificationsContext.Provider
+      value={{ notifications, unreadCount, loading, markAsRead, markAllAsRead }}
+    >
       {children}
     </NotificationsContext.Provider>
   );

@@ -43,7 +43,11 @@ function formatLabel(name: string) {
     .join(" ");
 }
 
-export default function UserDetail({ user, branches, allRoles }: UserDetailProps) {
+export default function UserDetail({
+  user,
+  branches,
+  allRoles,
+}: UserDetailProps) {
   const router = useRouter();
 
   const [formData, setFormData] = useState<UserFormData>({
@@ -65,16 +69,16 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
 
   const roleNames = useMemo(
     () => allRoles.map((role) => role.name).filter(Boolean),
-    [allRoles]
+    [allRoles],
   );
 
   const initialRoles = useMemo(
     () => new Set<string>(Array.isArray(user.roles) ? user.roles : []),
-    [user.roles]
+    [user.roles],
   );
 
   const [selectedRoles, setSelectedRoles] = useState<Set<string>>(
-    new Set(initialRoles)
+    new Set(initialRoles),
   );
   const [savingRoles, setSavingRoles] = useState(false);
 
@@ -83,7 +87,7 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
     Array.from(selectedRoles).some((name) => !initialRoles.has(name));
 
   function handleInputChange(
-    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
@@ -91,54 +95,46 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
 
   async function handleProfileSave() {
     setSavingProfile(true);
-    try {
-      const result: any = await updateUserAction(user.id, {
-        branch_id: formData.branch_id,
-        staff_code: formData.staff_code,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        username: formData.username,
-        email: formData.email,
-        gender: formData.gender,
-        phone: formData.phone,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        country: formData.country,
-      });
+    const result: any = await updateUserAction(user.id, {
+      branch_id: formData.branch_id,
+      staff_code: formData.staff_code,
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      username: formData.username,
+      email: formData.email,
+      gender: formData.gender,
+      phone: formData.phone,
+      address: formData.address,
+      city: formData.city,
+      state: formData.state,
+      country: formData.country,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update user.");
-        return;
-      }
-
-      toast.success(result.message || "User updated successfully.");
-  router.push("/user-management/user");
-    } catch (error) {
-      console.error("Failed to update user:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update user.");
       setSavingProfile(false);
+      return;
     }
+
+    toast.success(result.message || "User updated successfully.");
+    router.push("/user-management/user");
+
+    setSavingProfile(false);
   }
 
   async function handleSendCredentials() {
     setSendingCredentials(true);
-    try {
-      const result: any = await resetUserPasswordAction(user.id);
+    const result: any = await resetUserPasswordAction(user.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to send login email.");
-        return;
-      }
-
-      toast.success(result.message || "Login email sent to the user.");
-    } catch (error) {
-      console.error("Failed to send login email:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to send login email.");
       setSendingCredentials(false);
+      return;
     }
+
+    toast.success(result.message || "Login email sent to the user.");
+
+    setSendingCredentials(false);
   }
 
   function toggleRole(name: string) {
@@ -162,33 +158,34 @@ export default function UserDetail({ user, branches, allRoles }: UserDetailProps
   }
 
   async function handleRolesSave() {
-    const toAdd = Array.from(selectedRoles).filter((name) => !initialRoles.has(name));
-    const toRemove = Array.from(initialRoles).filter((name) => !selectedRoles.has(name));
+    const toAdd = Array.from(selectedRoles).filter(
+      (name) => !initialRoles.has(name),
+    );
+    const toRemove = Array.from(initialRoles).filter(
+      (name) => !selectedRoles.has(name),
+    );
 
     if (toAdd.length === 0 && toRemove.length === 0) return;
 
     setSavingRoles(true);
-    try {
-      const results = await Promise.all([
-        toAdd.length > 0 ? assignUserRolesAction(user.id, toAdd) : null,
-        toRemove.length > 0 ? unassignUserRolesAction(user.id, toRemove) : null,
-      ]);
+    const results = await Promise.all([
+      toAdd.length > 0 ? assignUserRolesAction(user.id, toAdd) : null,
+      toRemove.length > 0 ? unassignUserRolesAction(user.id, toRemove) : null,
+    ]);
 
-      const failed = results.find((result) => result && result.status !== "success");
+    const failed = results.find(
+      (result) => result && result.status !== "success",
+    );
 
-      if (failed) {
-        handleApiError(failed, "Failed to update roles.");
-        return;
-      }
-
-      toast.success("User roles updated successfully.");
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to update user roles:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSavingRoles(false);
+    if (failed) {
+      handleApiError(failed, "Failed to update roles.");
+      return;
     }
+
+    toast.success("User roles updated successfully.");
+    router.refresh();
+
+    setSavingRoles(false);
   }
 
   return (

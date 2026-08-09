@@ -16,7 +16,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { bulkApprovePostingsAction, getPostingsAction } from "@/actions/posting.action";
+import {
+  bulkApprovePostingsAction,
+  getPostingsAction,
+} from "@/actions/posting.action";
 import ActionMenu from "@/components/ActionMenu";
 import TotpConfirmModal from "@/components/TotpConfirmModal";
 import ExportDropdown from "@/components/ExportDropdown";
@@ -37,7 +40,10 @@ interface PostingManagementProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -74,10 +80,30 @@ function partyCodeBottom(party: Record<string, any> | null | undefined) {
 }
 
 const POSTING_TYPES = [
-  { value: "gl_to_gl", label: "GL to GL", source: "general_ledger", destination: "general_ledger" },
-  { value: "customer_to_gl", label: "Customer to GL", source: "account", destination: "general_ledger" },
-  { value: "gl_to_customer", label: "GL to Customer", source: "general_ledger", destination: "account" },
-  { value: "customer_to_customer", label: "Customer to Customer", source: "account", destination: "account" },
+  {
+    value: "gl_to_gl",
+    label: "GL to GL",
+    source: "general_ledger",
+    destination: "general_ledger",
+  },
+  {
+    value: "customer_to_gl",
+    label: "Customer to GL",
+    source: "account",
+    destination: "general_ledger",
+  },
+  {
+    value: "gl_to_customer",
+    label: "GL to Customer",
+    source: "general_ledger",
+    destination: "account",
+  },
+  {
+    value: "customer_to_customer",
+    label: "Customer to Customer",
+    source: "account",
+    destination: "account",
+  },
 ];
 
 export default function PostingManagement({
@@ -96,17 +122,25 @@ export default function PostingManagement({
   const [to, setTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
-  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(
+    new Set(),
+  );
   const [bulkApproveModalOpen, setBulkApproveModalOpen] = useState(false);
   const [bulkApproving, setBulkApproving] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const totalPostings = meta?.total ?? postings.length;
   const pendingPostings = postings.filter((p) => p.status === "pending").length;
-  const approvedPostings = postings.filter((p) => p.status === "approved").length;
-  const rejectedPostings = postings.filter((p) => p.status === "rejected").length;
+  const approvedPostings = postings.filter(
+    (p) => p.status === "approved",
+  ).length;
+  const rejectedPostings = postings.filter(
+    (p) => p.status === "rejected",
+  ).length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -123,22 +157,18 @@ export default function PostingManagement({
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getPostingsAction(page, exportParams);
+    const result: any = await getPostingsAction(page, exportParams);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load postings.");
-        return;
-      }
-
-      setPostings(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load postings:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load postings.");
       setPageLoading(false);
+      return;
     }
+
+    setPostings(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   useEffect(() => {
@@ -175,7 +205,10 @@ export default function PostingManagement({
   }
 
   function isOwnPosting(posting: Posting) {
-    return Boolean(currentUser?.id) && String(currentUser?.id) === String(posting.created_by);
+    return (
+      Boolean(currentUser?.id) &&
+      String(currentUser?.id) === String(posting.created_by)
+    );
   }
 
   function isSelectable(posting: Posting) {
@@ -190,7 +223,9 @@ export default function PostingManagement({
       } else if (next.size < MAX_BULK_APPROVE) {
         next.add(id);
       } else {
-        toast.warn(`You can only bulk-approve up to ${MAX_BULK_APPROVE} postings at once.`);
+        toast.warn(
+          `You can only bulk-approve up to ${MAX_BULK_APPROVE} postings at once.`,
+        );
       }
       return next;
     });
@@ -198,7 +233,9 @@ export default function PostingManagement({
 
   function toggleSelectAllOnPage(selectablePostings: Posting[]) {
     setSelectedIds((prev) => {
-      const allSelected = selectablePostings.length > 0 && selectablePostings.every((p) => prev.has(p.id));
+      const allSelected =
+        selectablePostings.length > 0 &&
+        selectablePostings.every((p) => prev.has(p.id));
       if (allSelected) {
         const next = new Set(prev);
         selectablePostings.forEach((p) => next.delete(p.id));
@@ -208,7 +245,9 @@ export default function PostingManagement({
       const next = new Set(prev);
       for (const posting of selectablePostings) {
         if (next.size >= MAX_BULK_APPROVE) {
-          toast.warn(`You can only bulk-approve up to ${MAX_BULK_APPROVE} postings at once.`);
+          toast.warn(
+            `You can only bulk-approve up to ${MAX_BULK_APPROVE} postings at once.`,
+          );
           break;
         }
         next.add(posting.id);
@@ -221,27 +260,25 @@ export default function PostingManagement({
     const ids = Array.from(selectedIds);
 
     setBulkApproving(true);
-    try {
-      const result: any = await bulkApprovePostingsAction(ids, totpCode);
+    const result: any = await bulkApprovePostingsAction(ids, totpCode);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to queue postings for approval.");
-        return;
-      }
-
-      // The backend just queues the batch — close the modal and clear the
-      // selection now that the code was actually accepted, then give the
-      // queue a moment to work through it before refreshing this page.
-      setBulkApproveModalOpen(false);
-      setSelectedIds(new Set());
-      toast.success(`${ids.length} posting(s) queued for approval — they will update shortly.`);
-      setTimeout(() => fetchPage(currentPage), 3000);
-    } catch (error) {
-      console.error("Failed to bulk-approve postings:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to queue postings for approval.");
       setBulkApproving(false);
+      return;
     }
+
+    // The backend just queues the batch — close the modal and clear the
+    // selection now that the code was actually accepted, then give the
+    // queue a moment to work through it before refreshing this page.
+    setBulkApproveModalOpen(false);
+    setSelectedIds(new Set());
+    toast.success(
+      `${ids.length} posting(s) queued for approval — they will update shortly.`,
+    );
+    setTimeout(() => fetchPage(currentPage), 3000);
+
+    setBulkApproving(false);
   }
 
   return (
@@ -249,14 +286,20 @@ export default function PostingManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Postings</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Postings
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
-            GL to GL, Customer to GL, GL to Customer and Customer to Customer postings
+            GL to GL, Customer to GL, GL to Customer and Customer to Customer
+            postings
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportDropdown baseEndpoint="/admin/postings" params={exportParams} />
+          <ExportDropdown
+            baseEndpoint="/admin/postings"
+            params={exportParams}
+          />
 
           <button
             type="button"
@@ -386,8 +429,11 @@ export default function PostingManagement({
       {selectedIds.size > 0 && (
         <section className="mt-4 flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50 px-5 py-3">
           <p className="text-sm font-semibold text-blue-900">
-            {selectedIds.size} posting{selectedIds.size === 1 ? "" : "s"} selected
-            {selectedIds.size >= MAX_BULK_APPROVE ? ` (max ${MAX_BULK_APPROVE})` : ""}
+            {selectedIds.size} posting{selectedIds.size === 1 ? "" : "s"}{" "}
+            selected
+            {selectedIds.size >= MAX_BULK_APPROVE
+              ? ` (max ${MAX_BULK_APPROVE})`
+              : ""}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -432,9 +478,13 @@ export default function PostingManagement({
                     aria-label="Select all pending on this page"
                     checked={
                       postings.some(isSelectable) &&
-                      postings.filter(isSelectable).every((p) => selectedIds.has(p.id))
+                      postings
+                        .filter(isSelectable)
+                        .every((p) => selectedIds.has(p.id))
                     }
-                    onChange={() => toggleSelectAllOnPage(postings.filter(isSelectable))}
+                    onChange={() =>
+                      toggleSelectAllOnPage(postings.filter(isSelectable))
+                    }
                     className="h-4 w-4 cursor-pointer rounded border-slate-300"
                   />
                 </th>
@@ -451,7 +501,10 @@ export default function PostingManagement({
 
             <tbody className="divide-y divide-slate-100">
               {postings.map((posting) => (
-                <tr key={posting.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={posting.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="w-10 px-5 py-5">
                     {isPending(posting) && (
                       <input
@@ -470,7 +523,9 @@ export default function PostingManagement({
                     )}
                   </td>
                   <td className="px-5 py-5">
-                    <p className="font-bold text-sm text-slate-900">{posting.reference}</p>
+                    <p className="font-bold text-sm text-slate-900">
+                      {posting.reference}
+                    </p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500 capitalize">
                       {toDisplayLabel(posting.transaction_type) || "—"}
                     </p>
@@ -486,13 +541,17 @@ export default function PostingManagement({
                   </td>
 
                   <td className="px-5 text-sm text-slate-700">
-                    <p className="font-semibold text-slate-900">{partyNameTop(posting.source)}</p>
+                    <p className="font-semibold text-slate-900">
+                      {partyNameTop(posting.source)}
+                    </p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500">
                       {partyCodeBottom(posting.source)}
                     </p>
                   </td>
                   <td className="px-5 text-sm text-slate-700">
-                    <p className="font-semibold text-slate-900">{partyNameTop(posting.destination)}</p>
+                    <p className="font-semibold text-slate-900">
+                      {partyNameTop(posting.destination)}
+                    </p>
                     <p className="mt-0.5 text-xs font-semibold text-slate-500">
                       {partyCodeBottom(posting.destination)}
                     </p>
@@ -514,7 +573,9 @@ export default function PostingManagement({
                     <ActionMenu
                       isOpen={actionMenuId === posting.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === posting.id ? null : posting.id)
+                        setActionMenuId(
+                          actionMenuId === posting.id ? null : posting.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                     >
@@ -580,7 +641,7 @@ export default function PostingManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -601,12 +662,18 @@ export default function PostingManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

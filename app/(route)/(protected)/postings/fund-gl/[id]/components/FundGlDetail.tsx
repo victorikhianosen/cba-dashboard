@@ -25,7 +25,10 @@ interface FundGlDetailProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -44,21 +47,29 @@ function glLabel(gl: Record<string, any> | null | undefined) {
 // created_by/reviewed_by/approved_by/rejected_by can come back either as a
 // full user object or as a plain username/id string — normalize both down to
 // a comparable id and a human-readable label.
-function userId(user: string | number | Record<string, any> | null | undefined) {
+function userId(
+  user: string | number | Record<string, any> | null | undefined,
+) {
   if (user === null || user === undefined) return undefined;
   if (typeof user === "object") return user.id;
   return user;
 }
 
-function userLabel(user: string | number | Record<string, any> | null | undefined) {
+function userLabel(
+  user: string | number | Record<string, any> | null | undefined,
+) {
   if (user === null || user === undefined) return undefined;
   if (typeof user === "object") {
-    return `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username;
+    return (
+      `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() || user.username
+    );
   }
   return String(user);
 }
 
-export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProps) {
+export default function FundGlDetail({
+  fundGl: initialFundGl,
+}: FundGlDetailProps) {
   const router = useRouter();
   const { currentUser, hasPermission, roles } = usePermissions();
   const [fundGl, setFundGl] = useState<FundGl>(initialFundGl);
@@ -72,20 +83,34 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
   const createdById = userId(fundGl.created_by ?? fundGl.creator);
   const reviewedById = userId(fundGl.reviewed_by ?? fundGl.reviewer);
 
-  const isCreator = !!currentUser?.id && String(currentUser.id) === String(createdById);
-  const isReviewer = !!currentUser?.id && String(currentUser.id) === String(reviewedById);
+  const isCreator =
+    !!currentUser?.id && String(currentUser.id) === String(createdById);
+  const isReviewer =
+    !!currentUser?.id && String(currentUser.id) === String(reviewedById);
 
   const isPendingReview = fundGl.status === "pending_review";
   const isPendingApproval = fundGl.status === "pending_approval";
 
-  const canReview = isPendingReview && !isCashier && hasPermission("review_fund_gls") && !isCreator;
+  const canReview =
+    isPendingReview &&
+    !isCashier &&
+    hasPermission("review_fund_gls") &&
+    !isCreator;
   const canApprove =
-    isPendingApproval && !isCashier && hasPermission("approve_fund_gls") && !isCreator && !isReviewer;
+    isPendingApproval &&
+    !isCashier &&
+    hasPermission("approve_fund_gls") &&
+    !isCreator &&
+    !isReviewer;
 
   // Returns whether the action succeeded, so callers can decide whether to close their
   // modal — a failed attempt (e.g. wrong TOTP code) should leave the modal open instead
   // of silently closing and only showing a toast.
-  async function runAction(key: string, action: () => Promise<any>, successMessage: string): Promise<boolean> {
+  async function runAction(
+    key: string,
+    action: () => Promise<any>,
+    successMessage: string,
+  ): Promise<boolean> {
     setActionPending(key);
     try {
       const result: any = await action();
@@ -104,10 +129,6 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
 
       router.refresh();
       return true;
-    } catch (error) {
-      console.error("Fund GL action failed:", error);
-      toast.error("A network error occurred. Please try again.");
-      return false;
     } finally {
       setActionPending(null);
     }
@@ -117,7 +138,7 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
     const succeeded = await runAction(
       "review",
       () => reviewFundGlAction(fundGl.id, totpCode),
-      "Fund GL transfer reviewed."
+      "Fund GL transfer reviewed.",
     );
     if (succeeded) setReviewModalOpen(false);
   }
@@ -126,7 +147,7 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
     const succeeded = await runAction(
       "approve",
       () => approveFundGlAction(fundGl.id, totpCode),
-      "Fund GL transfer approved and posted."
+      "Fund GL transfer approved and posted.",
     );
     if (succeeded) setApproveModalOpen(false);
   }
@@ -135,7 +156,7 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
     const succeeded = await runAction(
       "reject",
       () => rejectFundGlAction(fundGl.id, reason, totpCode),
-      "Fund GL transfer rejected."
+      "Fund GL transfer rejected.",
     );
     if (succeeded) setRejectModalOpen(false);
   }
@@ -162,7 +183,9 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
                 {fundGl.reference}
               </h1>
               <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
-                <span className="rounded-full bg-slate-100 px-2.5 py-1">GL → GL</span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                  GL → GL
+                </span>
                 <StatusBadge status={fundGl.status} />
               </div>
             </div>
@@ -237,20 +260,31 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
       <Section title="Parties">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-200 p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Source GL</p>
-            <p className="mt-1 text-sm font-bold text-slate-900">{glLabel(fundGl.source)}</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Source GL
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {glLabel(fundGl.source)}
+            </p>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              Balance: <span className="text-slate-800">₦{formatCurrency(fundGl.source?.balance)}</span>
+              Balance:{" "}
+              <span className="text-slate-800">
+                ₦{formatCurrency(fundGl.source?.balance)}
+              </span>
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Destination GL
             </p>
-            <p className="mt-1 text-sm font-bold text-slate-900">{glLabel(fundGl.destination)}</p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {glLabel(fundGl.destination)}
+            </p>
             <p className="mt-1 text-xs font-semibold text-slate-500">
               Balance:{" "}
-              <span className="text-slate-800">₦{formatCurrency(fundGl.destination?.balance)}</span>
+              <span className="text-slate-800">
+                ₦{formatCurrency(fundGl.destination?.balance)}
+              </span>
             </p>
           </div>
         </div>
@@ -266,11 +300,16 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
       {/* DETAILS */}
       <Section title="Details">
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Transaction Reference" value={fundGl.transaction_reference} />
+          <Field
+            label="Transaction Reference"
+            value={fundGl.transaction_reference}
+          />
         </div>
         {fundGl.remarks && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Remarks</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Remarks
+            </p>
             <p className="mt-1 text-sm text-slate-800">{fundGl.remarks}</p>
           </div>
         )}
@@ -279,21 +318,47 @@ export default function FundGlDetail({ fundGl: initialFundGl }: FundGlDetailProp
       {/* RECORD HISTORY */}
       <Section title="Record History">
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Created By" value={userLabel(fundGl.created_by ?? fundGl.creator)} />
-          <Field label="Created Date" value={formatDateTime(fundGl.created_at)} />
-          <Field label="Reviewed By" value={userLabel(fundGl.reviewed_by ?? fundGl.reviewer)} />
-          <Field label="Reviewed Date" value={formatDateTime(fundGl.reviewed_at)} />
-          <Field label="Approved By" value={userLabel(fundGl.approved_by ?? fundGl.approver)} />
-          <Field label="Approved Date" value={formatDateTime(fundGl.approved_at)} />
-          <Field label="Rejected By" value={userLabel(fundGl.rejected_by ?? fundGl.rejecter)} />
-          <Field label="Rejected Date" value={formatDateTime(fundGl.rejected_at)} />
+          <Field
+            label="Created By"
+            value={userLabel(fundGl.created_by ?? fundGl.creator)}
+          />
+          <Field
+            label="Created Date"
+            value={formatDateTime(fundGl.created_at)}
+          />
+          <Field
+            label="Reviewed By"
+            value={userLabel(fundGl.reviewed_by ?? fundGl.reviewer)}
+          />
+          <Field
+            label="Reviewed Date"
+            value={formatDateTime(fundGl.reviewed_at)}
+          />
+          <Field
+            label="Approved By"
+            value={userLabel(fundGl.approved_by ?? fundGl.approver)}
+          />
+          <Field
+            label="Approved Date"
+            value={formatDateTime(fundGl.approved_at)}
+          />
+          <Field
+            label="Rejected By"
+            value={userLabel(fundGl.rejected_by ?? fundGl.rejecter)}
+          />
+          <Field
+            label="Rejected Date"
+            value={formatDateTime(fundGl.rejected_at)}
+          />
         </div>
         {fundGl.rejection_reason && (
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Rejection Reason
             </p>
-            <p className="mt-1 text-sm text-slate-800">{fundGl.rejection_reason}</p>
+            <p className="mt-1 text-sm text-slate-800">
+              {fundGl.rejection_reason}
+            </p>
           </div>
         )}
       </Section>
@@ -313,7 +378,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        {label}
+      </p>
       <p className="mt-1 text-sm font-medium text-slate-800">{value || "—"}</p>
     </div>
   );

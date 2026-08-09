@@ -2,12 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileClock,
-  Search,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, FileClock, Search } from "lucide-react";
 import { toast } from "react-toastify";
 import { getAuditTrailsAction } from "@/actions/audit.action";
 import { handleApiError } from "@/lib/errors";
@@ -42,22 +37,18 @@ export default function AuditLogManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getAuditTrailsAction(page, searchTerm);
+    const result: any = await getAuditTrailsAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load audit logs.");
-        return;
-      }
-
-      setLogs(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load audit logs:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load audit logs.");
       setPageLoading(false);
+      return;
     }
+
+    setLogs(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -227,7 +218,7 @@ export default function AuditLogManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button

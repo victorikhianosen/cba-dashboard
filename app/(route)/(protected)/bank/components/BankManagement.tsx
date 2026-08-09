@@ -59,22 +59,18 @@ export default function BankManagement({
 
   async function fetchPage(page: number, searchTerm: string = search) {
     setPageLoading(true);
-    try {
-      const result: any = await getBanksAction(page, searchTerm);
+    const result: any = await getBanksAction(page, searchTerm);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load banks.");
-        return;
-      }
-
-      setBanks(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load banks:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load banks.");
       setPageLoading(false);
+      return;
     }
+
+    setBanks(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   async function goToPage(page: number) {
@@ -121,61 +117,54 @@ export default function BankManagement({
 
   async function handleFormSubmit(formData: FormData) {
     setSubmitting(true);
-    try {
-      if (selectedBank) {
-        const result: any = await updateBankAction(selectedBank.id, formData);
+    if (selectedBank) {
+      const result: any = await updateBankAction(selectedBank.id, formData);
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update bank.");
-          return;
-        }
-
-        await fetchPage(currentPage);
-
-        toast.success(result.message || "Bank updated successfully.");
-      } else {
-        const result: any = await createBankAction(formData);
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create bank.");
-          return;
-        }
-
-        await fetchPage(1);
-
-        toast.success(result.message || "Bank created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update bank.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedBank(null);
-    } catch (error) {
-      console.error("Failed to save bank:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchPage(currentPage);
+
+      toast.success(result.message || "Bank updated successfully.");
+    } else {
+      const result: any = await createBankAction(formData);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create bank.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchPage(1);
+
+      toast.success(result.message || "Bank created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedBank(null);
+
+    setSubmitting(false);
   }
 
   async function handleDelete() {
     if (!bankToDelete) return;
     setDeleting(true);
-    try {
-      const result: any = await deleteBankAction(bankToDelete.id);
+    const result: any = await deleteBankAction(bankToDelete.id);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to delete bank.");
-        return;
-      }
-
-      setBankToDelete(null);
-      await fetchPage(currentPage);
-
-      toast.success(result.message || "Bank deleted successfully.");
-    } catch (error) {
-      console.error("Failed to delete bank:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to delete bank.");
       setDeleting(false);
+      return;
     }
+
+    setBankToDelete(null);
+    await fetchPage(currentPage);
+
+    toast.success(result.message || "Bank deleted successfully.");
+
+    setDeleting(false);
   }
 
   return (
@@ -281,7 +270,7 @@ export default function BankManagement({
                       isOpen={actionMenuId === bank.id}
                       onToggle={() =>
                         setActionMenuId(
-                          actionMenuId === bank.id ? null : bank.id
+                          actionMenuId === bank.id ? null : bank.id,
                         )
                       }
                       onClose={() => setActionMenuId(null)}
@@ -362,7 +351,7 @@ export default function BankManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -398,7 +387,8 @@ export default function BankManagement({
               Delete Bank?
             </h2>
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Are you sure you want to delete <b>{bankToDelete.bank_name}</b>? This action cannot be undone.
+              Are you sure you want to delete <b>{bankToDelete.bank_name}</b>?
+              This action cannot be undone.
             </p>
 
             <div className="mt-7 flex justify-end gap-3">
@@ -427,12 +417,18 @@ export default function BankManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

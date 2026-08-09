@@ -15,7 +15,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { createInvestmentAction, getInvestmentsAction } from "@/actions/investment.action";
+import {
+  createInvestmentAction,
+  getInvestmentsAction,
+} from "@/actions/investment.action";
 import ActionMenu from "@/components/ActionMenu";
 import { handleApiError } from "@/lib/errors";
 import { toDisplayLabel } from "@/lib/format";
@@ -28,11 +31,21 @@ interface InvestmentManagementProps {
   investmentProducts: InvestmentProduct[];
 }
 
-const STATUS_OPTIONS = ["pending", "active", "rejected", "matured", "liquidated", "closed"];
+const STATUS_OPTIONS = [
+  "pending",
+  "active",
+  "rejected",
+  "matured",
+  "liquidated",
+  "closed",
+];
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDate(value: string | null | undefined) {
@@ -40,10 +53,16 @@ function formatDate(value: string | null | undefined) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    : date.toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
 }
 
-export default function InvestmentManagement({ investmentProducts }: InvestmentManagementProps) {
+export default function InvestmentManagement({
+  investmentProducts,
+}: InvestmentManagementProps) {
   const router = useRouter();
 
   const [investments, setInvestments] = useState<Investment[]>([]);
@@ -57,27 +76,22 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
   const [submitting, setSubmitting] = useState(false);
   const [actionMenuId, setActionMenuId] = useState<any>(null);
 
-
   const isFirstRender = useRef(true);
 
   async function fetchInvestments(page: number = 1) {
     setPageLoading(true);
-    try {
-      const result: any = await getInvestmentsAction(page, search, statusFilter);
+    const result: any = await getInvestmentsAction(page, search, statusFilter);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load investments.");
-        return;
-      }
-
-      setInvestments(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load investments:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load investments.");
       setPageLoading(false);
+      return;
     }
+
+    setInvestments(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   // Loads the full list on mount, then again whenever the search/status filters settle.
@@ -96,44 +110,41 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
   async function goToPage(page: number) {
     const currentPage = meta?.current_page ?? 1;
     const lastPage = meta?.last_page ?? 1;
-    if (page < 1 || page > lastPage || page === currentPage || pageLoading) return;
+    if (page < 1 || page > lastPage || page === currentPage || pageLoading)
+      return;
 
     await fetchInvestments(page);
   }
 
   async function handleFormSubmit(formData: Record<string, any>) {
     setSubmitting(true);
-    try {
-      const payload: Record<string, any> = {
-        investment_product_id: Number(formData.investment_product_id),
-        source_account_id: Number(formData.source_account_id),
-        principal_amount: Number(formData.principal_amount),
-        tenure: Number(formData.tenure),
-        interest_posting_period: formData.interest_posting_period,
-      };
+    const payload: Record<string, any> = {
+      investment_product_id: Number(formData.investment_product_id),
+      source_account_id: Number(formData.source_account_id),
+      principal_amount: Number(formData.principal_amount),
+      tenure: Number(formData.tenure),
+      interest_posting_period: formData.interest_posting_period,
+    };
 
-      // Only meaningful when the product offers auto-renewal — omit rather than send an
-      // empty string.
-      if (formData.rollover_type) {
-        payload.rollover_type = formData.rollover_type;
-      }
-
-      const result: any = await createInvestmentAction(payload);
-
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to open investment.");
-        return;
-      }
-
-      await fetchInvestments(1);
-      toast.success(result.message || "Investment opened successfully.");
-      setDrawerOpen(false);
-    } catch (error) {
-      console.error("Failed to open investment:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+    // Only meaningful when the product offers auto-renewal — omit rather than send an
+    // empty string.
+    if (formData.rollover_type) {
+      payload.rollover_type = formData.rollover_type;
     }
+
+    const result: any = await createInvestmentAction(payload);
+
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to open investment.");
+      setSubmitting(false);
+      return;
+    }
+
+    await fetchInvestments(1);
+    toast.success(result.message || "Investment opened successfully.");
+    setDrawerOpen(false);
+
+    setSubmitting(false);
   }
 
   // Approve/Reject live on the Investment Details page only (with a schedule preview
@@ -145,20 +156,26 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
   // Global counts across every investment, not just the current page — falls back to
   // counting the current page only if the backend hasn't sent statistics for some reason.
   const stats = meta?.statistics;
-  const totalInvestments = stats?.total_investments ?? meta?.total ?? investments.length;
+  const totalInvestments =
+    stats?.total_investments ?? meta?.total ?? investments.length;
   const activeInvestments =
-    stats?.total_active ?? investments.filter((i) => i.status === "active").length;
+    stats?.total_active ??
+    investments.filter((i) => i.status === "active").length;
   const pendingInvestments =
-    stats?.total_pending ?? investments.filter((i) => i.status === "pending").length;
+    stats?.total_pending ??
+    investments.filter((i) => i.status === "pending").length;
   const pendingTopUps =
-    stats?.total_topup_pending ?? investments.filter((i) => Boolean(i.pending_topup_amount)).length;
+    stats?.total_topup_pending ??
+    investments.filter((i) => Boolean(i.pending_topup_amount)).length;
 
   return (
     <>
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Investments</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Investments
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             Every investment booked across all customers
           </p>
@@ -209,7 +226,10 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
       {/* FILTERS */}
       <section className="mt-7 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+          />
           <input
             type="search"
             value={search}
@@ -251,7 +271,10 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
             </thead>
             <tbody className="divide-y divide-slate-100">
               {investments.map((investment) => (
-                <tr key={investment.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={investment.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 py-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#29478f]">
@@ -299,14 +322,18 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
                     <ActionMenu
                       isOpen={actionMenuId === investment.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === investment.id ? null : investment.id)
+                        setActionMenuId(
+                          actionMenuId === investment.id ? null : investment.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton
                         onClick={() => {
                           setActionMenuId(null);
-                          router.push(`/investment-management/investment/${investment.id}`);
+                          router.push(
+                            `/investment-management/investment/${investment.id}`,
+                          );
                         }}
                       >
                         <Eye size={16} />
@@ -327,13 +354,16 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
         )}
 
         {pageLoading && (
-          <div className="py-16 text-center text-sm font-medium text-slate-500">Loading...</div>
+          <div className="py-16 text-center text-sm font-medium text-slate-500">
+            Loading...
+          </div>
         )}
 
         {meta && lastPage > 1 && (
           <div className="flex flex-col gap-3 border-t border-slate-200 p-5 bg-slate-50 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium text-slate-600">
-              Showing {meta.from ?? 0}-{meta.to ?? 0} of {meta.total ?? totalInvestments} investments
+              Showing {meta.from ?? 0}-{meta.to ?? 0} of{" "}
+              {meta.total ?? totalInvestments} investments
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -374,10 +404,18 @@ export default function InvestmentManagement({ investmentProducts }: InvestmentM
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>{props.icon}</div>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
+        {props.icon}
+      </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

@@ -23,7 +23,9 @@ export default function JournalEntriesManagement() {
   const [search, setSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -32,22 +34,22 @@ export default function JournalEntriesManagement() {
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await getJournalEntriesAction(page, { from, to, search });
+    const result: any = await getJournalEntriesAction(page, {
+      from,
+      to,
+      search,
+    });
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load journal entries.");
-        return;
-      }
-
-      setEntries(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load journal entries:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load journal entries.");
       setPageLoading(false);
+      return;
     }
+
+    setEntries(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   useEffect(() => {
@@ -67,7 +69,8 @@ export default function JournalEntriesManagement() {
   }, [search, from, to]);
 
   function goToPage(page: number) {
-    if (page < 1 || page > lastPage || page === currentPage || pageLoading) return;
+    if (page < 1 || page > lastPage || page === currentPage || pageLoading)
+      return;
     fetchPage(page);
   }
 
@@ -75,19 +78,27 @@ export default function JournalEntriesManagement() {
     <>
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Journal Entries</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Journal Entries
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
             All GL debit/credit entries recorded across the platform
           </p>
         </div>
 
-        <ExportDropdown baseEndpoint="/admin/journal-entries" params={{ from, to, search }} />
+        <ExportDropdown
+          baseEndpoint="/admin/journal-entries"
+          params={{ from, to, search }}
+        />
       </div>
 
       {/* FILTERS */}
       <section className="mt-7 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+          />
           <input
             type="search"
             value={search}
@@ -131,19 +142,26 @@ export default function JournalEntriesManagement() {
 
             <tbody className="divide-y divide-slate-100">
               {entries.map((entry) => (
-                <tr key={entry.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-5 text-sm font-medium text-slate-800">
+                <tr
+                  key={entry.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
+                  <td className="px-5 text-sm font-medium text-slate-800">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#29478f]">
                         <BookOpen size={15} />
                       </div>
                       <div>
-                        <p className="font-semibold">{formatName(entry.general_ledger?.name)}</p>
-                        <p className="text-xs text-slate-500">{entry.general_ledger?.gl_code}</p>
+                        <p className="font-semibold">
+                          {formatName(entry.general_ledger?.name)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {entry.general_ledger?.gl_code}
+                        </p>
                       </div>
                     </div>
                   </td>
-              
+
                   <td className="px-5 text-sm font-medium text-slate-800">
                     <p>{entry.journal_reference ?? "—"}</p>
                     {entry.transaction_reference && (
@@ -174,40 +192,52 @@ export default function JournalEntriesManagement() {
                     {entry.currency_code} {formatAmount(entry.balance_after)}
                   </td>
 
-               <td className="px-5 py-4 text-sm font-medium text-slate-800">
-  {entry.posting_date ? (
-    <>
-      <div>
-        {new Date(entry.posting_date).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })}
-      </div>
-      <div className="text-xs text-slate-500">
-        {new Date(entry.posting_date).toLocaleTimeString("en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        })}
-      </div>
-    </>
-  ) : (
-    "—"
-  )}
-</td>
+                  <td className="px-5 py-4 text-sm font-medium text-slate-800">
+                    {entry.posting_date ? (
+                      <>
+                        <div>
+                          {new Date(entry.posting_date).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {new Date(entry.posting_date).toLocaleTimeString(
+                            "en-GB",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: true,
+                            },
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
 
                   <td className="px-5">
                     <ActionMenu
                       isOpen={actionMenuId === entry.id}
-                      onToggle={() => setActionMenuId(actionMenuId === entry.id ? null : entry.id)}
+                      onToggle={() =>
+                        setActionMenuId(
+                          actionMenuId === entry.id ? null : entry.id,
+                        )
+                      }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton
                         onClick={() => {
                           setActionMenuId(null);
-                          router.push(`/chat-of-account/journal-entries/${entry.id}`);
+                          router.push(
+                            `/chat-of-account/journal-entries/${entry.id}`,
+                          );
                         }}
                       >
                         <Eye size={16} />
@@ -220,7 +250,10 @@ export default function JournalEntriesManagement() {
 
               {!pageLoading && entries.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
+                  <td
+                    colSpan={7}
+                    className="px-5 py-16 text-center text-sm font-medium text-slate-500"
+                  >
                     No journal entries found.
                   </td>
                 </tr>

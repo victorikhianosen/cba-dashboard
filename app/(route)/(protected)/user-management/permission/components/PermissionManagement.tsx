@@ -41,7 +41,15 @@ interface PermissionManagementProps {
 
 // Leading action word is stripped off a permission name so the remainder
 // can be used as the resource it acts on, e.g. "delete_banks" -> "banks".
-const ACTION_WORDS = ["view", "create", "update", "delete", "approve", "assign", "manage"];
+const ACTION_WORDS = [
+  "view",
+  "create",
+  "update",
+  "delete",
+  "approve",
+  "assign",
+  "manage",
+];
 
 // Turns "update_user" into "Update User" for display.
 function formatPermissionName(name: string) {
@@ -74,7 +82,7 @@ function groupPermissions(permissions: Permission[]): PermissionGroup[] {
       key,
       label: key === "general" ? "General" : formatPermissionName(key),
       permissions: groupPermissions.sort((a, b) =>
-        (a.name ?? "").localeCompare(b.name ?? "")
+        (a.name ?? "").localeCompare(b.name ?? ""),
       ),
     }))
     .sort((a, b) => {
@@ -88,29 +96,33 @@ export default function PermissionManagement({
   initialPermissions = [],
   initialMeta = null,
 }: PermissionManagementProps) {
-  const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
-  const [globalSummary, setGlobalSummary] = useState<Record<string, any> | null>(
-    initialMeta?.summary ?? null
-  );
+  const [permissions, setPermissions] =
+    useState<Permission[]>(initialPermissions);
+  const [globalSummary, setGlobalSummary] = useState<Record<
+    string,
+    any
+  > | null>(initialMeta?.summary ?? null);
   const [loading, setLoading] = useState(false);
 
   const [search, setSearch] = useState("");
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedPermission, setSelectedPermission] = useState<Permission | null>(null);
+  const [selectedPermission, setSelectedPermission] =
+    useState<Permission | null>(null);
   const [actionMenuId, setActionMenuId] = useState<any>(null);
 
   const [submitting, setSubmitting] = useState(false);
 
-  const totalPermissions = globalSummary?.total_permissions ?? permissions.length;
+  const totalPermissions =
+    globalSummary?.total_permissions ?? permissions.length;
   const assignedPermissions = globalSummary?.total_assigned ?? 0;
   const unassignedPermissions = globalSummary?.total_unassigned ?? 0;
 
   const groups = useMemo(() => groupPermissions(permissions), [permissions]);
   const selectedGroup = useMemo(
     () => groups.find((group) => group.key === selectedGroupKey) ?? null,
-    [groups, selectedGroupKey]
+    [groups, selectedGroupKey],
   );
 
   const keyword = search.trim().toLowerCase();
@@ -124,8 +136,8 @@ export default function PermissionManagement({
       (group) =>
         group.label.toLowerCase().includes(keyword) ||
         group.permissions.some((permission) =>
-          formatPermissionName(permission.name).toLowerCase().includes(keyword)
-        )
+          formatPermissionName(permission.name).toLowerCase().includes(keyword),
+        ),
     );
   }, [groups, keyword]);
 
@@ -135,34 +147,29 @@ export default function PermissionManagement({
     if (!keyword) return selectedGroup.permissions;
 
     return selectedGroup.permissions.filter((permission) =>
-      formatPermissionName(permission.name).toLowerCase().includes(keyword)
+      formatPermissionName(permission.name).toLowerCase().includes(keyword),
     );
   }, [selectedGroup, keyword]);
 
   async function refreshPermissions() {
     setLoading(true);
-    try {
-      const [allResult, summaryResult]: any[] = await Promise.all([
-        getAllPermissionsAction(),
-        getPermissionsAction(1),
-      ]);
+    const [allResult, summaryResult]: any[] = await Promise.all([
+      getAllPermissionsAction(),
+      getPermissionsAction(1),
+    ]);
 
-      if (allResult?.status !== "success") {
-        handleApiError(allResult, "Failed to load permissions.");
-        return;
-      }
-
-      setPermissions(Array.isArray(allResult.data) ? allResult.data : []);
-
-      if (summaryResult?.status === "success" && summaryResult.meta?.summary) {
-        setGlobalSummary(summaryResult.meta.summary);
-      }
-    } catch (error) {
-      console.error("Failed to load permissions:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setLoading(false);
+    if (allResult?.status !== "success") {
+      handleApiError(allResult, "Failed to load permissions.");
+      return;
     }
+
+    setPermissions(Array.isArray(allResult.data) ? allResult.data : []);
+
+    if (summaryResult?.status === "success" && summaryResult.meta?.summary) {
+      setGlobalSummary(summaryResult.meta.summary);
+    }
+
+    setLoading(false);
   }
 
   function openGroup(key: string) {
@@ -197,42 +204,39 @@ export default function PermissionManagement({
 
   async function handleFormSubmit(formData: PermissionFormData) {
     setSubmitting(true);
-    try {
-      if (selectedPermission) {
-        const result: any = await updatePermissionAction(selectedPermission.id, {
-          name: formData.name,
-        });
+    if (selectedPermission) {
+      const result: any = await updatePermissionAction(selectedPermission.id, {
+        name: formData.name,
+      });
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update permission.");
-          return;
-        }
-
-        await refreshPermissions();
-
-        toast.success(result.message || "Permission updated successfully.");
-      } else {
-        const result: any = await createPermissionAction({
-          name: formData.name,
-        });
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create permission.");
-          return;
-        }
-
-        await refreshPermissions();
-
-        toast.success(result.message || "Permission created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update permission.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedPermission(null);
-    } catch (error) {
-      console.error("Failed to save permission:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await refreshPermissions();
+
+      toast.success(result.message || "Permission updated successfully.");
+    } else {
+      const result: any = await createPermissionAction({
+        name: formData.name,
+      });
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create permission.");
+        setSubmitting(false);
+        return;
+      }
+
+      await refreshPermissions();
+
+      toast.success(result.message || "Permission created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedPermission(null);
+
+    setSubmitting(false);
   }
 
   return (
@@ -317,7 +321,10 @@ export default function PermissionManagement({
           setActionMenuId={setActionMenuId}
         />
       ) : (
-        <PermissionGroupOverview groups={filteredGroups} onOpenGroup={openGroup} />
+        <PermissionGroupOverview
+          groups={filteredGroups}
+          onOpenGroup={openGroup}
+        />
       )}
 
       {/* SHIELDED DRAWER */}
@@ -460,7 +467,7 @@ function PermissionGroupDetail({
                     isOpen={actionMenuId === permission.id}
                     onToggle={() =>
                       setActionMenuId(
-                        actionMenuId === permission.id ? null : permission.id
+                        actionMenuId === permission.id ? null : permission.id,
                       )
                     }
                     onClose={() => setActionMenuId(null)}
@@ -490,12 +497,18 @@ function PermissionGroupDetail({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
         {props.icon}
       </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

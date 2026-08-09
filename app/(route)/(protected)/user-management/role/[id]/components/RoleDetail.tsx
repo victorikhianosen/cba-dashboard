@@ -26,7 +26,15 @@ interface RoleDetailProps {
   allPermissions: Permission[];
 }
 
-const ACTION_WORDS = ["view", "create", "update", "delete", "approve", "assign", "manage"];
+const ACTION_WORDS = [
+  "view",
+  "create",
+  "update",
+  "delete",
+  "approve",
+  "assign",
+  "manage",
+];
 
 // Turns "some_name" into "Some Name" for display.
 function formatLabel(name: string) {
@@ -73,15 +81,18 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
 
   const permissionNames = useMemo(
     () => allPermissions.map((permission) => permission.name).filter(Boolean),
-    [allPermissions]
+    [allPermissions],
   );
 
   const initialSelected = useMemo(
-    () => new Set<string>(Array.isArray(role.permissions) ? role.permissions : []),
-    [role.permissions]
+    () =>
+      new Set<string>(Array.isArray(role.permissions) ? role.permissions : []),
+    [role.permissions],
   );
 
-  const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected));
+  const [selected, setSelected] = useState<Set<string>>(
+    new Set(initialSelected),
+  );
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -89,7 +100,10 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
     selected.size !== initialSelected.size ||
     Array.from(selected).some((name) => !initialSelected.has(name));
 
-  const groups = useMemo(() => groupPermissions(permissionNames), [permissionNames]);
+  const groups = useMemo(
+    () => groupPermissions(permissionNames),
+    [permissionNames],
+  );
 
   const filteredGroups = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -99,7 +113,7 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
       .map((group) => ({
         ...group,
         permissions: group.permissions.filter((name) =>
-          formatLabel(name).toLowerCase().includes(keyword)
+          formatLabel(name).toLowerCase().includes(keyword),
         ),
       }))
       .filter((group) => group.permissions.length > 0);
@@ -144,25 +158,21 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
 
   async function handleSave() {
     setSaving(true);
-    try {
-      const result: any = await assignPermissionsToRoleAction(
-        role.id,
-        Array.from(selected)
-      );
+    const result: any = await assignPermissionsToRoleAction(
+      role.id,
+      Array.from(selected),
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update role permissions.");
-        return;
-      }
-
-      toast.success(result.message || "Role permissions updated successfully.");
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to update role permissions:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update role permissions.");
       setSaving(false);
+      return;
     }
+
+    toast.success(result.message || "Role permissions updated successfully.");
+    router.refresh();
+
+    setSaving(false);
   }
 
   return (
@@ -197,7 +207,8 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
                 </span>
                 <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
                   <KeyRound size={12} />
-                  {selected.size} permission{selected.size === 1 ? "" : "s"} selected
+                  {selected.size} permission{selected.size === 1 ? "" : "s"}{" "}
+                  selected
                 </span>
                 {typeof role.users_count === "number" && (
                   <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1">
@@ -282,7 +293,7 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
 
         {filteredGroups.map((group) => {
           const selectedInGroup = group.permissions.filter((name) =>
-            selected.has(name)
+            selected.has(name),
           ).length;
           const allSelected = selectedInGroup === group.permissions.length;
 
@@ -293,7 +304,9 @@ export default function RoleDetail({ role, allPermissions }: RoleDetailProps) {
             >
               <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
                 <div>
-                  <p className="font-bold text-sm text-slate-900">{group.label}</p>
+                  <p className="font-bold text-sm text-slate-900">
+                    {group.label}
+                  </p>
                   <p className="mt-0.5 text-xs font-semibold text-slate-500">
                     {selectedInGroup}/{group.permissions.length} selected
                   </p>

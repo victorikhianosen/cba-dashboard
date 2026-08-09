@@ -29,7 +29,10 @@ interface PartialLiquidationManagementProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -46,7 +49,8 @@ export default function PartialLiquidationManagement({
 }: PartialLiquidationManagementProps) {
   const router = useRouter();
 
-  const [liquidations, setLiquidations] = useState<Liquidation[]>(initialLiquidations);
+  const [liquidations, setLiquidations] =
+    useState<Liquidation[]>(initialLiquidations);
   const [meta, setMeta] = useState<LiquidationMeta>(initialMeta);
   const [pageLoading, setPageLoading] = useState(false);
 
@@ -54,12 +58,20 @@ export default function PartialLiquidationManagement({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [actionMenuId, setActionMenuId] = useState<number | string | null>(null);
+  const [actionMenuId, setActionMenuId] = useState<number | string | null>(
+    null,
+  );
 
   const totalLiquidations = meta?.total ?? liquidations.length;
-  const pendingCount = liquidations.filter((l) => l.status === "pending").length;
-  const approvedCount = liquidations.filter((l) => l.status === "approved").length;
-  const rejectedCount = liquidations.filter((l) => l.status === "rejected").length;
+  const pendingCount = liquidations.filter(
+    (l) => l.status === "pending",
+  ).length;
+  const approvedCount = liquidations.filter(
+    (l) => l.status === "approved",
+  ).length;
+  const rejectedCount = liquidations.filter(
+    (l) => l.status === "rejected",
+  ).length;
 
   const currentPage = meta?.current_page ?? 1;
   const lastPage = meta?.last_page ?? 1;
@@ -75,22 +87,18 @@ export default function PartialLiquidationManagement({
 
   async function fetchPage(page: number) {
     setPageLoading(true);
-    try {
-      const result: any = await listPartialLiquidationsAction(page, filters);
+    const result: any = await listPartialLiquidationsAction(page, filters);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load partial liquidations.");
-        return;
-      }
-
-      setLiquidations(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load partial liquidations:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load partial liquidations.");
       setPageLoading(false);
+      return;
     }
+
+    setLiquidations(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   useEffect(() => {
@@ -124,9 +132,12 @@ export default function PartialLiquidationManagement({
       {/* PAGE HEADER */}
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Partial Liquidations</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Partial Liquidations
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Requests to withdraw part of an active investment's principal before maturity
+            Requests to withdraw part of an active investment's principal before
+            maturity
           </p>
         </div>
       </div>
@@ -166,7 +177,10 @@ export default function PartialLiquidationManagement({
       {/* SEARCH & FILTERS */}
       <section className="mt-7 flex flex-col gap-3 md:flex-row">
         <div className="relative flex-1">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+          />
           <input
             type="search"
             value={search}
@@ -230,9 +244,14 @@ export default function PartialLiquidationManagement({
 
             <tbody className="divide-y divide-slate-100">
               {liquidations.map((liquidation) => (
-                <tr key={liquidation.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={liquidation.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 py-5">
-                    <p className="font-bold text-sm text-slate-900">{liquidation.reference}</p>
+                    <p className="font-bold text-sm text-slate-900">
+                      {liquidation.reference}
+                    </p>
                     <p className="text-xs font-medium text-slate-500">
                       {liquidation.investment?.account_number ?? "—"}
                       {liquidation.investment?.customer?.name
@@ -250,7 +269,9 @@ export default function PartialLiquidationManagement({
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
-                    {liquidation.requester?.username ?? liquidation.requested_by ?? "—"}
+                    {liquidation.requester?.username ??
+                      liquidation.requested_by ??
+                      "—"}
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-800">
@@ -261,14 +282,20 @@ export default function PartialLiquidationManagement({
                     <ActionMenu
                       isOpen={actionMenuId === liquidation.id}
                       onToggle={() =>
-                        setActionMenuId(actionMenuId === liquidation.id ? null : liquidation.id)
+                        setActionMenuId(
+                          actionMenuId === liquidation.id
+                            ? null
+                            : liquidation.id,
+                        )
                       }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton
                         onClick={() => {
                           setActionMenuId(null);
-                          router.push(`/investment-management/partial-liquidations/${liquidation.id}`);
+                          router.push(
+                            `/investment-management/partial-liquidations/${liquidation.id}`,
+                          );
                         }}
                       >
                         <Eye size={16} />
@@ -327,7 +354,7 @@ export default function PartialLiquidationManagement({
                 >
                   {page}
                 </button>
-              )
+              ),
             )}
 
             <button
@@ -348,10 +375,18 @@ export default function PartialLiquidationManagement({
 function SummaryCard(props: Record<string, any>) {
   return (
     <div className="relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}>{props.icon}</div>
+      <div
+        className={`absolute right-5 top-5 rounded-xl p-3 ${props.iconStyle}`}
+      >
+        {props.icon}
+      </div>
       <p className="text-sm font-semibold text-slate-500">{props.title}</p>
-      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">{props.value}</h2>
-      <p className="mt-2 text-xs font-medium text-slate-600">{props.description}</p>
+      <h2 className="mt-3 text-3xl font-extrabold text-slate-900">
+        {props.value}
+      </h2>
+      <p className="mt-2 text-xs font-medium text-slate-600">
+        {props.description}
+      </p>
     </div>
   );
 }

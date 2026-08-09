@@ -18,7 +18,10 @@ interface ApprovePartialLiquidationModalProps {
 
 function formatCurrency(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 type Step = "review" | "totp";
@@ -54,25 +57,22 @@ export default function ApprovePartialLiquidationModal({
     (async () => {
       setPreviewLoading(true);
       setPreviewError(null);
-      try {
-        const result: any = await previewPartialLiquidationScheduleAction(liquidation.id);
-        if (cancelled) return;
+      const result: any = await previewPartialLiquidationScheduleAction(
+        liquidation.id,
+      );
+      if (cancelled) return;
 
-        if (result?.status !== "success") {
-          setPreview(null);
-          setPreviewError(result?.message || "Unable to preview this liquidation's schedule.");
-          return;
-        }
-
-        setPreview(result.data);
-      } catch (error) {
-        if (cancelled) return;
-        console.error("Failed to preview partial liquidation schedule:", error);
+      if (result?.status !== "success") {
         setPreview(null);
-        setPreviewError("A network error occurred while computing the preview.");
-      } finally {
-        if (!cancelled) setPreviewLoading(false);
+        setPreviewError(
+          result?.message || "Unable to preview this liquidation's schedule.",
+        );
+        return;
       }
+
+      setPreview(result.data);
+
+      if (!cancelled) setPreviewLoading(false);
     })();
 
     return () => {
@@ -82,7 +82,8 @@ export default function ApprovePartialLiquidationModal({
 
   if (!isOpen || !liquidation || typeof document === "undefined") return null;
 
-  const accountNumber = liquidation.investment?.account_number ?? liquidation.reference;
+  const accountNumber =
+    liquidation.investment?.account_number ?? liquidation.reference;
 
   function handleCancel() {
     setStep("review");
@@ -105,7 +106,9 @@ export default function ApprovePartialLiquidationModal({
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              {step === "review" ? "Approve Partial Liquidation" : "Confirm with Google Authenticator"}
+              {step === "review"
+                ? "Approve Partial Liquidation"
+                : "Confirm with Google Authenticator"}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {step === "review"
@@ -127,7 +130,9 @@ export default function ApprovePartialLiquidationModal({
           <>
             <div className="flex-1 overflow-y-auto p-6">
               {previewError && (
-                <p className="mb-4 text-sm font-semibold text-red-600">{previewError}</p>
+                <p className="mb-4 text-sm font-semibold text-red-600">
+                  {previewError}
+                </p>
               )}
 
               {previewLoading && !preview ? (
@@ -135,7 +140,10 @@ export default function ApprovePartialLiquidationModal({
                   Computing preview...
                 </p>
               ) : preview ? (
-                <ScheduleComparisonTables current={preview.current} projected={preview.projected} />
+                <ScheduleComparisonTables
+                  current={preview.current}
+                  projected={preview.projected}
+                />
               ) : null}
             </div>
 
@@ -174,7 +182,11 @@ export default function ApprovePartialLiquidationModal({
                   maxLength={6}
                   autoFocus
                   value={totpCode}
-                  onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onChange={(event) =>
+                    setTotpCode(
+                      event.target.value.replace(/\D/g, "").slice(0, 6),
+                    )
+                  }
                   placeholder="6-digit code"
                   className="mt-3 w-48 rounded-xl border border-slate-300 bg-white p-3 text-center text-lg tracking-[0.5em] text-slate-900 placeholder-slate-400 outline-none transition focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f]"
                 />
@@ -184,37 +196,26 @@ export default function ApprovePartialLiquidationModal({
             <div className="flex items-center justify-between gap-4 border-t border-slate-200 p-6">
               <button
                 type="button"
-                onClick={handleCancel}
+                onClick={() => setStep("review")}
                 disabled={pending}
-                className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
               >
-                Cancel
+                <ArrowLeft size={15} />
+                Back
               </button>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setStep("review")}
-                  disabled={pending}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 disabled:opacity-50"
-                >
-                  <ArrowLeft size={15} />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={pending || totpCode.trim().length !== 6}
-                  className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {pending ? "Please wait..." : "Approve Liquidation"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={pending || totpCode.trim().length !== 6}
+                className="rounded-xl bg-[#173673] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pending ? "Please wait..." : "Approve Liquidation"}
+              </button>
             </div>
           </>
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

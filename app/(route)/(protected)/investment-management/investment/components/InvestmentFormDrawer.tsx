@@ -1,7 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
-import { CalendarClock, CheckCircle2, Loader2, Search, X, XCircle } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Loader2,
+  Search,
+  X,
+  XCircle,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import { lookupAccountByNumberAction } from "@/actions/account.action";
 import { previewInvestmentScheduleAction } from "@/actions/investment.action";
@@ -10,7 +23,10 @@ import { toDisplayLabel } from "@/lib/format";
 
 function formatMoney(value: string | number | null | undefined) {
   const amount = Number(value ?? 0);
-  return amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return amount.toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 type InvestmentProduct = Record<string, any>;
@@ -46,14 +62,19 @@ export default function InvestmentFormDrawer({
   const [accountNumberInput, setAccountNumberInput] = useState("");
   const [account, setAccount] = useState<LookedUpAccount | null>(null);
   const [accountLookupLoading, setAccountLookupLoading] = useState(false);
-  const [accountLookupError, setAccountLookupError] = useState<string | null>(null);
+  const [accountLookupError, setAccountLookupError] = useState<string | null>(
+    null,
+  );
 
   // Auto-renewal is opt-in per investment even on a product that offers it — the customer
   // may still choose not to roll over, so the rollover-type dropdown only appears (and is
   // only required) once this checkbox is actually ticked.
   const [wantsRollover, setWantsRollover] = useState(false);
 
-  const [schedulePreview, setSchedulePreview] = useState<Record<string, any> | null>(null);
+  const [schedulePreview, setSchedulePreview] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
@@ -71,16 +92,18 @@ export default function InvestmentFormDrawer({
 
   const activeProducts = useMemo(
     () => investmentProducts.filter((product) => product.status === "active"),
-    [investmentProducts]
+    [investmentProducts],
   );
 
   const selectedProduct = activeProducts.find(
-    (product) => String(product.id) === String(formData.investment_product_id)
+    (product) => String(product.id) === String(formData.investment_product_id),
   );
 
   // Only the posting periods the chosen product actually allows are offered
   // — the backend rejects anything outside that set.
-  const allowedPostingPeriods: string[] = Array.isArray(selectedProduct?.allowed_interest_posting_periods)
+  const allowedPostingPeriods: string[] = Array.isArray(
+    selectedProduct?.allowed_interest_posting_periods,
+  )
     ? selectedProduct.allowed_interest_posting_periods
     : [];
 
@@ -102,26 +125,26 @@ export default function InvestmentFormDrawer({
     const timeout = setTimeout(async () => {
       setAccountLookupLoading(true);
       setAccountLookupError(null);
-      try {
-        const result: any = await lookupAccountByNumberAction(accountNumberInput.trim());
+      const result: any = await lookupAccountByNumberAction(
+        accountNumberInput.trim(),
+      );
 
-        if (result?.status !== "success") {
-          setAccount(null);
-          setFormData((current) => ({ ...current, source_account_id: "" }));
-          setAccountLookupError(result?.message || "No account found with that number.");
-          return;
-        }
-
-        setAccount(result.data);
-        setFormData((current) => ({ ...current, source_account_id: String(result.data.id) }));
-      } catch (error) {
-        console.error("Failed to look up account:", error);
+      if (result?.status !== "success") {
         setAccount(null);
         setFormData((current) => ({ ...current, source_account_id: "" }));
-        setAccountLookupError("A network error occurred while looking up this account.");
-      } finally {
-        setAccountLookupLoading(false);
+        setAccountLookupError(
+          result?.message || "No account found with that number.",
+        );
+        return;
       }
+
+      setAccount(result.data);
+      setFormData((current) => ({
+        ...current,
+        source_account_id: String(result.data.id),
+      }));
+
+      setAccountLookupLoading(false);
     }, 450);
 
     return () => clearTimeout(timeout);
@@ -145,34 +168,37 @@ export default function InvestmentFormDrawer({
     const timeout = setTimeout(async () => {
       setPreviewLoading(true);
       setPreviewError(null);
-      try {
-        const result: any = await previewInvestmentScheduleAction({
-          investment_product_id: Number(formData.investment_product_id),
-          principal_amount: Number(formData.principal_amount),
-          tenure: Number(formData.tenure),
-          interest_posting_period: formData.interest_posting_period,
-        });
+      const result: any = await previewInvestmentScheduleAction({
+        investment_product_id: Number(formData.investment_product_id),
+        principal_amount: Number(formData.principal_amount),
+        tenure: Number(formData.tenure),
+        interest_posting_period: formData.interest_posting_period,
+      });
 
-        if (result?.status !== "success") {
-          setSchedulePreview(null);
-          setPreviewError(result?.message || "Unable to compute the schedule for these terms.");
-          return;
-        }
-
-        setSchedulePreview(result.data);
-      } catch (error) {
-        console.error("Failed to preview investment schedule:", error);
+      if (result?.status !== "success") {
         setSchedulePreview(null);
-        setPreviewError("A network error occurred while computing the schedule.");
-      } finally {
-        setPreviewLoading(false);
+        setPreviewError(
+          result?.message || "Unable to compute the schedule for these terms.",
+        );
+        return;
       }
+
+      setSchedulePreview(result.data);
+
+      setPreviewLoading(false);
     }, 450);
 
     return () => clearTimeout(timeout);
-  }, [formData.investment_product_id, formData.principal_amount, formData.tenure, formData.interest_posting_period]);
+  }, [
+    formData.investment_product_id,
+    formData.principal_amount,
+    formData.tenure,
+    formData.interest_posting_period,
+  ]);
 
-  function handleChange(event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+  function handleChange(
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) {
     const { name, value } = event.target;
 
     if (name === "investment_product_id") {
@@ -188,7 +214,10 @@ export default function InvestmentFormDrawer({
     }
 
     if (name === "tenure") {
-      setFormData((current) => ({ ...current, tenure: value.replace(/[^\d]/g, "") }));
+      setFormData((current) => ({
+        ...current,
+        tenure: value.replace(/[^\d]/g, ""),
+      }));
       return;
     }
 
@@ -218,27 +247,51 @@ export default function InvestmentFormDrawer({
     }
 
     if (accountCurrencyMismatch) {
-      toast.error("This account's currency does not match the selected investment product.");
+      toast.error(
+        "This account's currency does not match the selected investment product.",
+      );
       return;
     }
 
-    if (selectedProduct?.min_deposit_amount && Number(formData.principal_amount) < Number(selectedProduct.min_deposit_amount)) {
-      toast.error(`Principal amount must be at least ${selectedProduct.min_deposit_amount}.`);
+    if (
+      selectedProduct?.min_deposit_amount &&
+      Number(formData.principal_amount) <
+        Number(selectedProduct.min_deposit_amount)
+    ) {
+      toast.error(
+        `Principal amount must be at least ${selectedProduct.min_deposit_amount}.`,
+      );
       return;
     }
 
-    if (selectedProduct?.max_deposit_amount && Number(formData.principal_amount) > Number(selectedProduct.max_deposit_amount)) {
-      toast.error(`Principal amount must not exceed ${selectedProduct.max_deposit_amount}.`);
+    if (
+      selectedProduct?.max_deposit_amount &&
+      Number(formData.principal_amount) >
+        Number(selectedProduct.max_deposit_amount)
+    ) {
+      toast.error(
+        `Principal amount must not exceed ${selectedProduct.max_deposit_amount}.`,
+      );
       return;
     }
 
-    if (selectedProduct && Number(formData.tenure) < Number(selectedProduct.min_tenure_days)) {
-      toast.error(`Tenure must be at least ${selectedProduct.min_tenure_days} days for this product.`);
+    if (
+      selectedProduct &&
+      Number(formData.tenure) < Number(selectedProduct.min_tenure_days)
+    ) {
+      toast.error(
+        `Tenure must be at least ${selectedProduct.min_tenure_days} days for this product.`,
+      );
       return;
     }
 
-    if (selectedProduct && Number(formData.tenure) > Number(selectedProduct.max_tenure_days)) {
-      toast.error(`Tenure must not exceed ${selectedProduct.max_tenure_days} days for this product.`);
+    if (
+      selectedProduct &&
+      Number(formData.tenure) > Number(selectedProduct.max_tenure_days)
+    ) {
+      toast.error(
+        `Tenure must not exceed ${selectedProduct.max_tenure_days} days for this product.`,
+      );
       return;
     }
 
@@ -262,9 +315,12 @@ export default function InvestmentFormDrawer({
       >
         <div className="flex justify-between items-center border-b border-slate-200 p-6 bg-slate-50">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Open Investment</h2>
+            <h2 className="text-xl font-bold text-slate-900">
+              Open Investment
+            </h2>
             <p className="text-sm text-slate-600 mt-1">
-              Pick a product, enter the funding account number, then set the terms.
+              Pick a product, enter the funding account number, then set the
+              terms.
             </p>
           </div>
           <button
@@ -276,11 +332,16 @@ export default function InvestmentFormDrawer({
           </button>
         </div>
 
-        <form onSubmit={handleFormSubmit} className="flex flex-1 flex-col overflow-hidden">
+        <form
+          onSubmit={handleFormSubmit}
+          className="flex flex-1 flex-col overflow-hidden"
+        >
           <div className="flex-1 space-y-5 overflow-y-auto p-6 bg-white">
             {/* STEP 1 — PRODUCT */}
             <label className="block">
-              <span className="block font-bold text-sm text-slate-800">1. Investment Product</span>
+              <span className="block font-bold text-sm text-slate-800">
+                1. Investment Product
+              </span>
               <select
                 required
                 name="investment_product_id"
@@ -291,8 +352,9 @@ export default function InvestmentFormDrawer({
                 <option value="">Select an investment product</option>
                 {activeProducts.map((product) => (
                   <option key={product.id} value={product.id}>
-                    {toDisplayLabel(product.name)} — {product.interest_rate}% ({product.currency_code}) —{" "}
-                    {product.min_tenure_days}-{product.max_tenure_days} days
+                    {toDisplayLabel(product.name)} — {product.interest_rate}% (
+                    {product.currency_code}) — {product.min_tenure_days}-
+                    {product.max_tenure_days} days
                   </option>
                 ))}
               </select>
@@ -305,19 +367,31 @@ export default function InvestmentFormDrawer({
 
             {/* STEP 2 — ACCOUNT NUMBER LOOKUP */}
             <label className="block">
-              <span className="block font-bold text-sm text-slate-800">2. Funding Account Number</span>
+              <span className="block font-bold text-sm text-slate-800">
+                2. Funding Account Number
+              </span>
               <div className="relative mt-2">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search
+                  size={16}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
                 <input
                   required
                   type="text"
+                  inputMode="numeric"
+                  maxLength={10}
                   value={accountNumberInput}
-                  onChange={(event) => setAccountNumberInput(event.target.value)}
+                  onChange={(event) =>
+                    setAccountNumberInput(event.target.value.replace(/\D/g, "").slice(0, 10))
+                  }
                   placeholder="Enter the account number to debit"
                   className="w-full rounded-xl border border-slate-300 bg-white p-3 pl-11 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
                 />
                 {accountLookupLoading && (
-                  <Loader2 size={16} className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />
+                  <Loader2
+                    size={16}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                  />
                 )}
               </div>
 
@@ -332,27 +406,39 @@ export default function InvestmentFormDrawer({
                 <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                   <div className="flex items-center gap-2 text-emerald-800">
                     <CheckCircle2 size={15} />
-                    <span className="text-sm font-bold">{account.account_name}</span>
+                    <span className="text-sm font-bold">
+                      {account.account_name}
+                    </span>
                   </div>
                   <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                     <div>
-                      <span className="block font-semibold text-emerald-700">Account Number</span>
+                      <span className="block font-semibold text-emerald-700">
+                        Account Number
+                      </span>
                       <span className="font-mono font-medium text-emerald-900">
                         {account.account_number ?? "—"}
                       </span>
                     </div>
                     <div>
-                      <span className="block font-semibold text-emerald-700">Customer</span>
+                      <span className="block font-semibold text-emerald-700">
+                        Customer
+                      </span>
                       <span className="font-medium text-emerald-900">
                         {account.customer?.full_name ?? "—"}
                       </span>
                     </div>
                     <div>
-                      <span className="block font-semibold text-emerald-700">Currency</span>
-                      <span className="font-medium text-emerald-900">{account.currency_code ?? "—"}</span>
+                      <span className="block font-semibold text-emerald-700">
+                        Currency
+                      </span>
+                      <span className="font-medium text-emerald-900">
+                        {account.currency_code ?? "—"}
+                      </span>
                     </div>
                     <div>
-                      <span className="block font-semibold text-emerald-700">Available Balance</span>
+                      <span className="block font-semibold text-emerald-700">
+                        Available Balance
+                      </span>
                       <span className="font-medium text-emerald-900">
                         {formatMoney(account.available_balance)}
                       </span>
@@ -364,8 +450,8 @@ export default function InvestmentFormDrawer({
               {accountCurrencyMismatch && (
                 <p className="mt-1.5 flex items-center gap-1.5 text-xs font-semibold text-red-600">
                   <XCircle size={14} />
-                  This account is in {account?.currency_code}, but the product currency is{" "}
-                  {selectedProduct?.currency_code}.
+                  This account is in {account?.currency_code}, but the product
+                  currency is {selectedProduct?.currency_code}.
                 </p>
               )}
             </label>
@@ -382,7 +468,9 @@ export default function InvestmentFormDrawer({
 
               {/* STEP 4 — TENURE, WITHIN THE PRODUCT'S RANGE */}
               <label className="block">
-                <span className="block font-bold text-sm text-slate-800">4. Tenure (days)</span>
+                <span className="block font-bold text-sm text-slate-800">
+                  4. Tenure (days)
+                </span>
                 <input
                   required
                   type="text"
@@ -400,7 +488,8 @@ export default function InvestmentFormDrawer({
                 />
                 {selectedProduct && (
                   <p className="mt-1.5 text-xs font-medium text-slate-500">
-                    The customer can choose any tenure between {selectedProduct.min_tenure_days} and{" "}
+                    The customer can choose any tenure between{" "}
+                    {selectedProduct.min_tenure_days} and{" "}
                     {selectedProduct.max_tenure_days} days for this product.
                   </p>
                 )}
@@ -409,7 +498,9 @@ export default function InvestmentFormDrawer({
 
             {/* STEP 5 — POSTING PERIOD */}
             <label className="block">
-              <span className="block font-bold text-sm text-slate-800">5. Interest Posting Period</span>
+              <span className="block font-bold text-sm text-slate-800">
+                5. Interest Posting Period
+              </span>
               <select
                 required
                 disabled={!selectedProduct}
@@ -419,7 +510,9 @@ export default function InvestmentFormDrawer({
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition disabled:cursor-not-allowed disabled:bg-slate-50"
               >
                 <option value="">
-                  {selectedProduct ? "Select a posting period" : "Select a product first"}
+                  {selectedProduct
+                    ? "Select a posting period"
+                    : "Select a product first"}
                 </option>
                 {allowedPostingPeriods.map((period) => (
                   <option key={period} value={period}>
@@ -442,7 +535,10 @@ export default function InvestmentFormDrawer({
                       const checked = event.target.checked;
                       setWantsRollover(checked);
                       if (!checked) {
-                        setFormData((current) => ({ ...current, rollover_type: "" }));
+                        setFormData((current) => ({
+                          ...current,
+                          rollover_type: "",
+                        }));
                       }
                     }}
                     className="h-4 w-4 rounded border-slate-300 text-[#173673] focus:ring-[#29478f]"
@@ -452,13 +548,16 @@ export default function InvestmentFormDrawer({
                   </span>
                 </label>
                 <p className="mt-1.5 ml-7 text-xs font-medium text-slate-500">
-                  This product offers auto-renewal, but it's the customer's choice — leave
-                  unchecked if they don't want to roll over at maturity.
+                  This product offers auto-renewal, but it's the customer's
+                  choice — leave unchecked if they don't want to roll over at
+                  maturity.
                 </p>
 
                 {wantsRollover && (
                   <label className="mt-3 block">
-                    <span className="block font-bold text-sm text-slate-800">Rollover Type</span>
+                    <span className="block font-bold text-sm text-slate-800">
+                      Rollover Type
+                    </span>
                     <select
                       required
                       name="rollover_type"
@@ -467,7 +566,9 @@ export default function InvestmentFormDrawer({
                       className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm text-slate-900 outline-none focus:border-[#29478f] focus:ring-1 focus:ring-[#29478f] transition"
                     >
                       <option value="">Select rollover type</option>
-                      <option value="simple">Simple — principal only rolls over</option>
+                      <option value="simple">
+                        Simple — principal only rolls over
+                      </option>
                       <option value="compound">
                         Compound — principal + accrued interest rolls over
                       </option>
@@ -482,7 +583,9 @@ export default function InvestmentFormDrawer({
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-2">
                   <CalendarClock size={16} className="text-[#29478f]" />
-                  <span className="text-sm font-bold text-slate-800">Projected Interest Schedule</span>
+                  <span className="text-sm font-bold text-slate-800">
+                    Projected Interest Schedule
+                  </span>
                 </div>
 
                 {previewLoading && (
@@ -493,18 +596,26 @@ export default function InvestmentFormDrawer({
                 )}
 
                 {!previewLoading && previewError && (
-                  <p className="mt-3 text-xs font-semibold text-red-600">{previewError}</p>
+                  <p className="mt-3 text-xs font-semibold text-red-600">
+                    {previewError}
+                  </p>
                 )}
 
                 {!previewLoading && schedulePreview && (
                   <>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                       <div>
-                        <span className="block font-semibold text-slate-500">Maturity Date</span>
-                        <span className="font-bold text-slate-900">{schedulePreview.maturity_date}</span>
+                        <span className="block font-semibold text-slate-500">
+                          Maturity Date
+                        </span>
+                        <span className="font-bold text-slate-900">
+                          {schedulePreview.maturity_date}
+                        </span>
                       </div>
                       <div>
-                        <span className="block font-semibold text-slate-500">Total Projected Interest</span>
+                        <span className="block font-semibold text-slate-500">
+                          Total Projected Interest
+                        </span>
                         <span className="font-bold text-slate-900">
                           ₦{formatMoney(schedulePreview.total_interest)}
                         </span>
@@ -515,29 +626,40 @@ export default function InvestmentFormDrawer({
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 bg-slate-100">
                           <tr>
-                            <th className="px-3 py-2 text-left font-bold text-slate-600">#</th>
-                            <th className="px-3 py-2 text-left font-bold text-slate-600">Due Date</th>
+                            <th className="px-3 py-2 text-left font-bold text-slate-600">
+                              #
+                            </th>
+                            <th className="px-3 py-2 text-left font-bold text-slate-600">
+                              Due Date
+                            </th>
                             <th className="px-3 py-2 text-right font-bold text-slate-600">
                               Interest
                             </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {(schedulePreview.installments ?? []).map((row: Record<string, any>) => (
-                            <tr key={row.installment_number}>
-                              <td className="px-3 py-2 text-slate-700">{row.installment_number}</td>
-                              <td className="px-3 py-2 text-slate-700">{row.due_date}</td>
-                              <td className="px-3 py-2 text-right font-semibold text-slate-900">
-                                ₦{formatMoney(row.expected_interest_amount)}
-                              </td>
-                            </tr>
-                          ))}
+                          {(schedulePreview.installments ?? []).map(
+                            (row: Record<string, any>) => (
+                              <tr key={row.installment_number}>
+                                <td className="px-3 py-2 text-slate-700">
+                                  {row.installment_number}
+                                </td>
+                                <td className="px-3 py-2 text-slate-700">
+                                  {row.due_date}
+                                </td>
+                                <td className="px-3 py-2 text-right font-semibold text-slate-900">
+                                  ₦{formatMoney(row.expected_interest_amount)}
+                                </td>
+                              </tr>
+                            ),
+                          )}
                         </tbody>
                       </table>
                     </div>
 
                     <p className="mt-2 text-[11px] font-medium text-slate-500">
-                      Projection only — assumes the investment starts today. Nothing is booked yet.
+                      Projection only — assumes the investment starts today.
+                      Nothing is booked yet.
                     </p>
                   </>
                 )}
@@ -557,7 +679,11 @@ export default function InvestmentFormDrawer({
             <button
               type="submit"
               disabled={submitting || !canSubmit}
-              title={!canSubmit ? "Fill in all required fields with a matching-currency account" : undefined}
+              title={
+                !canSubmit
+                  ? "Fill in all required fields with a matching-currency account"
+                  : undefined
+              }
               className="rounded-xl bg-[#173673] px-5 py-3 text-sm font-semibold text-white hover:bg-[#10295c] disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm"
             >
               {submitting ? "Please wait..." : "Open Investment"}

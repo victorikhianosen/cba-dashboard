@@ -5,13 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "react-toastify";
 
-import {
-  Bell,
-  LogOut,
-  Menu,
-  Settings,
-  UserRound,
-} from "lucide-react";
+import { Bell, LogOut, Menu, Settings, UserRound } from "lucide-react";
 import { logoutAction } from "@/actions/auth.action";
 import { useNotifications } from "@/lib/notifications";
 import { resolveNotificationUrl } from "@/lib/notificationRouter";
@@ -42,48 +36,48 @@ function formatRoleName(name: string) {
     .join(" ");
 }
 
-export default function Navbar({
-  onOpenSidebar,
-}: NavbarProps) {
+export default function Navbar({ onOpenSidebar }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { currentUser, roles } = usePermissions();
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  async function handleNotificationClick(notification: (typeof notifications)[number]) {
+  async function handleNotificationClick(
+    notification: (typeof notifications)[number],
+  ) {
     setNotificationsOpen(false);
     if (!notification.read_at) {
       await markAsRead(notification.id);
     }
-    const url = resolveNotificationUrl(notification.data.module, notification.data.subject_id);
+    const url = resolveNotificationUrl(
+      notification.data.module,
+      notification.data.subject_id,
+    );
     if (url) router.push(url);
   }
 
   const pageTitle = getPageTitle(pathname, menuItems);
 
   const displayName = currentUser
-    ? [currentUser.first_name, currentUser.last_name].filter(Boolean).join(" ") ||
-      currentUser.username
+    ? [currentUser.first_name, currentUser.last_name]
+        .filter(Boolean)
+        .join(" ") || currentUser.username
     : "Admin User";
   const displayRole = roles[0] ? formatRoleName(roles[0]) : "Administrator";
 
   async function handleLogout() {
     if (loggingOut) return;
     setLoggingOut(true);
-    try {
-      await logoutAction();
-      setMenuOpen(false);
-      router.replace("/login");
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to log out:", error);
-      toast.error("Unable to log out. Please try again.");
-    } finally {
-      setLoggingOut(false);
-    }
+    await logoutAction();
+    setMenuOpen(false);
+    router.replace("/login");
+    router.refresh();
+
+    setLoggingOut(false);
   }
 
   return (
@@ -101,7 +95,9 @@ export default function Navbar({
         </button>
 
         {/* CURRENT PAGE TITLE */}
-        <h1 className="truncate text-lg font-bold text-slate-900">{pageTitle}</h1>
+        <h1 className="truncate text-lg font-bold text-slate-900">
+          {pageTitle}
+        </h1>
       </div>
 
       {/* RIGHT SECTION */}
@@ -132,7 +128,9 @@ export default function Navbar({
 
               <div className="absolute right-0 top-[calc(100%+8px)] z-40 max-h-[42rem] w-[34rem] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
                 <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                  <p className="text-base font-bold text-slate-900">Notifications</p>
+                  <p className="text-base font-bold text-slate-900">
+                    Notifications
+                  </p>
                   {unreadCount > 0 && (
                     <button
                       type="button"
@@ -160,12 +158,16 @@ export default function Navbar({
                         }`}
                       >
                         <span className="flex w-full items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-slate-900">{notification.data.title}</span>
+                          <span className="text-sm font-bold text-slate-900">
+                            {notification.data.title}
+                          </span>
                           {!notification.read_at && (
                             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#29478f]" />
                           )}
                         </span>
-                        <span className="text-sm text-slate-600">{notification.data.body}</span>
+                        <span className="text-sm text-slate-600">
+                          {notification.data.body}
+                        </span>
                         <span className="mt-1 text-xs font-medium text-slate-400">
                           {formatRelativeTime(notification.created_at)}
                         </span>
@@ -194,9 +196,7 @@ export default function Navbar({
                 {displayName}
               </p>
 
-              <p className="text-[11px] text-slate-500">
-                {displayRole}
-              </p>
+              <p className="text-[11px] text-slate-500">{displayRole}</p>
             </div>
           </button>
 

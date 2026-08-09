@@ -11,12 +11,8 @@ import { loginAction } from "@/actions/auth.action";
 
 // 1. Define the validation schema with Zod
 const loginSchema = z.object({
-  username: z
-    .string()
-    .min(3, "Username is required"),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters long"),
+  username: z.string().min(3, "Username is required"),
+  password: z.string().min(6, "Password must be at least 6 characters long"),
 });
 
 // Infer the form values type from the schema
@@ -41,15 +37,11 @@ export default function LoginPage() {
   });
 
   async function onSubmit(data: LoginFormValues) {
-  setLoading(true);
+    setLoading(true);
 
-  try {
     const response = await loginAction(data);
 
-    if (
-      response?.status === "success" &&
-      response?.data?.two_factor_token
-    ) {
+    if (response?.status === "success" && response?.data?.two_factor_token) {
       const twoFactorData = {
         requires_setup: response.data.requires_setup,
         qr_code: response.data.qr_code,
@@ -57,33 +49,25 @@ export default function LoginPage() {
         two_factor_token: response.data.two_factor_token,
       };
 
-      sessionStorage.setItem(
-        "two_factor_data",
-        JSON.stringify(twoFactorData)
-      );
+      sessionStorage.setItem("two_factor_data", JSON.stringify(twoFactorData));
 
-      toast.success(
-        response.message || "Password verified successfully."
-      );
+      toast.success(response.message || "Password verified successfully.");
 
       router.push("/verify-2fa");
       return;
     }
 
-    toast.error(
-      response?.message ||
-        "Invalid credentials. Please try again."
-    );
-  } catch (error) {
-    console.error("Login error:", error);
+    // security.authentication.google_auth_unlock off: the backend skipped the 2FA
+    // challenge entirely and already issued a real access token (saved by loginAction).
+    if (response?.status === "success" && response?.data?.access_token) {
+      toast.success(response.message || "Logged in successfully.");
+      router.push("/dashboard");
+      return;
+    }
 
-    toast.error(
-      "A network error occurred. Please try again."
-    );
-  } finally {
+    toast.error(response?.message || "Invalid credentials. Please try again.");
     setLoading(false);
   }
-}
 
   return (
     <>
@@ -110,8 +94,9 @@ export default function LoginPage() {
             </h2>
 
             <p className="mt-4 text-sm opacity-80 max-w-md">
-              A modular, scalable, cloud-native platform to manage core accounts,
-              global ledgers, and secure transactions with enterprise-grade data handling.
+              A modular, scalable, cloud-native platform to manage core
+              accounts, global ledgers, and secure transactions with
+              enterprise-grade data handling.
             </p>
           </div>
 

@@ -12,7 +12,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
-import { updateCustomerAction, uploadCustomerDocumentsAction } from "@/actions/customer.action";
+import {
+  updateCustomerAction,
+  uploadCustomerDocumentsAction,
+} from "@/actions/customer.action";
 import { lookupAccountByNumberAction } from "@/actions/account.action";
 import { handleApiError } from "@/lib/errors";
 
@@ -40,7 +43,13 @@ const LEGAL_FORMS = [
 ];
 
 // App\Enums\Customer\BusinessType
-const BUSINESS_TYPES = ["limited_liability", "cooperative", "business_name", "not_registered", "government"];
+const BUSINESS_TYPES = [
+  "limited_liability",
+  "cooperative",
+  "business_name",
+  "not_registered",
+  "government",
+];
 
 function labelize(value: string) {
   return value
@@ -67,7 +76,10 @@ function documentUrl(path: string) {
 
 // Finds the customer's currently-uploaded document of a given type (e.g.
 // "profile_picture") so its thumbnail can be shown before a replacement is chosen.
-function existingDocumentUrl(customer: Customer, type: string): string | undefined {
+function existingDocumentUrl(
+  customer: Customer,
+  type: string,
+): string | undefined {
   const document = Array.isArray(customer.documents)
     ? customer.documents.find((doc: Record<string, any>) => doc.type === type)
     : undefined;
@@ -162,9 +174,9 @@ export default function EditCustomerPage({
   // Defaults checked if this customer already has a guardian; unchecking clears it.
   const [isMinor, setIsMinor] = useState(Boolean(customer.guardian_id));
   const [guardianAccountNumber, setGuardianAccountNumber] = useState("");
-  const [guardianPreview, setGuardianPreview] = useState<Record<string, any> | null | undefined>(
-    undefined
-  );
+  const [guardianPreview, setGuardianPreview] = useState<
+    Record<string, any> | null | undefined
+  >(undefined);
   const [guardianLookupLoading, setGuardianLookupLoading] = useState(false);
 
   // Resolves a guardian's account number to their id/name, same lookup used on the create
@@ -178,15 +190,12 @@ export default function EditCustomerPage({
     }
 
     setGuardianLookupLoading(true);
-    try {
-      const result: any = await lookupAccountByNumberAction(query);
-      setGuardianPreview(result?.status === "success" ? result.data?.customer ?? null : null);
-    } catch (error) {
-      console.error("Failed to look up guardian:", error);
-      setGuardianPreview(null);
-    } finally {
-      setGuardianLookupLoading(false);
-    }
+    const result: any = await lookupAccountByNumberAction(query);
+    setGuardianPreview(
+      result?.status === "success" ? (result.data?.customer ?? null) : null,
+    );
+
+    setGuardianLookupLoading(false);
   }
 
   const [businessLike, setBusinessLike] = useState({
@@ -195,7 +204,8 @@ export default function EditCustomerPage({
   });
 
   const [business, setBusiness] = useState({
-    business_name: customer.business?.business_name ?? customer.business_name ?? "",
+    business_name:
+      customer.business?.business_name ?? customer.business_name ?? "",
     trading_name: customer.business?.trading_name ?? "",
     business_type: customer.business?.business_type ?? "",
     registration_number: customer.business?.registration_number ?? "",
@@ -229,8 +239,10 @@ export default function EditCustomerPage({
   // existing metadata, and custom-labelled document uploads.
   const [metadata, setMetadata] = useState(() =>
     Array.isArray(customer.metadata)
-      ? customer.metadata.map((field: Record<string, any>) => newMetadataField(field))
-      : []
+      ? customer.metadata.map((field: Record<string, any>) =>
+          newMetadataField(field),
+        )
+      : [],
   );
   const [customDocuments, setCustomDocuments] = useState<
     { key: number; label: string; file: File | null }[]
@@ -239,7 +251,7 @@ export default function EditCustomerPage({
   function updateField(
     setter: (updater: (current: any) => any) => void,
     name: string,
-    value: any
+    value: any,
   ) {
     setter((current: any) => ({ ...current, [name]: value }));
   }
@@ -248,10 +260,10 @@ export default function EditCustomerPage({
     setter: (updater: (current: any[]) => any[]) => void,
     key: number,
     name: string,
-    value: any
+    value: any,
   ) {
     setter((current: any[]) =>
-      current.map((row) => (row.key === key ? { ...row, [name]: value } : row))
+      current.map((row) => (row.key === key ? { ...row, [name]: value } : row)),
     );
   }
 
@@ -259,89 +271,90 @@ export default function EditCustomerPage({
     event.preventDefault();
     setSubmitting(true);
 
-    try {
-      const formData = new FormData();
+    const formData = new FormData();
 
-      formData.set("branch_id", common.branch_id);
-      formData.set("account_officer_id", common.account_officer_id);
-      formData.set("phone", common.phone);
-      formData.set("email", common.email);
+    formData.set("branch_id", common.branch_id);
+    formData.set("account_officer_id", common.account_officer_id);
+    formData.set("phone", common.phone);
+    formData.set("email", common.email);
 
-      formData.set("title", person.title);
-      formData.set("first_name", person.first_name);
-      formData.set("middle_name", person.middle_name);
-      formData.set("last_name", person.last_name);
+    formData.set("title", person.title);
+    formData.set("first_name", person.first_name);
+    formData.set("middle_name", person.middle_name);
+    formData.set("last_name", person.last_name);
 
-      if (profilePicture) formData.set("profile_picture", profilePicture);
-      if (utilityBill) formData.set("utility_bill", utilityBill);
-      if (validId) formData.set("valid_id", validId);
+    if (profilePicture) formData.set("profile_picture", profilePicture);
+    if (utilityBill) formData.set("utility_bill", utilityBill);
+    if (validId) formData.set("valid_id", validId);
 
-      if (isIndividual) {
-        Object.entries(individual).forEach(([field, value]) => {
-          formData.set(field, (value as string) ?? "");
-        });
-
-        // Only send guardian_id if the admin actually looked up a (new) guardian this
-        // session — omitting it entirely leaves the existing guardian untouched
-        // (guardian_id is 'sometimes' on the API, a true partial update).
-        if (isMinor && guardianPreview?.id) {
-          formData.set("guardian_id", String(guardianPreview.id));
-        } else if (!isMinor && customer.guardian_id) {
-          // Checkbox was unticked on a customer that previously had a guardian — clear it.
-          formData.set("guardian_id", "");
-        }
-      } else if (businessLikeType) {
-        formData.set("legal_form", businessLike.legal_form);
-        formData.set("rc_number", businessLike.rc_number);
-
-        if (businessLogo) formData.set("business_logo", businessLogo);
-
-        Object.entries(business).forEach(([field, value]) => {
-          formData.set(`business[${field}]`, (value as string) ?? "");
-        });
-      }
-
-      formData.set("address[type]", address.type);
-      formData.set("address[address]", address.address);
-      formData.set("address[lgs]", address.lgs);
-      formData.set("address[city]", address.city);
-      formData.set("address[state]", address.state);
-      formData.set("address[country]", address.country);
-
-      // Sending the full array replaces the customer's metadata wholesale.
-      metadata.forEach((field, index) => {
-        formData.set(`metadata[${index}][label]`, field.label);
-        formData.set(`metadata[${index}][value]`, field.value ?? "");
+    if (isIndividual) {
+      Object.entries(individual).forEach(([field, value]) => {
+        formData.set(field, (value as string) ?? "");
       });
 
-      const result: any = await updateCustomerAction(customer.id, formData);
-
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to update customer.");
-        return;
+      // Only send guardian_id if the admin actually looked up a (new) guardian this
+      // session — omitting it entirely leaves the existing guardian untouched
+      // (guardian_id is 'sometimes' on the API, a true partial update).
+      if (isMinor && guardianPreview?.id) {
+        formData.set("guardian_id", String(guardianPreview.id));
+      } else if (!isMinor && customer.guardian_id) {
+        // Checkbox was unticked on a customer that previously had a guardian — clear it.
+        formData.set("guardian_id", "");
       }
+    } else if (businessLikeType) {
+      formData.set("legal_form", businessLike.legal_form);
+      formData.set("rc_number", businessLike.rc_number);
 
-      const documentsToUpload = customDocuments.filter((doc) => doc.file);
-      if (documentsToUpload.length > 0) {
-        const documentsFormData = new FormData();
-        documentsToUpload.forEach((doc, index) => {
-          documentsFormData.set(slugifyDocumentLabel(doc.label, index), doc.file as File);
-        });
+      if (businessLogo) formData.set("business_logo", businessLogo);
 
-        const uploadResult: any = await uploadCustomerDocumentsAction(customer.id, documentsFormData);
-        if (uploadResult?.status !== "success") {
-          toast.warning("Customer updated, but some documents failed to upload.");
-        }
-      }
-
-      toast.success(result.message || "Customer updated successfully.");
-      router.push(`/customer-management/customer/${customer.id}`);
-    } catch (error) {
-      console.error("Failed to update customer:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+      Object.entries(business).forEach(([field, value]) => {
+        formData.set(`business[${field}]`, (value as string) ?? "");
+      });
     }
+
+    formData.set("address[type]", address.type);
+    formData.set("address[address]", address.address);
+    formData.set("address[lgs]", address.lgs);
+    formData.set("address[city]", address.city);
+    formData.set("address[state]", address.state);
+    formData.set("address[country]", address.country);
+
+    // Sending the full array replaces the customer's metadata wholesale.
+    metadata.forEach((field, index) => {
+      formData.set(`metadata[${index}][label]`, field.label);
+      formData.set(`metadata[${index}][value]`, field.value ?? "");
+    });
+
+    const result: any = await updateCustomerAction(customer.id, formData);
+
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to update customer.");
+      setSubmitting(false);
+      return;
+    }
+
+    const documentsToUpload = customDocuments.filter((doc) => doc.file);
+    if (documentsToUpload.length > 0) {
+      const documentsFormData = new FormData();
+      documentsToUpload.forEach((doc, index) => {
+        documentsFormData.set(
+          slugifyDocumentLabel(doc.label, index),
+          doc.file as File,
+        );
+      });
+
+      const uploadResult: any = await uploadCustomerDocumentsAction(
+        customer.id,
+        documentsFormData,
+      );
+      if (uploadResult?.status !== "success") {
+        toast.warning("Customer updated, but some documents failed to upload.");
+      }
+    }
+
+    toast.success(result.message || "Customer updated successfully.");
+    router.push(`/customer-management/customer/${customer.id}`);
+    setSubmitting(false);
   }
 
   return (
@@ -355,9 +368,12 @@ export default function EditCustomerPage({
           Back to Customer
         </Link>
 
-        <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">Edit Customer</h1>
+        <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900">
+          Edit Customer
+        </h1>
         <p className="mt-1 text-sm text-slate-600 capitalize">
-          {customer.customer_type} • {customer.cif_number || `CUS-${customer.id}`}
+          {customer.customer_type} •{" "}
+          {customer.cif_number || `CUS-${customer.id}`}
         </p>
       </div>
 
@@ -367,7 +383,9 @@ export default function EditCustomerPage({
             <Select
               label="Branch"
               value={common.branch_id}
-              onChange={(e) => updateField(setCommon, "branch_id", e.target.value)}
+              onChange={(e) =>
+                updateField(setCommon, "branch_id", e.target.value)
+              }
             >
               <option value="">Select branch</option>
               {branches.map((branch) => (
@@ -380,7 +398,9 @@ export default function EditCustomerPage({
             <Select
               label="Account Officer"
               value={common.account_officer_id}
-              onChange={(e) => updateField(setCommon, "account_officer_id", e.target.value)}
+              onChange={(e) =>
+                updateField(setCommon, "account_officer_id", e.target.value)
+              }
             >
               <option value="">Select account officer</option>
               {accountOfficers.map((officer) => (
@@ -395,7 +415,9 @@ export default function EditCustomerPage({
             <Input
               label="Phone"
               value={common.phone}
-              onChange={(e) => updateField(setCommon, "phone", onlyDigits(e.target.value, 15))}
+              onChange={(e) =>
+                updateField(setCommon, "phone", onlyDigits(e.target.value, 15))
+              }
               maxLength={15}
             />
             <Input
@@ -408,7 +430,9 @@ export default function EditCustomerPage({
           </div>
         </Section>
 
-        <Section title={businessLikeType ? "Contact Person" : "Personal Information"}>
+        <Section
+          title={businessLikeType ? "Contact Person" : "Personal Information"}
+        >
           <div className="grid grid-cols-4 gap-4">
             <Select
               label="Title"
@@ -416,7 +440,16 @@ export default function EditCustomerPage({
               onChange={(e) => updateField(setPerson, "title", e.target.value)}
             >
               <option value="">—</option>
-              {["Mr", "Mrs", "Miss", "Master", "Dr", "Chief", "Alhaji", "Alhaja"].map((title) => (
+              {[
+                "Mr",
+                "Mrs",
+                "Miss",
+                "Master",
+                "Dr",
+                "Chief",
+                "Alhaji",
+                "Alhaja",
+              ].map((title) => (
                 <option key={title} value={title}>
                   {title}
                 </option>
@@ -425,17 +458,31 @@ export default function EditCustomerPage({
             <Input
               label="First Name"
               value={person.first_name}
-              onChange={(e) => updateField(setPerson, "first_name", onlyLetters(e.target.value))}
+              onChange={(e) =>
+                updateField(
+                  setPerson,
+                  "first_name",
+                  onlyLetters(e.target.value),
+                )
+              }
             />
             <Input
               label="Middle Name"
               value={person.middle_name}
-              onChange={(e) => updateField(setPerson, "middle_name", onlyLetters(e.target.value))}
+              onChange={(e) =>
+                updateField(
+                  setPerson,
+                  "middle_name",
+                  onlyLetters(e.target.value),
+                )
+              }
             />
             <Input
               label="Last Name"
               value={person.last_name}
-              onChange={(e) => updateField(setPerson, "last_name", onlyLetters(e.target.value))}
+              onChange={(e) =>
+                updateField(setPerson, "last_name", onlyLetters(e.target.value))
+              }
             />
           </div>
 
@@ -445,7 +492,9 @@ export default function EditCustomerPage({
                 <Select
                   label="Gender"
                   value={individual.gender}
-                  onChange={(e) => updateField(setIndividual, "gender", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "gender", e.target.value)
+                  }
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -453,7 +502,9 @@ export default function EditCustomerPage({
                 <Select
                   label="Marital Status"
                   value={individual.marital_status}
-                  onChange={(e) => updateField(setIndividual, "marital_status", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "marital_status", e.target.value)
+                  }
                 >
                   <option value="single">Single</option>
                   <option value="married">Married</option>
@@ -464,7 +515,9 @@ export default function EditCustomerPage({
                   label="Date of Birth"
                   type="date"
                   value={individual.dob}
-                  onChange={(e) => updateField(setIndividual, "dob", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "dob", e.target.value)
+                  }
                 />
               </div>
 
@@ -472,12 +525,16 @@ export default function EditCustomerPage({
                 <Input
                   label="Occupation"
                   value={individual.occupation}
-                  onChange={(e) => updateField(setIndividual, "occupation", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "occupation", e.target.value)
+                  }
                 />
                 <Select
                   label="Working Status"
                   value={individual.working_status}
-                  onChange={(e) => updateField(setIndividual, "working_status", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "working_status", e.target.value)
+                  }
                 >
                   <option value="employed">Employed</option>
                   <option value="self_employed">Self-Employed</option>
@@ -491,12 +548,20 @@ export default function EditCustomerPage({
                 <Input
                   label="Mother's Maiden Name"
                   value={individual.mother_maiden_name}
-                  onChange={(e) => updateField(setIndividual, "mother_maiden_name", e.target.value)}
+                  onChange={(e) =>
+                    updateField(
+                      setIndividual,
+                      "mother_maiden_name",
+                      e.target.value,
+                    )
+                  }
                 />
                 <Input
                   label="Spouse Name"
                   value={individual.spouse_name}
-                  onChange={(e) => updateField(setIndividual, "spouse_name", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "spouse_name", e.target.value)
+                  }
                 />
               </div>
 
@@ -504,19 +569,33 @@ export default function EditCustomerPage({
                 <Input
                   label="BVN"
                   value={individual.bvn}
-                  onChange={(e) => updateField(setIndividual, "bvn", onlyDigits(e.target.value, 11))}
+                  onChange={(e) =>
+                    updateField(
+                      setIndividual,
+                      "bvn",
+                      onlyDigits(e.target.value, 11),
+                    )
+                  }
                   maxLength={11}
                 />
                 <Input
                   label="NIN"
                   value={individual.nin_number}
-                  onChange={(e) => updateField(setIndividual, "nin_number", onlyDigits(e.target.value, 11))}
+                  onChange={(e) =>
+                    updateField(
+                      setIndividual,
+                      "nin_number",
+                      onlyDigits(e.target.value, 11),
+                    )
+                  }
                   maxLength={11}
                 />
                 <Input
                   label="TIN"
                   value={individual.tin}
-                  onChange={(e) => updateField(setIndividual, "tin", e.target.value)}
+                  onChange={(e) =>
+                    updateField(setIndividual, "tin", e.target.value)
+                  }
                 />
               </div>
 
@@ -534,7 +613,9 @@ export default function EditCustomerPage({
                   }}
                   className="h-4 w-4 rounded border-slate-300 text-[#173673] focus:ring-[#29478f]"
                 />
-                <span className="text-sm font-bold text-slate-800">This customer is a minor</span>
+                <span className="text-sm font-bold text-slate-800">
+                  This customer is a minor
+                </span>
               </label>
 
               {isMinor && (
@@ -562,7 +643,8 @@ export default function EditCustomerPage({
                     )}
                     {!guardianLookupLoading && guardianPreview && (
                       <span className="text-xs font-semibold text-emerald-700">
-                        Guardian: {guardianPreview.full_name} ({guardianPreview.cif_number})
+                        Guardian: {guardianPreview.full_name} (
+                        {guardianPreview.cif_number})
                       </span>
                     )}
                   </span>
@@ -594,7 +676,9 @@ export default function EditCustomerPage({
               <Select
                 label="Legal Form"
                 value={businessLike.legal_form}
-                onChange={(e) => updateField(setBusinessLike, "legal_form", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusinessLike, "legal_form", e.target.value)
+                }
               >
                 <option value="">Select legal form</option>
                 {LEGAL_FORMS.map((form) => (
@@ -606,7 +690,9 @@ export default function EditCustomerPage({
               <Input
                 label="RC Number"
                 value={businessLike.rc_number}
-                onChange={(e) => updateField(setBusinessLike, "rc_number", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusinessLike, "rc_number", e.target.value)
+                }
               />
             </div>
           )}
@@ -618,12 +704,16 @@ export default function EditCustomerPage({
               <Input
                 label="Business Name"
                 value={business.business_name}
-                onChange={(e) => updateField(setBusiness, "business_name", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_name", e.target.value)
+                }
               />
               <Input
                 label="Trading Name"
                 value={business.trading_name}
-                onChange={(e) => updateField(setBusiness, "trading_name", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "trading_name", e.target.value)
+                }
               />
             </div>
 
@@ -631,7 +721,9 @@ export default function EditCustomerPage({
               <Select
                 label="Business Type"
                 value={business.business_type}
-                onChange={(e) => updateField(setBusiness, "business_type", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_type", e.target.value)
+                }
               >
                 <option value="">Select business type</option>
                 {BUSINESS_TYPES.map((type) => (
@@ -643,7 +735,13 @@ export default function EditCustomerPage({
               <Input
                 label="Registration Number"
                 value={business.registration_number}
-                onChange={(e) => updateField(setBusiness, "registration_number", e.target.value)}
+                onChange={(e) =>
+                  updateField(
+                    setBusiness,
+                    "registration_number",
+                    e.target.value,
+                  )
+                }
               />
             </div>
 
@@ -652,13 +750,17 @@ export default function EditCustomerPage({
                 label="Registration Date"
                 type="date"
                 value={business.registration_date}
-                onChange={(e) => updateField(setBusiness, "registration_date", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "registration_date", e.target.value)
+                }
               />
               <Input
                 label="Incorporation Date"
                 type="date"
                 value={business.incorporation_date}
-                onChange={(e) => updateField(setBusiness, "incorporation_date", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "incorporation_date", e.target.value)
+                }
               />
             </div>
 
@@ -666,12 +768,16 @@ export default function EditCustomerPage({
               <Input
                 label="Nature of Business"
                 value={business.nature_of_business}
-                onChange={(e) => updateField(setBusiness, "nature_of_business", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "nature_of_business", e.target.value)
+                }
               />
               <Input
                 label="Industry"
                 value={business.industry}
-                onChange={(e) => updateField(setBusiness, "industry", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "industry", e.target.value)
+                }
               />
             </div>
 
@@ -679,12 +785,16 @@ export default function EditCustomerPage({
               <Input
                 label="Business TIN"
                 value={business.tin}
-                onChange={(e) => updateField(setBusiness, "tin", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "tin", e.target.value)
+                }
               />
               <Input
                 label="VAT Number"
                 value={business.vat_number}
-                onChange={(e) => updateField(setBusiness, "vat_number", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "vat_number", e.target.value)
+                }
               />
             </div>
 
@@ -693,7 +803,11 @@ export default function EditCustomerPage({
                 label="Business Phone"
                 value={business.business_phone}
                 onChange={(e) =>
-                  updateField(setBusiness, "business_phone", onlyDigits(e.target.value, 15))
+                  updateField(
+                    setBusiness,
+                    "business_phone",
+                    onlyDigits(e.target.value, 15),
+                  )
                 }
                 maxLength={15}
               />
@@ -702,14 +816,18 @@ export default function EditCustomerPage({
                 type="email"
                 pattern={EMAIL_PATTERN}
                 value={business.business_email}
-                onChange={(e) => updateField(setBusiness, "business_email", e.target.value)}
+                onChange={(e) =>
+                  updateField(setBusiness, "business_email", e.target.value)
+                }
               />
             </div>
 
             <Input
               label="Website"
               value={business.website}
-              onChange={(e) => updateField(setBusiness, "website", e.target.value)}
+              onChange={(e) =>
+                updateField(setBusiness, "website", e.target.value)
+              }
               placeholder="https://"
             />
           </Section>
@@ -717,9 +835,12 @@ export default function EditCustomerPage({
 
         <Section title="Identity Documents">
           <p className="text-xs font-medium text-slate-500">
-            Only choose a file for documents you want to replace — everything else stays as-is.
+            Only choose a file for documents you want to replace — everything
+            else stays as-is.
           </p>
-          <div className={`grid gap-4 ${businessLikeType ? "grid-cols-4" : "grid-cols-3"}`}>
+          <div
+            className={`grid gap-4 ${businessLikeType ? "grid-cols-4" : "grid-cols-3"}`}
+          >
             <FileInput
               label="Profile Picture"
               existingUrl={existingDocumentUrl(customer, "profile_picture")}
@@ -750,9 +871,13 @@ export default function EditCustomerPage({
         <RepeatingSection
           title="Additional Documents"
           rows={customDocuments}
-          onAdd={() => setCustomDocuments((current) => [...current, newCustomDocument()])}
+          onAdd={() =>
+            setCustomDocuments((current) => [...current, newCustomDocument()])
+          }
           onRemove={(key) =>
-            setCustomDocuments((current) => current.filter((row) => row.key !== key))
+            setCustomDocuments((current) =>
+              current.filter((row) => row.key !== key),
+            )
           }
           minRows={0}
           renderRow={(doc) => (
@@ -760,12 +885,21 @@ export default function EditCustomerPage({
               <Input
                 label="Document Label"
                 value={doc.label}
-                onChange={(e) => updateRow(setCustomDocuments, doc.key, "label", e.target.value)}
+                onChange={(e) =>
+                  updateRow(
+                    setCustomDocuments,
+                    doc.key,
+                    "label",
+                    e.target.value,
+                  )
+                }
                 placeholder="e.g. Proof of Address"
               />
               <FileInput
                 label="File"
-                onChange={(file) => updateRow(setCustomDocuments, doc.key, "file", file)}
+                onChange={(file) =>
+                  updateRow(setCustomDocuments, doc.key, "file", file)
+                }
               />
             </div>
           )}
@@ -776,21 +910,29 @@ export default function EditCustomerPage({
         <RepeatingSection
           title="Custom Fields"
           rows={metadata}
-          onAdd={() => setMetadata((current) => [...current, newMetadataField()])}
-          onRemove={(key) => setMetadata((current) => current.filter((row) => row.key !== key))}
+          onAdd={() =>
+            setMetadata((current) => [...current, newMetadataField()])
+          }
+          onRemove={(key) =>
+            setMetadata((current) => current.filter((row) => row.key !== key))
+          }
           minRows={0}
           renderRow={(field) => (
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Label"
                 value={field.label}
-                onChange={(e) => updateRow(setMetadata, field.key, "label", e.target.value)}
+                onChange={(e) =>
+                  updateRow(setMetadata, field.key, "label", e.target.value)
+                }
                 placeholder="e.g. Referral Source"
               />
               <Input
                 label="Value"
                 value={field.value}
-                onChange={(e) => updateRow(setMetadata, field.key, "value", e.target.value)}
+                onChange={(e) =>
+                  updateRow(setMetadata, field.key, "value", e.target.value)
+                }
               />
             </div>
           )}
@@ -811,7 +953,9 @@ export default function EditCustomerPage({
             <Input
               label="Street Address"
               value={address.address}
-              onChange={(e) => updateField(setAddress, "address", e.target.value)}
+              onChange={(e) =>
+                updateField(setAddress, "address", e.target.value)
+              }
             />
           </div>
 
@@ -840,8 +984,8 @@ export default function EditCustomerPage({
           />
 
           <p className="text-xs font-medium text-slate-500">
-            Saving a changed address here demotes the current address to previous and records this
-            as the new current address.
+            Saving a changed address here demotes the current address to
+            previous and records this as the new current address.
           </p>
         </Section>
 
@@ -869,7 +1013,9 @@ export default function EditCustomerPage({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+      <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -893,7 +1039,9 @@ function RepeatingSection({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">
+          {title}
+        </h2>
         <button
           type="button"
           onClick={onAdd}
@@ -906,7 +1054,10 @@ function RepeatingSection({
 
       <div className="mt-4 space-y-4">
         {rows.map((row, index) => (
-          <div key={row.key} className="rounded-xl border border-slate-200 p-4 space-y-4">
+          <div
+            key={row.key}
+            className="rounded-xl border border-slate-200 p-4 space-y-4"
+          >
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 {title} #{index + 1}
@@ -926,7 +1077,9 @@ function RepeatingSection({
           </div>
         ))}
 
-        {rows.length === 0 && <p className="text-xs font-medium text-slate-500">None added.</p>}
+        {rows.length === 0 && (
+          <p className="text-xs font-medium text-slate-500">None added.</p>
+        )}
       </div>
     </section>
   );

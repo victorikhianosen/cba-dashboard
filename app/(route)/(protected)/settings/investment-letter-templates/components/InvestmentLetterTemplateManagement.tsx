@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { CheckCircle2, Edit3, FileText, ImageIcon, Plus, Star, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  Edit3,
+  FileText,
+  ImageIcon,
+  Plus,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { toast } from "react-toastify";
 import {
   createInvestmentLetterTemplateAction,
@@ -31,9 +39,13 @@ export default function InvestmentLetterTemplateManagement({
   const [pageLoading, setPageLoading] = useState(false);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null,
+  );
 
-  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<Template | null>(
+    null,
+  );
   const [actionMenuId, setActionMenuId] = useState<any>(null);
 
   const [submitting, setSubmitting] = useState(false);
@@ -42,22 +54,18 @@ export default function InvestmentLetterTemplateManagement({
 
   async function fetchTemplates() {
     setPageLoading(true);
-    try {
-      const result: any = await getInvestmentLetterTemplatesAction(1);
+    const result: any = await getInvestmentLetterTemplatesAction(1);
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to load templates.");
-        return;
-      }
-
-      setTemplates(Array.isArray(result.data) ? result.data : []);
-      setMeta(result.meta ?? null);
-    } catch (error) {
-      console.error("Failed to load investment letter templates:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to load templates.");
       setPageLoading(false);
+      return;
     }
+
+    setTemplates(Array.isArray(result.data) ? result.data : []);
+    setMeta(result.meta ?? null);
+
+    setPageLoading(false);
   }
 
   function openCreateDrawer() {
@@ -80,89 +88,88 @@ export default function InvestmentLetterTemplateManagement({
 
   async function handleFormSubmit(formData: FormData) {
     setSubmitting(true);
-    try {
-      if (selectedTemplate) {
-        const result: any = await updateInvestmentLetterTemplateAction(selectedTemplate.id, formData);
+    if (selectedTemplate) {
+      const result: any = await updateInvestmentLetterTemplateAction(
+        selectedTemplate.id,
+        formData,
+      );
 
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to update template.");
-          return;
-        }
-
-        await fetchTemplates();
-        toast.success(result.message || "Template updated successfully.");
-      } else {
-        const result: any = await createInvestmentLetterTemplateAction(formData);
-
-        if (result?.status !== "success") {
-          handleApiError(result, "Failed to create template.");
-          return;
-        }
-
-        await fetchTemplates();
-        toast.success(result.message || "Template created successfully.");
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to update template.");
+        setSubmitting(false);
+        return;
       }
-      setDrawerOpen(false);
-      setSelectedTemplate(null);
-    } catch (error) {
-      console.error("Failed to save investment letter template:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
-      setSubmitting(false);
+
+      await fetchTemplates();
+      toast.success(result.message || "Template updated successfully.");
+    } else {
+      const result: any = await createInvestmentLetterTemplateAction(formData);
+
+      if (result?.status !== "success") {
+        handleApiError(result, "Failed to create template.");
+        setSubmitting(false);
+        return;
+      }
+
+      await fetchTemplates();
+      toast.success(result.message || "Template created successfully.");
     }
+    setDrawerOpen(false);
+    setSelectedTemplate(null);
+
+    setSubmitting(false);
   }
 
   async function handleSetDefault(template: Template) {
     setSettingDefaultId(template.id);
     setActionMenuId(null);
-    try {
-      const result: any = await setDefaultInvestmentLetterTemplateAction(template.id);
+    const result: any = await setDefaultInvestmentLetterTemplateAction(
+      template.id,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to set default template.");
-        return;
-      }
-
-      await fetchTemplates();
-      toast.success(result.message || "Default template updated.");
-    } catch (error) {
-      console.error("Failed to set default investment letter template:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to set default template.");
       setSettingDefaultId(null);
+      return;
     }
+
+    await fetchTemplates();
+    toast.success(result.message || "Default template updated.");
+
+    setSettingDefaultId(null);
   }
 
   async function handleDelete() {
     if (!templateToDelete) return;
     setDeleting(true);
-    try {
-      const result: any = await deleteInvestmentLetterTemplateAction(templateToDelete.id);
+    const result: any = await deleteInvestmentLetterTemplateAction(
+      templateToDelete.id,
+    );
 
-      if (result?.status !== "success") {
-        handleApiError(result, "Failed to delete template.");
-        return;
-      }
-
-      setTemplateToDelete(null);
-      await fetchTemplates();
-      toast.success(result.message || "Template deleted successfully.");
-    } catch (error) {
-      console.error("Failed to delete investment letter template:", error);
-      toast.error("A network error occurred. Please try again.");
-    } finally {
+    if (result?.status !== "success") {
+      handleApiError(result, "Failed to delete template.");
       setDeleting(false);
+      return;
     }
+
+    setTemplateToDelete(null);
+    await fetchTemplates();
+    toast.success(result.message || "Template deleted successfully.");
+
+    setDeleting(false);
   }
 
   return (
     <>
       <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Investment Letter Templates</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Investment Letter Templates
+          </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Manage letterhead and signatories used when printing investment letters — the
-            template marked Default is used automatically for every letter.
+            Manage letterhead and signatories used when printing investment
+            letters — the template marked Default is used automatically for
+            every letter.
           </p>
         </div>
 
@@ -190,7 +197,10 @@ export default function InvestmentLetterTemplateManagement({
 
             <tbody className="divide-y divide-slate-100">
               {templates.map((template) => (
-                <tr key={template.id} className="hover:bg-slate-50/80 transition-colors">
+                <tr
+                  key={template.id}
+                  className="hover:bg-slate-50/80 transition-colors"
+                >
                   <td className="px-5 py-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
@@ -205,12 +215,16 @@ export default function InvestmentLetterTemplateManagement({
                           <ImageIcon size={18} className="text-slate-400" />
                         )}
                       </div>
-                      <p className="font-bold text-sm text-slate-900">{template.name}</p>
+                      <p className="font-bold text-sm text-slate-900">
+                        {template.name}
+                      </p>
                     </div>
                   </td>
 
                   <td className="px-5 text-sm font-medium text-slate-700">
-                    {[template.signatory_one_name, template.signatory_two_name].filter(Boolean).join(", ") || "—"}
+                    {[template.signatory_one_name, template.signatory_two_name]
+                      .filter(Boolean)
+                      .join(", ") || "—"}
                   </td>
 
                   <td className="px-5">
@@ -220,14 +234,20 @@ export default function InvestmentLetterTemplateManagement({
                         Default
                       </span>
                     ) : (
-                      <span className="text-xs font-medium text-slate-400">—</span>
+                      <span className="text-xs font-medium text-slate-400">
+                        —
+                      </span>
                     )}
                   </td>
 
                   <td className="px-5">
                     <ActionMenu
                       isOpen={actionMenuId === template.id}
-                      onToggle={() => setActionMenuId(actionMenuId === template.id ? null : template.id)}
+                      onToggle={() =>
+                        setActionMenuId(
+                          actionMenuId === template.id ? null : template.id,
+                        )
+                      }
                       onClose={() => setActionMenuId(null)}
                     >
                       <ActionButton onClick={() => openUpdateDrawer(template)}>
@@ -268,9 +288,16 @@ export default function InvestmentLetterTemplateManagement({
 
               {!pageLoading && templates.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-5 py-16 text-center text-sm font-medium text-slate-500">
-                    <FileText size={28} className="mx-auto mb-3 text-slate-300" />
-                    No letter templates yet. Create one to customize investment letters.
+                  <td
+                    colSpan={4}
+                    className="px-5 py-16 text-center text-sm font-medium text-slate-500"
+                  >
+                    <FileText
+                      size={28}
+                      className="mx-auto mb-3 text-slate-300"
+                    />
+                    No letter templates yet. Create one to customize investment
+                    letters.
                   </td>
                 </tr>
               )}
@@ -281,7 +308,8 @@ export default function InvestmentLetterTemplateManagement({
         {meta && (
           <div className="border-t border-slate-200 p-5 bg-slate-50">
             <p className="text-sm font-medium text-slate-600">
-              Showing {meta.from ?? 0}-{meta.to ?? 0} of {meta.total ?? templates.length} templates
+              Showing {meta.from ?? 0}-{meta.to ?? 0} of{" "}
+              {meta.total ?? templates.length} templates
             </p>
           </div>
         )}
@@ -302,9 +330,12 @@ export default function InvestmentLetterTemplateManagement({
               <Trash2 size={24} />
             </div>
 
-            <h2 className="mt-5 text-xl font-bold text-slate-900">Delete Template?</h2>
+            <h2 className="mt-5 text-xl font-bold text-slate-900">
+              Delete Template?
+            </h2>
             <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-              Are you sure you want to delete <b>{templateToDelete.name}</b>? This action cannot be undone.
+              Are you sure you want to delete <b>{templateToDelete.name}</b>?
+              This action cannot be undone.
             </p>
 
             <div className="mt-7 flex justify-end gap-3">
