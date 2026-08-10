@@ -90,6 +90,15 @@ export default function UserDetail({
     event: ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     const { name, value } = event.target;
+
+    if (name === "phone") {
+      const sanitized = value.replace(/(?!^\+)[^\d]/g, "");
+      const digitsOnly = sanitized.replace("+", "").slice(0, 15);
+      const nextValue = (sanitized.startsWith("+") ? "+" : "") + digitsOnly;
+      setFormData((current) => ({ ...current, phone: nextValue }));
+      return;
+    }
+
     setFormData((current) => ({ ...current, [name]: value }));
   }
 

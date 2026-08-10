@@ -20,6 +20,13 @@ export default function UserForm({
 }: UserFormProps) {
   return (
     <div className="space-y-5">
+      {mode === "create" && (
+        <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+          A username and temporary password will be generated automatically and emailed to this
+          address once the account is created.
+        </p>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Input
           label="First Name"
@@ -56,13 +63,6 @@ export default function UserForm({
         onChange={onChange}
         placeholder="e.g. staff@bank.com"
       />
-
-      {mode === "create" && (
-        <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-          A username and temporary password will be generated automatically and emailed to this
-          address once the account is created.
-        </p>
-      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="block">
@@ -114,6 +114,8 @@ export default function UserForm({
         value={formData.phone}
         onChange={onChange}
         placeholder="e.g. +2348012345678"
+        inputMode="tel"
+        maxLength={16}
       />
 
       <Input

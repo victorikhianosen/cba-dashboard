@@ -17,9 +17,11 @@ import {
   FileCheck2,
   FileText,
   Footprints,
+  HandCoins,
   KeyRound,
   Landmark,
   LayoutDashboard,
+  Layers,
   LineChart,
   ListChecks,
   LogOut,
@@ -95,7 +97,7 @@ export const menuItems: MenuItem[] = [
     permission: "view_account_officers",
   },
   {
-    name: "Customer Mgt",
+    name: "Customer Management",
     icon: CreditCard,
     children: [
       {
@@ -162,6 +164,24 @@ export const menuItems: MenuItem[] = [
         href: "/settings/investment-letter-templates",
         icon: FileText,
         permission: "view_investment_letter_templates",
+      },
+    ],
+  },
+  {
+    name: "Loan Management",
+    icon: HandCoins,
+    children: [
+      {
+        name: "Loan",
+        href: "/loan-management/loan",
+        icon: HandCoins,
+        permission: "view_loans",
+      },
+      {
+        name: "Loan Product",
+        href: "/loan-management/loan-product",
+        icon: Layers,
+        permission: "view_loan_products",
       },
     ],
   },
@@ -250,7 +270,7 @@ export const menuItems: MenuItem[] = [
     ],
   },
   {
-    name: "User Mgt",
+    name: "User Management",
     icon: Users,
     children: [
       {
